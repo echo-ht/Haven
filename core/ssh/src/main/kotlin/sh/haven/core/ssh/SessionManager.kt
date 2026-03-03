@@ -26,6 +26,7 @@ enum class SessionManager(
         { name -> "zellij attach $name --create" },
         "zellij ls 2>/dev/null",
         { name -> "zellij kill-session $name 2>/dev/null; zellij delete-session $name 2>/dev/null" },
+        { old, new -> "zellij delete-session $new 2>/dev/null; zellij --session $old action rename-session $new" },
     ),
     SCREEN("screen",
         { name -> "screen -dRR $name" },

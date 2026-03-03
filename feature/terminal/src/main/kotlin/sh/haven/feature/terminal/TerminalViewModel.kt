@@ -366,6 +366,7 @@ class TerminalViewModel @Inject constructor(
         val sessionNames: List<String>,
         val sessionId: String,
         val manager: SessionManager = SessionManager.NONE,
+        val error: String? = null,
     )
 
     private val _newTabSessionPicker = MutableStateFlow<NewTabSessionSelection?>(null)
@@ -530,9 +531,16 @@ class TerminalViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
+                val renameResult = withContext(Dispatchers.IO) {
                     session.client.execCommand(renameCmd)
                 }
+                val renameError = if (renameResult.exitStatus != 0) {
+                    Log.w(TAG, "renameRemoteSession failed: exit=${renameResult.exitStatus} stderr='${renameResult.stderr}'")
+
+                    renameResult.stderr.ifBlank { "Rename failed (exit ${renameResult.exitStatus})" }
+                } else null
+                // Give the session manager a moment to propagate the rename
+                kotlinx.coroutines.delay(500)
                 val listCmd = sel.manager.listCommand ?: return@launch
                 val updated = withContext(Dispatchers.IO) {
                     try {
@@ -545,7 +553,7 @@ class TerminalViewModel @Inject constructor(
                     }
                 }
                 if (updated.isNotEmpty()) {
-                    _newTabSessionPicker.value = sel.copy(sessionNames = updated)
+                    _newTabSessionPicker.value = sel.copy(sessionNames = updated, error = renameError)
                 } else {
                     _newTabSessionPicker.value = null
                 }

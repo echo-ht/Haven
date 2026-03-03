@@ -113,6 +113,7 @@ fun TerminalScreen(
             sessionNames = selection.sessionNames,
             canKill = selection.manager.killCommand != null,
             canRename = selection.manager.renameCommand != null,
+            error = selection.error,
             onSelect = { name -> viewModel.onNewTabSessionSelected(selection.sessionId, name) },
             onKill = { name -> viewModel.killRemoteSession(name) },
             onRename = { old, new -> viewModel.renameRemoteSession(old, new) },
@@ -270,6 +271,7 @@ private fun NewTabSessionPickerDialog(
     sessionNames: List<String>,
     canKill: Boolean = false,
     canRename: Boolean = false,
+    error: String? = null,
     onSelect: (String) -> Unit,
     onKill: (String) -> Unit = {},
     onRename: (old: String, new: String) -> Unit = { _, _ -> },
@@ -294,6 +296,13 @@ private fun NewTabSessionPickerDialog(
         title = { Text("$managerLabel sessions") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
                 sessionNames.forEach { name ->
                     ListItem(
                         headlineContent = { Text(name) },

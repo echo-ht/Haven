@@ -420,9 +420,16 @@ class ConnectionsViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
+                val renameResult = withContext(Dispatchers.IO) {
                     session.client.execCommand(renameCmd)
                 }
+                if (renameResult.exitStatus != 0) {
+                    Log.w(TAG, "renameRemoteSession failed: exit=${renameResult.exitStatus} stderr='${renameResult.stderr}'")
+
+                    _error.value = renameResult.stderr.ifBlank { "Rename failed (exit ${renameResult.exitStatus})" }
+                }
+                // Give the session manager a moment to propagate the rename
+                kotlinx.coroutines.delay(500)
                 // Refresh the session list
                 val listCmd = sel.manager.listCommand ?: return@launch
                 val updated = withContext(Dispatchers.IO) {
