@@ -1,19 +1,40 @@
-Haven is an open source SSH and SFTP client for Android.
+Haven is an open-source SSH and SFTP client for Android.
 
 Connect to your servers with a full terminal emulator, browse and transfer files over SFTP, and manage your SSH keys — all from your phone.
 
-Features:
-- SSH terminal with multiple tabs per server
-- Reticulum support (rnsh via Sideband or direct TCP gateway)
+Terminal:
+- Full VT100/xterm terminal emulator with Unicode support (Hack font)
+- Multiple tabs per server
 - Session manager integration (tmux, zellij, screen, byobu)
-- Mouse mode / swipe-to-scroll for TUI apps (Zellij, vim, etc.)
-- Auto-reconnect with exponential backoff
-- SFTP file browser for uploading and downloading files
-- SSH key generation and management (Ed25519, RSA, ECDSA)
+- Mouse mode with scroll events for TUI apps (vim, zellij, htop)
+- Keyboard toolbar with Esc, Tab, Ctrl, Alt, arrow keys, and shell symbols
+- Text selection with word expansion, d-pad adjustment, copy, and Open URL
+- 6 color schemes: Haven, Classic Green, Light, Solarized Dark, Dracula, Monokai
+- Configurable font size (8–32 sp)
+
+OSC escape sequence support:
+- OSC 52: remote clipboard set
+- OSC 8: hyperlinks
+- OSC 9/777: terminal notifications (toast or Android notification)
+- OSC 7: working directory tracking
+
+Networking:
+- SSH with auto-reconnect and exponential backoff
+- Reticulum support via rnsh (Sideband or direct TCP gateway) with announce-based discovery
+- Trust-on-first-use host key verification with fingerprint display
+
+File transfer:
+- SFTP file browser with upload, download, delete, and path copy
+- Sort by name, size, or date; toggle hidden files
+
+Security:
+- SSH key generation (Ed25519, RSA, ECDSA) with encrypted storage
 - Biometric app lock (fingerprint or face)
-- Configurable terminal font size
+- No ads, no tracking, no data collection
+- All data stays on your device
+
+Appearance:
 - Light, dark, and system-default themes
 - Material You dynamic colors on Android 12+
-- No ads, no tracking, no data collection
 
-Haven connects only to servers you configure. All data stays on your device.
+Haven is free and open source (MIT license). Source code available on GitHub.
