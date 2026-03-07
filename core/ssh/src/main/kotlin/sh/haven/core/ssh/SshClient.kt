@@ -184,11 +184,12 @@ class SshClient : Closeable {
     }
 
     /**
-     * Disconnect the current session if connected.
+     * Disconnect the current session and clear loaded identities.
      */
     fun disconnect() {
         session?.disconnect()
         session = null
+        jsch.removeAllIdentity()
     }
 
     override fun close() = disconnect()
@@ -200,6 +201,8 @@ class SshClient : Closeable {
          * where the system resolver tries unicast DNS first with a ~4s timeout).
          */
         private val dnsCache = ConcurrentHashMap<String, String>()
+
+        fun clearDnsCache() { dnsCache.clear() }
 
         /**
          * Resolve a hostname to an IP address string.

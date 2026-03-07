@@ -330,6 +330,7 @@ class SshSessionManager @Inject constructor(
         _sessions.update { emptyMap() }
         ioExecutor.execute {
             snapshot.forEach { tearDown(it) }
+            SshClient.clearDnsCache()
         }
     }
 
@@ -379,5 +380,8 @@ class SshSessionManager @Inject constructor(
         try { session.client.disconnect() } catch (e: Exception) {
             Log.e(TAG, "tearDown: client.disconnect() failed", e)
         }
+        // Zero out key material so it doesn't linger in heap
+        (session.connectionConfig?.authMethod as? ConnectionConfig.AuthMethod.PrivateKey)
+            ?.keyBytes?.fill(0)
     }
 }
