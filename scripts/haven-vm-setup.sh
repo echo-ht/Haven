@@ -1,6 +1,10 @@
 #!/bin/bash
 # Haven Linux VM Setup
 # Run this in the Android Terminal app
+#
+# Usage:
+#   Download and run:  curl -sLO https://raw.githubusercontent.com/GlassOnTin/Haven/main/scripts/haven-vm-setup.sh && bash haven-vm-setup.sh
+#   Or pipe (skips VNC password prompt):  curl -sL ... | bash
 
 set -e
 
@@ -19,8 +23,14 @@ sudo apt install -y tigervnc-standalone-server tigervnc-common \
     xfce4 xfce4-terminal dbus-x11 xfonts-base
 
 echo "=== Setting VNC password ==="
-echo "Enter a VNC password:"
-vncpasswd
+if [ -t 0 ]; then
+    # Interactive — prompt for password
+    vncpasswd
+else
+    # Piped — set a default password, user can change later with vncpasswd
+    echo -e "haven\nhaven\nn" | vncpasswd >/dev/null 2>&1
+    echo "VNC password set to 'haven' — change with: vncpasswd"
+fi
 
 echo "=== Creating VNC startup config ==="
 mkdir -p ~/.vnc

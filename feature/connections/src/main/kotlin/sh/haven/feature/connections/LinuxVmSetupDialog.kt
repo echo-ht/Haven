@@ -37,7 +37,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private const val QUICK_SETUP = """curl -sL https://raw.githubusercontent.com/GlassOnTin/Haven/main/scripts/haven-vm-setup.sh | bash"""
+private const val QUICK_SETUP = """curl -sLO https://raw.githubusercontent.com/GlassOnTin/Haven/main/scripts/haven-vm-setup.sh && bash haven-vm-setup.sh"""
 
 private const val SSH_SETUP = """sudo apt update && sudo apt install -y openssh-server
 sudo sed -i 's/#Port 22/Port 8022/' /etc/ssh/sshd_config
