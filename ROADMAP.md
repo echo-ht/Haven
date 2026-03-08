@@ -14,6 +14,8 @@
 - [x] **Port forwarding** — Local (`-L`) and remote (`-R`) SSH port forwarding with visual flow diagrams showing tunnel direction. Rules persist across sessions, auto-activate on connect, restore on reconnect. Live add/edit/remove on active sessions with port validation.
 - [x] **ProxyJump / multi-hop tunneling** — `ssh -J` style jump hosts via JSch direct-tcpip channels. Jump host selector in connection editor, tree view of dependencies, cascade disconnect, and terminal access on the jump host with tmux/screen session flow.
 - [x] **Backup & restore** — Encrypted export/import of SSH keys, connections, port forward rules, known hosts, and settings. AES-256-GCM with PBKDF2 key derivation, accessible from Settings.
+- [x] **Custom session commands** — Override the default tmux/byobu/screen/zellij command template with a custom command using `{name}` placeholder for session name.
+- [x] **Per-connection SSH options** — Freeform ssh_config-style options (Key Value per line) applied as JSch session config per connection profile.
 
 ## Near-term
 
