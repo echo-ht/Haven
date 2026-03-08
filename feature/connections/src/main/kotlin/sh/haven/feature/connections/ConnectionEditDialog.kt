@@ -119,7 +119,7 @@ fun ConnectionEditDialog(
                             }
                             .take(8)
                     }
-                    if (filteredHosts.isNotEmpty()) {
+                    if (filteredHosts.isNotEmpty() && filteredHosts.size <= 3) {
                         Text(
                             text = "Discovered (${filteredHosts.size})",
                             style = MaterialTheme.typography.labelMedium,
@@ -150,14 +150,72 @@ fun ConnectionEditDialog(
                         Spacer(Modifier.height(4.dp))
                     }
 
-                    OutlinedTextField(
-                        value = host,
-                        onValueChange = { host = it },
-                        label = { Text("Host") },
-                        placeholder = { Text("192.168.1.1") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    // Host field with discovered hosts dropdown when > 3
+                    var hostExpanded by remember { mutableStateOf(false) }
+                    if (filteredHosts.size > 3) {
+                        ExposedDropdownMenuBox(
+                            expanded = hostExpanded,
+                            onExpandedChange = { hostExpanded = it },
+                        ) {
+                            OutlinedTextField(
+                                value = host,
+                                onValueChange = {
+                                    host = it
+                                    hostExpanded = true
+                                },
+                                label = { Text("Host") },
+                                placeholder = { Text("192.168.1.1") },
+                                singleLine = true,
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = hostExpanded)
+                                },
+                                supportingText = {
+                                    Text("${filteredHosts.size} hosts discovered")
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(MenuAnchorType.PrimaryEditable),
+                            )
+                            ExposedDropdownMenu(
+                                expanded = hostExpanded,
+                                onDismissRequest = { hostExpanded = false },
+                            ) {
+                                filteredHosts.forEach { disc ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(disc.hostname ?: disc.address)
+                                                if (disc.hostname != null) {
+                                                    Text(
+                                                        disc.address + if (disc.port != 22) ":${disc.port}" else "",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            host = disc.address
+                                            if (disc.port != 22) port = disc.port.toString()
+                                            if (label.isBlank() && disc.hostname != null) {
+                                                label = disc.hostname
+                                            }
+                                            hostExpanded = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = host,
+                            onValueChange = { host = it },
+                            label = { Text("Host") },
+                            placeholder = { Text("192.168.1.1") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -37,8 +37,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private const val QUICK_SETUP = """curl -sL https://raw.githubusercontent.com/GlassOnTin/Haven/main/scripts/haven-vm-setup.sh | bash"""
+
 private const val SSH_SETUP = """sudo apt update && sudo apt install -y openssh-server
 sudo sed -i 's/#Port 22/Port 8022/' /etc/ssh/sshd_config
+sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sudo systemctl enable --now ssh"""
 
 private const val VNC_SETUP = """sudo apt install -y tigervnc-standalone-server dbus-x11
@@ -84,6 +87,18 @@ fun LinuxVmSetupDialog(
                     }
                     Spacer(Modifier.height(16.dp))
                 }
+
+                // Quick setup
+                Text("Quick setup", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Paste this in the Terminal app to install SSH, VNC, and Xfce4:",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(4.dp))
+                CodeBlock(code = QUICK_SETUP, context = context)
+
+                Spacer(Modifier.height(16.dp))
 
                 // Launch Terminal app
                 Text("1. Start the Linux VM", style = MaterialTheme.typography.titleSmall)
