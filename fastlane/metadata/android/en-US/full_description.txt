@@ -37,4 +37,4 @@ Appearance:
 - Light, dark, and system-default themes
 - Material You dynamic colors on Android 12+
 
-Haven is free and open source (MIT license). Source code available on GitHub.
+Haven is free and open source (GPLv3). Source code available on GitHub.
