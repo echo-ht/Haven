@@ -23,7 +23,7 @@
 
 ## Medium-term
 
-- [ ] **Agent forwarding** — SSH agent forwarding for key-based authentication to hop hosts.
+- [ ] **Agent forwarding** — SSH agent forwarding for key-based authentication to hop hosts. Note: ProxyJump already solves multi-hop more securely (keys never leave the device). Agent forwarding is mainly useful for workflows like `git push` from a remote server using your local key.
 - [ ] **Snippet/command library** — Save and recall frequently used commands.
 - [ ] **Connection groups/folders** — Organize saved connections by project or environment.
 
