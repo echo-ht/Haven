@@ -40,15 +40,20 @@ The F-Droid metadata lives in a GitLab fork:
 - MR: `fdroid/fdroiddata!33920`
 
 Edit `metadata/sh.haven.app.yml`:
-- Add a new build entry under `Builds:`
+- **Replace** the single build entry (only keep the latest version)
+- Use the **full commit hash**, not the tag name
 - Update `CurrentVersion` and `CurrentVersionCode`
+
+```bash
+# Get the commit hash for the tag
+git rev-parse v<x.y.z>
+```
 
 ```yaml
 Builds:
-  # ... existing entries ...
   - versionName: <x.y.z>
     versionCode: <code>
-    commit: v<x.y.z>
+    commit: <full commit hash>
     subdir: app
     gradle:
       - yes
