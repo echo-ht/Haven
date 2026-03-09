@@ -544,7 +544,11 @@ class TerminalViewModel @Inject constructor(
      * Add a new tab by creating a fresh connection to the same server as the current tab.
      */
     fun addTab() {
-        val activeTab = _tabs.value.getOrNull(_activeTabIndex.value) ?: return
+        val activeTab = _tabs.value.getOrNull(_activeTabIndex.value)
+        if (activeTab == null) {
+            Log.w(TAG, "addTab: no active tab (index=${_activeTabIndex.value}, tabs=${_tabs.value.size})")
+            return
+        }
 
         if (activeTab.transportType == "RETICULUM") {
             addReticulumTab(activeTab)
@@ -553,17 +557,20 @@ class TerminalViewModel @Inject constructor(
 
         // SSH tab — existing logic
         val profileId = activeTab.profileId
-        val configPair = sessionManager.getConnectionConfigForProfile(profileId) ?: return
+        val configPair = sessionManager.getConnectionConfigForProfile(profileId)
+        if (configPair == null) {
+            Log.w(TAG, "addTab: no connection config for profile $profileId (sessions=${sessionManager.sessions.value.keys})")
+            return
+        }
         val (config, sshSessionMgr) = configPair
 
         val label = activeTab.label.replace(Regex(" \\(\\d+\\)$"), "")
 
         viewModelScope.launch {
             _newTabLoading.value = true
+            val client = SshClient()
+            val sessionId = sessionManager.registerSession(profileId, label, client)
             try {
-                val client = SshClient()
-                val sessionId = sessionManager.registerSession(profileId, label, client)
-
                 val hostKeyEntry = withContext(Dispatchers.IO) {
                     client.connect(config)
                 }
@@ -613,6 +620,7 @@ class TerminalViewModel @Inject constructor(
                 finishNewSshTab(sessionId)
             } catch (e: Exception) {
                 Log.e(TAG, "addTab failed", e)
+                sessionManager.removeSession(sessionId)
             } finally {
                 _newTabLoading.value = false
             }

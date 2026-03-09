@@ -368,7 +368,16 @@ class SshSessionManager @Inject constructor(
         val session = _sessions.value.values
             .firstOrNull { it.profileId == profileId && it.connectionConfig != null }
             ?: return null
-        return session.connectionConfig!! to session.sessionManager
+        // Deep-copy key material so tearDown() zeroing one session's bytes
+        // doesn't corrupt the config for other sessions sharing the same profile.
+        val config = session.connectionConfig!!
+        val safeCopy = when (val auth = config.authMethod) {
+            is ConnectionConfig.AuthMethod.PrivateKey -> config.copy(
+                authMethod = auth.copy(keyBytes = auth.keyBytes.copyOf())
+            )
+            else -> config
+        }
+        return safeCopy to session.sessionManager
     }
 
     fun removeAllSessionsForProfile(profileId: String) {
