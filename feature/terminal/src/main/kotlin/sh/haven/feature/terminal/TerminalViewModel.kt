@@ -6,14 +6,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.connectbot.terminal.TerminalEmulator
 import org.connectbot.terminal.TerminalEmulatorFactory
 import sh.haven.core.ssh.ConnectionConfig
@@ -493,6 +496,21 @@ class TerminalViewModel @Inject constructor(
         val index = _tabs.value.indexOfFirst { it.profileId == profileId }
         if (index >= 0) {
             _activeTabIndex.value = index
+        } else {
+            // Tab not yet created by syncSessions — wait for it
+            viewModelScope.launch {
+                try {
+                    withTimeout(5000) {
+                        _tabs.first { tabs -> tabs.any { it.profileId == profileId } }
+                    }
+                    val newIndex = _tabs.value.indexOfFirst { it.profileId == profileId }
+                    if (newIndex >= 0) {
+                        _activeTabIndex.value = newIndex
+                    }
+                } catch (_: TimeoutCancellationException) {
+                    Log.w(TAG, "selectTabByProfileId: tab for $profileId not created within 5s")
+                }
+            }
         }
     }
 

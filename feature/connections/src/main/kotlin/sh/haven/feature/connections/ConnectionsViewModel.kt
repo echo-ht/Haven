@@ -306,11 +306,15 @@ class ConnectionsViewModel @Inject constructor(
             val client = SshClient()
             val sessionId = sshSessionManager.registerSession(profile.id, profile.label, client)
 
+            // Track whether we auto-created the jump session (for cleanup on failure)
+            var autoCreatedJumpSessionId: String? = null
             try {
                 // If profile has a jump host, establish that connection first
                 val jumpProfileId = profile.jumpProfileId
                 val jumpSessionId = if (jumpProfileId != null) {
-                    connectJumpHost(jumpProfileId, password)
+                    val (jid, reused) = connectJumpHost(jumpProfileId, password)
+                    if (!reused) autoCreatedJumpSessionId = jid
+                    jid
                 } else null
 
                 if (jumpSessionId != null) {
@@ -329,13 +333,8 @@ class ConnectionsViewModel @Inject constructor(
 
                     // Create proxy through jump host if applicable
                     val proxy = jumpSessionId?.let { jid ->
-                        val p = sshSessionManager.createProxyJump(jid)
-                        if (p == null) {
-                            Log.w(TAG, "createProxyJump returned null for jump session $jid")
-                        } else {
-                            Log.d(TAG, "ProxyJump created via jump session $jid")
-                        }
-                        p
+                        sshSessionManager.createProxyJump(jid)
+                            ?: throw Exception("Jump host session not usable for tunneling")
                     }
                     Log.d(TAG, "Connecting to ${config.host}:${config.port} (proxy=${proxy != null})")
                     val hostKeyEntry = client.connect(config, proxy = proxy)
@@ -405,6 +404,11 @@ class ConnectionsViewModel @Inject constructor(
                 Log.e(TAG, "connectSsh failed for ${profile.label}: ${e.message}", e)
                 sshSessionManager.updateStatus(sessionId, SshSessionManager.SessionState.Status.ERROR)
                 sshSessionManager.removeSession(sessionId)
+                // Clean up auto-created jump session if the final host failed
+                autoCreatedJumpSessionId?.let { jid ->
+                    Log.d(TAG, "Cleaning up auto-created jump session $jid")
+                    sshSessionManager.removeSession(jid)
+                }
                 val msg = e.message ?: ""
                 val isAuthError = keyOnly && (
                     msg.contains("Auth fail", ignoreCase = true) ||
@@ -577,18 +581,22 @@ class ConnectionsViewModel @Inject constructor(
      * Connect to a jump host profile, reusing an existing connected session if available.
      * Returns the sessionId of the connected jump host session.
      */
-    private suspend fun connectJumpHost(jumpProfileId: String, password: String): String {
+    /**
+     * Returns Pair(sessionId, reused) — reused=true if an existing session was used.
+     */
+    private suspend fun connectJumpHost(jumpProfileId: String, password: String): Pair<String, Boolean> {
         // Reuse existing connected session for this jump profile
         val existing = sshSessionManager.getSessionsForProfile(jumpProfileId)
             .firstOrNull { it.status == SshSessionManager.SessionState.Status.CONNECTED }
         if (existing != null) {
             Log.d(TAG, "Reusing existing jump host session ${existing.sessionId}")
-            return existing.sessionId
+            return existing.sessionId to true
         }
 
         val jumpProfile = repository.getById(jumpProfileId)
             ?: throw Exception("Jump host profile not found")
 
+        Log.d(TAG, "Auto-connecting jump host: ${jumpProfile.label} (${jumpProfile.host}:${jumpProfile.port})")
         val jumpClient = SshClient()
         val jumpSessionId = sshSessionManager.registerSession(jumpProfileId, "Jump: ${jumpProfile.label}", jumpClient)
 
@@ -601,7 +609,9 @@ class ConnectionsViewModel @Inject constructor(
                 authMethod = authMethod,
                 sshOptions = ConnectionConfig.parseSshOptions(jumpProfile.sshOptions),
             )
+            Log.d(TAG, "Jump host SSH connecting...")
             val hostKeyEntry = jumpClient.connect(config)
+            Log.d(TAG, "Jump host SSH connected, verifying host key...")
 
             // TOFU for jump host
             when (val result = hostKeyVerifier.verify(hostKeyEntry)) {
@@ -634,8 +644,8 @@ class ConnectionsViewModel @Inject constructor(
         }
 
         sshSessionManager.updateStatus(jumpSessionId, SshSessionManager.SessionState.Status.CONNECTED)
-        Log.d(TAG, "Jump host connected: ${jumpProfile.label} ($jumpSessionId)")
-        return jumpSessionId
+        Log.d(TAG, "Jump host connected: ${jumpProfile.label} ($jumpSessionId), isConnected=${jumpClient.isConnected}")
+        return jumpSessionId to false
     }
 
     private suspend fun finishConnect(sessionId: String, profileId: String) {
@@ -738,7 +748,11 @@ class ConnectionsViewModel @Inject constructor(
         val session = sshSessionManager.getSessionsForProfile(profileId)
             .firstOrNull { it.status == SshSessionManager.SessionState.Status.CONNECTED }
             ?: return
-        if (session.shellChannel != null) return
+        if (session.shellChannel != null) {
+            // Shell already open — navigate directly
+            _navigateToTerminal.value = profileId
+            return
+        }
 
         viewModelScope.launch {
             _connectingProfileId.value = profileId

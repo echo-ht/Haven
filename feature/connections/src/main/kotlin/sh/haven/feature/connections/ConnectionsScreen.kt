@@ -74,6 +74,19 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import sh.haven.core.data.db.entities.ConnectionProfile
+import sh.haven.core.ssh.SshSessionManager
+
+/** Profile group colors — matches TAB_GROUP_COLORS in TerminalScreen. */
+private val PROFILE_COLORS = listOf(
+    Color(0xFF42A5F5), // blue
+    Color(0xFF66BB6A), // green
+    Color(0xFFFF7043), // orange
+    Color(0xFFAB47BC), // purple
+    Color(0xFFFFCA28), // amber
+    Color(0xFF26C6DA), // cyan
+    Color(0xFFEF5350), // red
+    Color(0xFF8D6E63), // brown
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -84,6 +97,20 @@ fun ConnectionsScreen(
     val connections by viewModel.connections.collectAsState()
     val sshKeys by viewModel.sshKeys.collectAsState()
     val profileStatuses by viewModel.profileStatuses.collectAsState()
+    val sessions by viewModel.sessions.collectAsState()
+
+    // Derive profile colors matching terminal tab colors (by session registration order)
+    val profileColors = remember(sessions) {
+        sessions.values
+            .filter {
+                it.status == SshSessionManager.SessionState.Status.CONNECTED ||
+                    it.status == SshSessionManager.SessionState.Status.RECONNECTING
+            }
+            .map { it.profileId }
+            .distinct()
+            .withIndex()
+            .associate { (i, id) -> id to PROFILE_COLORS[i % PROFILE_COLORS.size] }
+    }
     val discoveredDestinations by viewModel.discoveredDestinations.collectAsState()
     val discoveredHosts by viewModel.discoveredHosts.collectAsState()
     val localVmStatus by viewModel.localVmStatus.collectAsState()
@@ -341,7 +368,6 @@ fun ConnectionsScreen(
                         onClick = {
                             quickConnectAction(
                                 quickConnectText, viewModel, sshKeys,
-                                onNavigateToTerminal,
                                 { connectingProfile = it },
                                 { quickConnectText = "" },
                             )
@@ -356,7 +382,6 @@ fun ConnectionsScreen(
                     onGo = {
                         quickConnectAction(
                             quickConnectText, viewModel, sshKeys,
-                            onNavigateToTerminal,
                             { connectingProfile = it },
                             { quickConnectText = "" },
                         )
@@ -396,11 +421,12 @@ fun ConnectionsScreen(
                                 indent = 0,
                                 isLastChild = false,
                                 profileStatuses = profileStatuses,
+                                profileColors = profileColors,
                                 isConnecting = connectingProfileId == profile.id,
                                 hasKeys = sshKeys.isNotEmpty(),
                                 hasDependents = profile.id in dependentsByJump,
                                 jumpHostLabel = profile.jumpProfileId?.let { profileMap[it]?.label },
-                                onTap = { onTapProfile(profile, profileStatuses[profile.id], sshKeys, onNavigateToTerminal, viewModel) { connectingProfile = profile } },
+                                onTap = { onTapProfile(profile, profileStatuses[profile.id], sshKeys, viewModel) { connectingProfile = profile } },
                                 onRename = { newLabel -> viewModel.saveConnection(profile.copy(label = newLabel)) },
                                 onEdit = { editingProfile = profile },
                                 onDelete = { viewModel.deleteConnection(profile.id) },
@@ -418,11 +444,12 @@ fun ConnectionsScreen(
                                     indent = 1,
                                     isLastChild = index == deps.lastIndex,
                                     profileStatuses = profileStatuses,
+                                    profileColors = profileColors,
                                     isConnecting = connectingProfileId == dep.id,
                                     hasKeys = sshKeys.isNotEmpty(),
                                     hasDependents = false,
                                     jumpHostLabel = null,
-                                    onTap = { onTapProfile(dep, profileStatuses[dep.id], sshKeys, onNavigateToTerminal, viewModel) { connectingProfile = dep } },
+                                    onTap = { onTapProfile(dep, profileStatuses[dep.id], sshKeys, viewModel) { connectingProfile = dep } },
                                     onRename = { newLabel -> viewModel.saveConnection(dep.copy(label = newLabel)) },
                                     onEdit = { editingProfile = dep },
                                     onDelete = { viewModel.deleteConnection(dep.id) },
@@ -444,7 +471,6 @@ private fun quickConnectAction(
     input: String,
     viewModel: ConnectionsViewModel,
     sshKeys: List<sh.haven.core.data.db.entities.SshKey>,
-    onNavigateToTerminal: (String) -> Unit,
     showPasswordDialog: (ConnectionProfile) -> Unit,
     clearInput: () -> Unit,
 ) {
@@ -466,14 +492,13 @@ private fun onTapProfile(
     profile: ConnectionProfile,
     profileStatus: ProfileStatus?,
     sshKeys: List<sh.haven.core.data.db.entities.SshKey>,
-    onNavigateToTerminal: (String) -> Unit,
     viewModel: ConnectionsViewModel,
     showPasswordDialog: () -> Unit,
 ) {
     if (profileStatus == ProfileStatus.CONNECTED) {
-        // Ensure shell is open (jump host sessions may not have one yet)
+        // ensureShellForProfile navigates via _navigateToTerminal when ready
+        // (handles jump host sessions that need shell setup or session picker)
         viewModel.ensureShellForProfile(profile.id)
-        onNavigateToTerminal(profile.id)
     } else if (profile.isReticulum) {
         viewModel.connect(profile, "")
     } else if (sshKeys.isNotEmpty()) {
@@ -490,6 +515,7 @@ private fun ConnectionTreeItem(
     indent: Int,
     isLastChild: Boolean,
     profileStatuses: Map<String, ProfileStatus>,
+    profileColors: Map<String, Color>,
     isConnecting: Boolean,
     hasKeys: Boolean,
     hasDependents: Boolean,
@@ -565,7 +591,7 @@ private fun ConnectionTreeItem(
                         profileStatus == ProfileStatus.CONNECTED -> Icon(
                             Icons.Filled.Circle,
                             contentDescription = "Connected",
-                            tint = Color(0xFF4CAF50),
+                            tint = profileColors[profile.id] ?: Color(0xFF4CAF50),
                             modifier = Modifier.size(12.dp),
                         )
                         profileStatus == ProfileStatus.ERROR -> Icon(

@@ -416,9 +416,21 @@ class SshSessionManager @Inject constructor(
      * Returns null if the session doesn't exist or isn't connected.
      */
     fun createProxyJump(jumpSessionId: String): ProxyJump? {
-        val jumpSession = _sessions.value[jumpSessionId] ?: return null
-        if (jumpSession.status != SessionState.Status.CONNECTED) return null
-        val jschSession = jumpSession.client.jschSession ?: return null
+        val jumpSession = _sessions.value[jumpSessionId]
+        if (jumpSession == null) {
+            Log.w(TAG, "createProxyJump: session $jumpSessionId not found in sessions map")
+            return null
+        }
+        if (jumpSession.status != SessionState.Status.CONNECTED) {
+            Log.w(TAG, "createProxyJump: session $jumpSessionId status=${jumpSession.status}, expected CONNECTED")
+            return null
+        }
+        val jschSession = jumpSession.client.jschSession
+        if (jschSession == null) {
+            Log.w(TAG, "createProxyJump: session $jumpSessionId has no jschSession (client.isConnected=${jumpSession.client.isConnected})")
+            return null
+        }
+        Log.d(TAG, "createProxyJump: success for $jumpSessionId (jsch connected=${jschSession.isConnected})")
         return ProxyJump(jschSession)
     }
 
