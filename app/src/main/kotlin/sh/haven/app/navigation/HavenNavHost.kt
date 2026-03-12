@@ -55,6 +55,8 @@ fun HavenNavHost(
 
     // Profile ID to focus when navigating to terminal
     var pendingTerminalProfileId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Profile ID for opening a new session (new tab) on an existing connection
+    var pendingNewSessionProfileId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // VNC auto-connect params from terminal
     var pendingVncHost by rememberSaveable { mutableStateOf<String?>(null) }
@@ -110,10 +112,17 @@ fun HavenNavHost(
                             pagerState.animateScrollToPage(Screen.Terminal.ordinal)
                         }
                     },
+                    onNavigateToNewSession = { profileId ->
+                        pendingNewSessionProfileId = profileId
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(Screen.Terminal.ordinal)
+                        }
+                    },
                 )
                 Screen.Terminal -> {
                     TerminalScreen(
                         navigateToProfileId = pendingTerminalProfileId,
+                        newSessionProfileId = pendingNewSessionProfileId,
                         isActive = pagerState.settledPage == Screen.Terminal.ordinal,
                         fontSize = terminalFontSize,
                         toolbarLayout = toolbarLayout,
@@ -142,6 +151,11 @@ fun HavenNavHost(
                     LaunchedEffect(pendingTerminalProfileId) {
                         if (pendingTerminalProfileId != null) {
                             pendingTerminalProfileId = null
+                        }
+                    }
+                    LaunchedEffect(pendingNewSessionProfileId) {
+                        if (pendingNewSessionProfileId != null) {
+                            pendingNewSessionProfileId = null
                         }
                     }
                 }

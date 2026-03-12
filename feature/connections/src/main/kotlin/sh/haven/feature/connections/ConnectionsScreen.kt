@@ -92,6 +92,7 @@ private val PROFILE_COLORS = listOf(
 @Composable
 fun ConnectionsScreen(
     onNavigateToTerminal: (profileId: String) -> Unit = {},
+    onNavigateToNewSession: (profileId: String) -> Unit = {},
     viewModel: ConnectionsViewModel = hiltViewModel(),
 ) {
     val connections by viewModel.connections.collectAsState()
@@ -122,10 +123,18 @@ fun ConnectionsScreen(
     val passwordFallback by viewModel.passwordFallback.collectAsState()
     val hostKeyPrompt by viewModel.hostKeyPrompt.collectAsState()
     val globalSessionManagerLabel by viewModel.globalSessionManagerLabel.collectAsState()
+    val newSessionProfileId by viewModel.newSessionProfileId.collectAsState()
 
     LaunchedEffect(navigateToTerminal) {
         navigateToTerminal?.let { profileId ->
             onNavigateToTerminal(profileId)
+            viewModel.onNavigated()
+        }
+    }
+
+    LaunchedEffect(newSessionProfileId) {
+        newSessionProfileId?.let { profileId ->
+            onNavigateToNewSession(profileId)
             viewModel.onNavigated()
         }
     }
@@ -434,6 +443,7 @@ fun ConnectionsScreen(
                                 onDeployKey = { deployingProfile = profile },
                                 onConnectWithPassword = { connectingProfile = profile },
                                 onPortForwards = { portForwardProfile = profile },
+                                onNewSession = { viewModel.openNewSession(profile.id) },
                             )
                         }
                         val deps = dependentsByJump[profile.id].orEmpty()
@@ -457,6 +467,7 @@ fun ConnectionsScreen(
                                     onDeployKey = { deployingProfile = dep },
                                     onConnectWithPassword = { connectingProfile = dep },
                                     onPortForwards = { portForwardProfile = dep },
+                                    onNewSession = { viewModel.openNewSession(dep.id) },
                                 )
                             }
                         }
@@ -528,6 +539,7 @@ private fun ConnectionTreeItem(
     onDeployKey: () -> Unit,
     onConnectWithPassword: () -> Unit,
     onPortForwards: () -> Unit,
+    onNewSession: () -> Unit,
 ) {
     val profileStatus = profileStatuses[profile.id]
     var showMenu by remember { mutableStateOf(false) }
@@ -643,6 +655,13 @@ private fun ConnectionTreeItem(
                     text = { Text("Connect with password") },
                     leadingIcon = { Icon(Icons.Filled.Password, null) },
                     onClick = { showMenu = false; onConnectWithPassword() },
+                )
+            }
+            if (profile.isSsh && profileStatus == ProfileStatus.CONNECTED) {
+                DropdownMenuItem(
+                    text = { Text("New Session") },
+                    leadingIcon = { Icon(Icons.Filled.Add, null) },
+                    onClick = { showMenu = false; onNewSession() },
                 )
             }
             if (profileStatus == ProfileStatus.CONNECTED) {

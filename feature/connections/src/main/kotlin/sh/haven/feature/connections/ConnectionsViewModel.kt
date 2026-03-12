@@ -154,6 +154,10 @@ class ConnectionsViewModel @Inject constructor(
     private val _navigateToTerminal = MutableStateFlow<String?>(null)
     val navigateToTerminal: StateFlow<String?> = _navigateToTerminal.asStateFlow()
 
+    /** Emitted to open a new session (new tab) on an already-connected profile. */
+    private val _newSessionProfileId = MutableStateFlow<String?>(null)
+    val newSessionProfileId: StateFlow<String?> = _newSessionProfileId.asStateFlow()
+
     /** When non-null, the UI should show a session picker dialog. */
     data class SessionSelection(
         val sessionId: String,
@@ -168,6 +172,12 @@ class ConnectionsViewModel @Inject constructor(
 
     fun onNavigated() {
         _navigateToTerminal.value = null
+        _newSessionProfileId.value = null
+    }
+
+    /** Open a new terminal session on an already-connected profile. */
+    fun openNewSession(profileId: String) {
+        _newSessionProfileId.value = profileId
     }
 
     data class DiscoveredDestination(val hash: String, val hops: Int)

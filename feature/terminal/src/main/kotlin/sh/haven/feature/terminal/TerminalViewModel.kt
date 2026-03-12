@@ -573,16 +573,26 @@ class TerminalViewModel @Inject constructor(
             return
         }
 
-        // SSH tab — existing logic
-        val profileId = activeTab.profileId
+        addSshTabForProfile(activeTab.profileId)
+    }
+
+    /**
+     * Add a new SSH tab for a profile by creating a fresh connection.
+     * Called from [addTab] (clone current tab) and from the Connections screen
+     * "New Session" context menu item.
+     */
+    fun addSshTabForProfile(profileId: String) {
         val configPair = sessionManager.getConnectionConfigForProfile(profileId)
         if (configPair == null) {
-            Log.w(TAG, "addTab: no connection config for profile $profileId (sessions=${sessionManager.sessions.value.keys})")
+            Log.w(TAG, "addSshTabForProfile: no connection config for profile $profileId")
             return
         }
         val (config, sshSessionMgr) = configPair
 
-        val label = activeTab.label.replace(Regex(" \\(\\d+\\)$"), "")
+        // Derive label from an existing tab or the profile's config host
+        val existingTab = _tabs.value.firstOrNull { it.profileId == profileId }
+        val label = existingTab?.label?.replace(Regex(" \\(\\d+\\)$"), "")
+            ?: config.host
 
         viewModelScope.launch {
             _newTabLoading.value = true
@@ -637,7 +647,7 @@ class TerminalViewModel @Inject constructor(
 
                 finishNewSshTab(sessionId)
             } catch (e: Exception) {
-                Log.e(TAG, "addTab failed", e)
+                Log.e(TAG, "addSshTabForProfile failed", e)
                 sessionManager.removeSession(sessionId)
             } finally {
                 _newTabLoading.value = false

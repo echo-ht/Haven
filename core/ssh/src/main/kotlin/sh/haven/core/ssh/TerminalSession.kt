@@ -6,6 +6,8 @@ import java.io.Closeable
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 private const val TAG = "TerminalSession"
@@ -30,13 +32,17 @@ class TerminalSession(
     @Volatile private var sshInput: InputStream = channel.inputStream
     @Volatile private var sshOutput: OutputStream = channel.outputStream
 
-    /** Single-thread executor for serialising writes off the main thread. */
-    private val writeExecutor = Executors.newSingleThreadExecutor { r ->
+    /** Single-thread executor for serialising writes and scheduling debounced resizes. */
+    private val writeExecutor = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "ssh-writer-$sessionId").apply { isDaemon = true }
     }
 
     @Volatile
     private var closed = false
+
+    /** Pending debounced resize — cancelled on each new resize call. */
+    @Volatile
+    private var pendingResize: ScheduledFuture<*>? = null
 
     private var readerThread: Thread? = null
 
@@ -131,17 +137,20 @@ class TerminalSession(
     }
 
     fun resize(cols: Int, rows: Int) {
-        Log.d(TAG, "resize requested: ${cols}x${rows} closed=$closed")
         if (closed || writeExecutor.isShutdown) return
+        // Debounce: cancel any pending resize and schedule a new one.
+        // During keyboard/tab animations the terminal view resizes every frame;
+        // only the final size matters for the remote PTY.
+        pendingResize?.cancel(false)
         try {
-            writeExecutor.execute {
+            pendingResize = writeExecutor.schedule({
                 try {
                     Log.d(TAG, "setPtySize: ${cols}x${rows}")
                     client.resizeShell(channel, cols, rows)
                 } catch (e: Exception) {
                     Log.e(TAG, "resize failed", e)
                 }
-            }
+            }, 150, TimeUnit.MILLISECONDS)
         } catch (_: java.util.concurrent.RejectedExecutionException) {
             // Executor shut down between check and execute — ignore
         }

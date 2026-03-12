@@ -92,6 +92,7 @@ private val TAB_GROUP_COLORS = listOf(
 @Composable
 fun TerminalScreen(
     navigateToProfileId: String? = null,
+    newSessionProfileId: String? = null,
     isActive: Boolean = false,
     terminalModifier: Modifier = Modifier,
     fontSize: Int = UserPreferencesRepository.DEFAULT_FONT_SIZE,
@@ -141,6 +142,13 @@ fun TerminalScreen(
     LaunchedEffect(navigateToProfileId) {
         if (navigateToProfileId != null) {
             viewModel.selectTabByProfileId(navigateToProfileId)
+        }
+    }
+
+    // Open new session (new tab) for profile if requested from Connections screen
+    LaunchedEffect(newSessionProfileId) {
+        if (newSessionProfileId != null) {
+            viewModel.addSshTabForProfile(newSessionProfileId)
         }
     }
 
