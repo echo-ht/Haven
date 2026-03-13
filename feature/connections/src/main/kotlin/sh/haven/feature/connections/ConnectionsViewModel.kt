@@ -210,7 +210,17 @@ class ConnectionsViewModel @Inject constructor(
         networkDiscovery.start()
         viewModelScope.launch {
             networkDiscovery.scanLocalVm()
+        }
+    }
+
+    private val _subnetScanning = MutableStateFlow(false)
+    val subnetScanning: StateFlow<Boolean> = _subnetScanning.asStateFlow()
+
+    fun scanSubnet() {
+        viewModelScope.launch {
+            _subnetScanning.value = true
             networkDiscovery.scanSubnet()
+            _subnetScanning.value = false
         }
     }
 

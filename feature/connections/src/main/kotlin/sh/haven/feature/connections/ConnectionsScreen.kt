@@ -124,6 +124,8 @@ fun ConnectionsScreen(
     val hostKeyPrompt by viewModel.hostKeyPrompt.collectAsState()
     val globalSessionManagerLabel by viewModel.globalSessionManagerLabel.collectAsState()
     val newSessionProfileId by viewModel.newSessionProfileId.collectAsState()
+    val subnetScanning by viewModel.subnetScanning.collectAsState()
+
 
     LaunchedEffect(navigateToTerminal) {
         navigateToTerminal?.let { profileId ->
@@ -199,6 +201,8 @@ fun ConnectionsScreen(
             discoveredHosts = discoveredHosts,
             sshProfiles = connections,
             globalSessionManagerLabel = globalSessionManagerLabel,
+            subnetScanning = subnetScanning,
+            onScanSubnet = { viewModel.scanSubnet() },
             onDismiss = { showAddDialog = false },
             onSave = { profile ->
                 viewModel.saveConnection(profile)
@@ -253,6 +257,8 @@ fun ConnectionsScreen(
             discoveredHosts = discoveredHosts,
             sshProfiles = connections,
             globalSessionManagerLabel = globalSessionManagerLabel,
+            subnetScanning = subnetScanning,
+            onScanSubnet = { viewModel.scanSubnet() },
             onDismiss = { editingProfile = null },
             onSave = { updated ->
                 viewModel.saveConnection(updated)

@@ -17,8 +17,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -49,6 +51,8 @@ fun ConnectionEditDialog(
     discoveredHosts: List<DiscoveredHost> = emptyList(),
     sshProfiles: List<ConnectionProfile> = emptyList(),
     globalSessionManagerLabel: String = "None",
+    subnetScanning: Boolean = false,
+    onScanSubnet: () -> Unit = {},
     onDismiss: () -> Unit,
     onSave: (ConnectionProfile) -> Unit,
 ) {
@@ -122,6 +126,37 @@ fun ConnectionEditDialog(
                             .take(8)
                     }
 
+                    // Scan network button
+                    Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (filteredHosts.isNotEmpty()) {
+                            Text(
+                                "Discovered (${filteredHosts.size})",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                        TextButton(
+                            onClick = onScanSubnet,
+                            enabled = !subnetScanning,
+                        ) {
+                            if (subnetScanning) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Scanning", style = MaterialTheme.typography.labelSmall)
+                            } else {
+                                Icon(Icons.Filled.Radar, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Scan Network", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+
                     // Use dropdown when there are many discovered hosts (decision
                     // based on unfiltered count to avoid switching widgets mid-typing)
                     var hostExpanded by remember { mutableStateOf(false) }
@@ -184,11 +219,6 @@ fun ConnectionEditDialog(
                     } else {
                         // Few or no discovered hosts — show chips + plain text field
                         if (filteredHosts.isNotEmpty()) {
-                            Text(
-                                text = "Discovered (${filteredHosts.size})",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
