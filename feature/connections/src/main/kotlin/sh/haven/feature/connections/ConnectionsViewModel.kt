@@ -36,6 +36,7 @@ import sh.haven.core.ssh.SshConnectionService
 import sh.haven.core.ssh.SessionManager
 import sh.haven.core.ssh.SshSessionManager
 import sh.haven.core.data.db.entities.KnownHost
+import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.reticulum.ReticulumBridge
 import sh.haven.core.reticulum.ReticulumSessionManager
 import android.util.Log
@@ -55,6 +56,7 @@ class ConnectionsViewModel @Inject constructor(
     private val portForwardRepository: PortForwardRepository,
     private val sshSessionManager: SshSessionManager,
     private val reticulumSessionManager: ReticulumSessionManager,
+    private val moshSessionManager: MoshSessionManager,
     private val reticulumBridge: ReticulumBridge,
     private val sshKeyRepository: SshKeyRepository,
     private val preferencesRepository: UserPreferencesRepository,
@@ -73,12 +75,13 @@ class ConnectionsViewModel @Inject constructor(
 
     val sessions: StateFlow<Map<String, SshSessionManager.SessionState>> = sshSessionManager.sessions
 
-    /** Derive profile-level statuses for the connections list UI (merges SSH + Reticulum). */
+    /** Derive profile-level statuses for the connections list UI (merges SSH + Reticulum + Mosh). */
     val profileStatuses: StateFlow<Map<String, ProfileStatus>> =
         combine(
             sshSessionManager.sessions,
             reticulumSessionManager.sessions,
-        ) { sshMap, rnsMap ->
+            moshSessionManager.sessions,
+        ) { sshMap, rnsMap, moshMap ->
             val result = mutableMapOf<String, ProfileStatus>()
 
             // SSH statuses
@@ -102,10 +105,24 @@ class ConnectionsViewModel @Inject constructor(
                     ReticulumSessionManager.SessionState.Status.ERROR in statuses -> ProfileStatus.ERROR
                     else -> ProfileStatus.DISCONNECTED
                 }
-                // If both exist, prefer the higher-priority one
                 val existing = result[profileId]
                 if (existing == null || rnsStatus.ordinal < existing.ordinal) {
                     result[profileId] = rnsStatus
+                }
+            }
+
+            // Mosh statuses
+            moshMap.values.groupBy { it.profileId }.forEach { (profileId, states) ->
+                val statuses = states.map { it.status }
+                val moshStatus = when {
+                    MoshSessionManager.SessionState.Status.CONNECTED in statuses -> ProfileStatus.CONNECTED
+                    MoshSessionManager.SessionState.Status.CONNECTING in statuses -> ProfileStatus.CONNECTING
+                    MoshSessionManager.SessionState.Status.ERROR in statuses -> ProfileStatus.ERROR
+                    else -> ProfileStatus.DISCONNECTED
+                }
+                val existing = result[profileId]
+                if (existing == null || moshStatus.ordinal < existing.ordinal) {
+                    result[profileId] = moshStatus
                 }
             }
 
@@ -295,6 +312,7 @@ class ConnectionsViewModel @Inject constructor(
         viewModelScope.launch {
             sshSessionManager.removeAllSessionsForProfile(id)
             reticulumSessionManager.removeAllSessionsForProfile(id)
+            moshSessionManager.removeAllSessionsForProfile(id)
             repository.delete(id)
         }
     }
@@ -313,6 +331,10 @@ class ConnectionsViewModel @Inject constructor(
     fun connect(profile: ConnectionProfile, password: String, keyOnly: Boolean = false) {
         if (profile.isReticulum) {
             connectReticulum(profile)
+            return
+        }
+        if (profile.isMosh) {
+            connectMosh(profile, password, keyOnly)
             return
         }
         connectSsh(profile, password, keyOnly)
@@ -485,6 +507,131 @@ class ConnectionsViewModel @Inject constructor(
                 )
                 reticulumSessionManager.removeSession(sessionId)
                 _error.value = e.message ?: "Reticulum connection failed"
+            } finally {
+                _connectingProfileId.value = null
+            }
+        }
+    }
+
+    private fun connectMosh(profile: ConnectionProfile, password: String, keyOnly: Boolean) {
+        viewModelScope.launch {
+            _connectingProfileId.value = profile.id
+            _error.value = null
+
+            val sessionId = moshSessionManager.registerSession(
+                profileId = profile.id,
+                label = profile.label,
+            )
+
+            try {
+                // Phase 1: SSH bootstrap — connect, exec mosh-server, parse MOSH CONNECT
+                val moshConnect = withContext(Dispatchers.IO) {
+                    val authMethod = resolveAuthMethod(profile, password)
+                    val config = ConnectionConfig(
+                        host = profile.host,
+                        port = profile.port,
+                        username = profile.username,
+                        authMethod = authMethod,
+                        sshOptions = ConnectionConfig.parseSshOptions(profile.sshOptions),
+                    )
+
+                    val client = SshClient()
+
+                    // Jump host support
+                    val jumpProfileId = profile.jumpProfileId
+                    val proxy = if (jumpProfileId != null) {
+                        val (jid, _) = connectJumpHost(jumpProfileId, password)
+                        sshSessionManager.createProxyJump(jid)
+                    } else null
+
+                    val hostKeyEntry = client.connect(config, proxy = proxy)
+
+                    // TOFU host key verification
+                    when (val result = hostKeyVerifier.verify(hostKeyEntry)) {
+                        is HostKeyResult.Trusted -> {}
+                        is HostKeyResult.NewHost -> {
+                            val deferred = CompletableDeferred<Boolean>()
+                            _hostKeyPrompt.value = HostKeyPrompt.NewHost(result.entry, deferred)
+                            if (!deferred.await()) {
+                                client.disconnect()
+                                throw Exception("Host key rejected by user")
+                            }
+                            hostKeyVerifier.accept(result.entry)
+                        }
+                        is HostKeyResult.KeyChanged -> {
+                            val deferred = CompletableDeferred<Boolean>()
+                            _hostKeyPrompt.value = HostKeyPrompt.KeyChanged(
+                                oldFingerprint = result.old.fingerprint,
+                                entry = result.new,
+                                deferred = deferred,
+                            )
+                            if (!deferred.await()) {
+                                client.disconnect()
+                                throw Exception("Host key change rejected by user")
+                            }
+                            hostKeyVerifier.accept(result.new)
+                        }
+                    }
+
+                    // Exec mosh-server to get port and key
+                    val moshCmd = "mosh-server new -s -c 256 -l LANG=en_US.UTF-8"
+                    Log.d(TAG, "Running mosh-server bootstrap: $moshCmd")
+                    val result = client.execCommand(moshCmd)
+
+                    client.disconnect()
+
+                    // Parse MOSH CONNECT <port> <key> from stdout
+                    val connectLine = (result.stdout + "\n" + result.stderr)
+                        .lines()
+                        .firstOrNull { it.startsWith("MOSH CONNECT") }
+                        ?: throw Exception(
+                            "mosh-server not found or failed. " +
+                                "Install with: apt install mosh\n" +
+                                "stderr: ${result.stderr.take(200)}"
+                        )
+
+                    val parts = connectLine.split(" ")
+                    if (parts.size < 4) {
+                        throw Exception("Unexpected mosh-server output: $connectLine")
+                    }
+
+                    Triple(config.host, parts[2].toInt(), parts[3])
+                }
+
+                val (serverIp, moshPort, moshKey) = moshConnect
+                Log.d(TAG, "MOSH CONNECT parsed: $serverIp:$moshPort")
+
+                // Phase 2: Spawn mosh-client via PTY
+                withContext(Dispatchers.IO) {
+                    moshSessionManager.connectSession(
+                        sessionId = sessionId,
+                        serverIp = serverIp,
+                        moshPort = moshPort,
+                        moshKey = moshKey,
+                        cols = 80,
+                        rows = 24,
+                    )
+                }
+
+                repository.markConnected(profile.id)
+                startForegroundServiceIfNeeded()
+                _navigateToTerminal.value = profile.id
+            } catch (e: Exception) {
+                Log.e(TAG, "connectMosh failed for ${profile.label}: ${e.message}", e)
+                moshSessionManager.updateStatus(sessionId, MoshSessionManager.SessionState.Status.ERROR)
+                moshSessionManager.removeSession(sessionId)
+                val msg = e.message ?: ""
+                val isAuthError = keyOnly && (
+                    msg.contains("Auth fail", ignoreCase = true) ||
+                        msg.contains("Auth cancel", ignoreCase = true) ||
+                        msg.contains("authentication", ignoreCase = true) ||
+                        msg.contains("publickey", ignoreCase = true)
+                    )
+                if (isAuthError || (keyOnly && msg.isBlank())) {
+                    _passwordFallback.value = profile
+                } else {
+                    _error.value = msg.ifBlank { "Mosh connection failed" }
+                }
             } finally {
                 _connectingProfileId.value = null
             }

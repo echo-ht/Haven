@@ -29,6 +29,7 @@ include(":feature:terminal")
 include(":feature:sftp")
 include(":feature:keys")
 include(":core:reticulum")
+include(":core:mosh")
 include(":core:vnc")
 
 include(":feature:settings")

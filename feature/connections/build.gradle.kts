@@ -29,6 +29,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:ssh"))
     implementation(project(":core:reticulum"))
+    implementation(project(":core:mosh"))
     implementation(project(":core:data"))
 
     implementation(libs.hilt.android)

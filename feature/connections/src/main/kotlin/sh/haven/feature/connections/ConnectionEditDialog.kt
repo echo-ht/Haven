@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -65,6 +67,7 @@ fun ConnectionEditDialog(
     var jumpProfileId by remember { mutableStateOf(existing?.jumpProfileId) }
     var sshOptions by remember { mutableStateOf(existing?.sshOptions ?: "") }
     var selectedSessionManager by remember { mutableStateOf(existing?.sessionManager) }
+    var useMosh by remember { mutableStateOf(existing?.useMosh ?: false) }
     var localSideband by remember {
         mutableStateOf(
             existing == null ||
@@ -381,6 +384,23 @@ fun ConnectionEditDialog(
                         }
                     }
 
+                    // Mosh toggle
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Use Mosh", modifier = Modifier.weight(1f))
+                        Switch(checked = useMosh, onCheckedChange = { useMosh = it })
+                    }
+                    if (useMosh) {
+                        Text(
+                            "Requires mosh-server on remote host",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
                     // SSH options
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
@@ -505,6 +525,7 @@ fun ConnectionEditDialog(
                             jumpProfileId = jumpProfileId,
                             sshOptions = sshOptions.ifBlank { null },
                             sessionManager = selectedSessionManager,
+                            useMosh = useMosh,
                         )
                     } else {
                         val savedHost = if (localSideband) "127.0.0.1" else rnsHost

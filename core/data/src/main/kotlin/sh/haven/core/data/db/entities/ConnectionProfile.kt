@@ -27,6 +27,7 @@ data class ConnectionProfile(
     val vncPassword: String? = null,
     val vncSshForward: Boolean = true,
     val sessionManager: String? = null,
+    val useMosh: Boolean = false,
 ) {
     enum class AuthType {
         PASSWORD,
@@ -35,4 +36,5 @@ data class ConnectionProfile(
 
     val isSsh: Boolean get() = connectionType == "SSH"
     val isReticulum: Boolean get() = connectionType == "RETICULUM"
+    val isMosh: Boolean get() = isSsh && useMosh
 }

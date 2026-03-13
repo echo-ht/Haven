@@ -6,38 +6,38 @@ plugins {
 }
 
 android {
-    namespace = "sh.haven.core.ssh"
+    namespace = "sh.haven.core.mosh"
     compileSdk = 36
 
     defaultConfig {
         minSdk = 26
+
+        externalNativeBuild {
+            cmake {
+                arguments("-DANDROID_STL=none")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
-
 }
 
 dependencies {
-    api(libs.jsch)
-    implementation(project(":core:data"))
-    implementation(project(":core:reticulum"))
-    implementation(project(":core:mosh"))
-    implementation(libs.bouncycastle)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.coroutines.test)
 }
 
 kotlin {
