@@ -440,9 +440,12 @@ fun SelectionToolbarContent(
         }
 
         // Open URL (detected in selection text, or from OSC 8 hyperlink)
+        // Try the raw selection first, then with newlines stripped to handle
+        // URLs split across lines by the program or terminal wrapping.
         SelectionIconButton(Icons.AutoMirrored.Filled.OpenInNew, "Open") {
-            val text = controller.copySelection()?.trim()
-            val url = detectUrl(text) ?: hyperlinkUri
+            val raw = controller.copySelection()?.trim()
+            val joined = raw?.replace(Regex("\\s*\\n\\s*"), "")
+            val url = detectUrl(raw) ?: detectUrl(joined) ?: hyperlinkUri
             if (url != null) {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(
                     if (url.contains("://")) url else "https://$url"
