@@ -220,6 +220,10 @@ class ConnectionsViewModel @Inject constructor(
     private var moshPendingClient: SshClient? = null
     private var moshPendingHost: String? = null
 
+    /** SSH client + host kept alive during ET session picker. */
+    private var etPendingClient: SshClient? = null
+    private var etPendingProfile: ConnectionProfile? = null
+
     fun onNavigated() {
         _navigateToTerminal.value = null
         _newSessionProfileId.value = null
@@ -613,60 +617,44 @@ class ConnectionsViewModel @Inject constructor(
                     sshClient
                 }
 
-                // Phase 2: SSH bootstrap — exec etterminal to get session credentials
-                val etPort = profile.etPort
-                val (etClientId, etPasskey) = withContext(Dispatchers.IO) {
-                    // Generate random id (16 chars) and passkey (32 chars)
-                    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-                    fun randomAlphaNum(len: Int) = String(CharArray(len) { chars.random() })
-                    val proposedId = "XXX" + randomAlphaNum(13) // XXX prefix = new client
-                    val proposedKey = randomAlphaNum(32)
-                    val term = "xterm-256color"
+                // Phase 2: Resolve session manager, check for existing sessions
+                val smgr = resolveSessionManager(profile)
 
-                    val etCmd = "echo '${proposedId}/${proposedKey}_${term}' | etterminal"
-                    Log.d(TAG, "ET bootstrap: running etterminal via SSH")
-                    val result = client.execCommand(etCmd)
-                    val output = result.stdout + "\n" + result.stderr
-
-                    // Parse IDPASSKEY:<16-char-id>/<32-char-passkey>
-                    val marker = "IDPASSKEY:"
-                    val markerPos = output.indexOf(marker)
-                    if (markerPos < 0) {
-                        client.disconnect()
-                        throw Exception(
-                            "etterminal not found or failed on remote host. " +
-                                "Install with: apt install et\n" +
-                                "Output: ${output.take(200)}"
+                val listCmd = smgr.listCommand
+                if (listCmd != null) {
+                    val existingSessions = withContext(Dispatchers.IO) {
+                        try {
+                            val result = client.execCommand(listCmd)
+                            if (result.exitStatus == 0) {
+                                SessionManager.parseSessionList(smgr, result.stdout)
+                            } else emptyList()
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                    if (existingSessions.isNotEmpty()) {
+                        etPendingClient = client
+                        etPendingProfile = profile
+                        _sessionSelection.value = SessionSelection(
+                            sessionId = sessionId,
+                            profileId = profile.id,
+                            managerLabel = smgr.label,
+                            sessionNames = existingSessions,
+                            manager = smgr,
+                            transportType = "ET",
                         )
+                        _connectingProfileId.value = null
+                        return@launch // UI will call onSessionSelected() to continue
                     }
-                    val idPasskey = output.substring(markerPos + marker.length).trim().take(49)
-                    val parts = idPasskey.split("/", limit = 2)
-                    if (parts.size != 2 || parts[0].length != 16 || parts[1].length != 32) {
-                        client.disconnect()
-                        throw Exception("Unexpected etterminal output: $idPasskey")
-                    }
-                    Pair(parts[0], parts[1])
                 }
 
-                val serverHost = profile.host
-                Log.d(TAG, "ET bootstrap: got clientId=${etClientId.take(6)}... connecting to $serverHost:$etPort")
-
-                withContext(Dispatchers.IO) {
-                    etSessionManager.connectSession(
-                        sessionId = sessionId,
-                        serverHost = serverHost,
-                        etPort = etPort,
-                        clientId = etClientId,
-                        passkey = etPasskey,
-                        sshClient = client,
-                    )
-                }
-
-                repository.markConnected(profile.id)
-                startForegroundServiceIfNeeded()
-                _navigateToTerminal.value = profile.id
+                // No existing sessions — proceed directly
+                finishEtConnect(sessionId, profile, client, smgr, null)
             } catch (e: Exception) {
                 Log.e(TAG, "connectEternalTerminal failed for ${profile.label}: ${e.message}", e)
+                etPendingClient?.disconnect()
+                etPendingClient = null
+                etPendingProfile = null
                 etSessionManager.updateStatus(sessionId, EtSessionManager.SessionState.Status.ERROR)
                 etSessionManager.removeSession(sessionId)
                 val msg = e.message ?: ""
@@ -851,6 +839,34 @@ class ConnectionsViewModel @Inject constructor(
             return
         }
 
+        if (sel?.transportType == "ET") {
+            // ET path: finish ET connection with chosen session name
+            val client = etPendingClient
+            val profile = etPendingProfile
+            etPendingClient = null
+            etPendingProfile = null
+            if (client == null || profile == null) {
+                _error.value = "ET SSH connection lost"
+                etSessionManager.removeSession(sessionId)
+                return
+            }
+            val profileId = sel.profileId
+            viewModelScope.launch {
+                _connectingProfileId.value = profileId
+                try {
+                    finishEtConnect(sessionId, profile, client, sel.manager, sessionName)
+                } catch (e: Exception) {
+                    client.disconnect()
+                    etSessionManager.updateStatus(sessionId, EtSessionManager.SessionState.Status.ERROR)
+                    _error.value = e.message ?: "Eternal Terminal connection failed"
+                    etSessionManager.removeSession(sessionId)
+                } finally {
+                    _connectingProfileId.value = null
+                }
+            }
+            return
+        }
+
         // SSH path
         val profileId = sel?.profileId ?: sshSessionManager.getSession(sessionId)?.profileId ?: return
         viewModelScope.launch {
@@ -878,8 +894,11 @@ class ConnectionsViewModel @Inject constructor(
     fun killRemoteSession(sessionName: String) {
         val sel = _sessionSelection.value ?: return
         val killCmd = sel.manager.killCommand?.invoke(sessionName) ?: return
-        val client = if (sel.transportType == "MOSH") moshPendingClient
-            else sshSessionManager.getSession(sel.sessionId)?.client
+        val client = when (sel.transportType) {
+            "MOSH" -> moshPendingClient
+            "ET" -> etPendingClient
+            else -> sshSessionManager.getSession(sel.sessionId)?.client
+        }
         if (client == null) return
 
         viewModelScope.launch {
@@ -916,8 +935,11 @@ class ConnectionsViewModel @Inject constructor(
     fun renameRemoteSession(oldName: String, newName: String) {
         val sel = _sessionSelection.value ?: return
         val renameCmd = sel.manager.renameCommand?.invoke(oldName, newName) ?: return
-        val client = if (sel.transportType == "MOSH") moshPendingClient
-            else sshSessionManager.getSession(sel.sessionId)?.client
+        val client = when (sel.transportType) {
+            "MOSH" -> moshPendingClient
+            "ET" -> etPendingClient
+            else -> sshSessionManager.getSession(sel.sessionId)?.client
+        }
         if (client == null) return
 
         viewModelScope.launch {
@@ -1128,6 +1150,78 @@ class ConnectionsViewModel @Inject constructor(
         repository.markConnected(profileId)
         startForegroundServiceIfNeeded()
         _navigateToTerminal.value = profileId
+    }
+
+    /**
+     * Finish ET connection: exec etterminal on SSH, parse IDPASSKEY,
+     * connect to etserver, set session manager initial command.
+     */
+    private suspend fun finishEtConnect(
+        sessionId: String,
+        profile: ConnectionProfile,
+        client: SshClient,
+        manager: SessionManager,
+        chosenSessionName: String?,
+    ) {
+        val etPort = profile.etPort
+        val (etClientId, etPasskey) = withContext(Dispatchers.IO) {
+            val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+            fun randomAlphaNum(len: Int) = String(CharArray(len) { chars.random() })
+            val proposedId = "XXX" + randomAlphaNum(13)
+            val proposedKey = randomAlphaNum(32)
+            val term = "xterm-256color"
+
+            val etCmd = "echo '${proposedId}/${proposedKey}_${term}' | etterminal"
+            Log.d(TAG, "ET bootstrap: running etterminal via SSH")
+            val result = client.execCommand(etCmd)
+            val output = result.stdout + "\n" + result.stderr
+
+            val marker = "IDPASSKEY:"
+            val markerPos = output.indexOf(marker)
+            if (markerPos < 0) {
+                client.disconnect()
+                throw Exception(
+                    "etterminal not found or failed on remote host. " +
+                        "Install with: apt install et\n" +
+                        "Output: ${output.take(200)}"
+                )
+            }
+            val idPasskey = output.substring(markerPos + marker.length).trim().take(49)
+            val parts = idPasskey.split("/", limit = 2)
+            if (parts.size != 2 || parts[0].length != 16 || parts[1].length != 32) {
+                client.disconnect()
+                throw Exception("Unexpected etterminal output: $idPasskey")
+            }
+            Pair(parts[0], parts[1])
+        }
+
+        val serverHost = profile.host
+        Log.d(TAG, "ET bootstrap: got clientId=${etClientId.take(6)}... connecting to $serverHost:$etPort")
+
+        // Build session manager command with chosen or default session name
+        val smCmd = manager.command
+        if (smCmd != null) {
+            val rawName = chosenSessionName
+                ?: etSessionManager.sessions.value[sessionId]?.label
+                ?: sessionId.take(8)
+            val sanitized = rawName.replace(Regex("[^A-Za-z0-9._-]"), "-")
+            etSessionManager.setInitialCommand(sessionId, smCmd(sanitized))
+        }
+
+        withContext(Dispatchers.IO) {
+            etSessionManager.connectSession(
+                sessionId = sessionId,
+                serverHost = serverHost,
+                etPort = etPort,
+                clientId = etClientId,
+                passkey = etPasskey,
+                sshClient = client,
+            )
+        }
+
+        repository.markConnected(profile.id)
+        startForegroundServiceIfNeeded()
+        _navigateToTerminal.value = profile.id
     }
 
     /**
