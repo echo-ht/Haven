@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,12 +53,20 @@ fun ConnectionEditDialog(
     sshProfiles: List<ConnectionProfile> = emptyList(),
     globalSessionManagerLabel: String = "None",
     subnetScanning: Boolean = false,
-    moshEnabled: Boolean = true,
     onScanSubnet: () -> Unit = {},
     onDismiss: () -> Unit,
     onSave: (ConnectionProfile) -> Unit,
 ) {
-    var connectionType by remember { mutableStateOf(existing?.connectionType ?: "SSH") }
+    // Transport dropdown maps to: connectionType + useMosh + useEternalTerminal
+    val initialTransport = when {
+        existing?.isEternalTerminal == true -> "ET"
+        existing?.isMosh == true -> "MOSH"
+        existing?.isReticulum == true -> "RETICULUM"
+        else -> "SSH"
+    }
+    var selectedTransport by remember { mutableStateOf(initialTransport) }
+    // Derived connectionType for field visibility
+    val connectionType = if (selectedTransport == "RETICULUM") "RETICULUM" else "SSH"
     var label by remember { mutableStateOf(existing?.label ?: "") }
     var host by remember { mutableStateOf(existing?.host ?: "") }
     var port by remember { mutableStateOf(existing?.port?.toString() ?: "22") }
@@ -68,7 +75,7 @@ fun ConnectionEditDialog(
     var jumpProfileId by remember { mutableStateOf(existing?.jumpProfileId) }
     var sshOptions by remember { mutableStateOf(existing?.sshOptions ?: "") }
     var selectedSessionManager by remember { mutableStateOf(existing?.sessionManager) }
-    var useMosh by remember { mutableStateOf(existing?.useMosh ?: false) }
+    var etPort by remember { mutableStateOf(existing?.etPort?.toString() ?: "2022") }
     var localSideband by remember {
         mutableStateOf(
             existing == null ||
@@ -87,21 +94,42 @@ fun ConnectionEditDialog(
         title = { Text(title) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                // Type selector
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                // Transport selector
+                val transportOptions = listOf(
+                    "SSH" to "SSH",
+                    "MOSH" to "Mosh",
+                    "ET" to "Eternal Terminal",
+                    "RETICULUM" to "Reticulum",
+                )
+                var transportExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = transportExpanded,
+                    onExpandedChange = { transportExpanded = it },
                 ) {
-                    FilterChip(
-                        selected = connectionType == "SSH",
-                        onClick = { connectionType = "SSH" },
-                        label = { Text("SSH") },
+                    OutlinedTextField(
+                        value = transportOptions.first { it.first == selectedTransport }.second,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Transport") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(transportExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                     )
-                    FilterChip(
-                        selected = connectionType == "RETICULUM",
-                        onClick = { connectionType = "RETICULUM" },
-                        label = { Text("Reticulum") },
-                    )
+                    ExposedDropdownMenu(
+                        expanded = transportExpanded,
+                        onDismissRequest = { transportExpanded = false },
+                    ) {
+                        transportOptions.forEach { (value, displayLabel) ->
+                            DropdownMenuItem(
+                                text = { Text(displayLabel) },
+                                onClick = {
+                                    selectedTransport = value
+                                    transportExpanded = false
+                                },
+                            )
+                        }
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
 
@@ -385,23 +413,35 @@ fun ConnectionEditDialog(
                         }
                     }
 
-                    // Mosh toggle (hidden when mosh binary not included)
-                    if (moshEnabled) {
+                    // ET port (shown only for Eternal Terminal)
+                    if (selectedTransport == "ET") {
                         Spacer(Modifier.height(8.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Use Mosh", modifier = Modifier.weight(1f))
-                            Switch(checked = useMosh, onCheckedChange = { useMosh = it })
-                        }
-                        if (useMosh) {
-                            Text(
-                                "Requires mosh-server on remote host",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        OutlinedTextField(
+                            value = etPort,
+                            onValueChange = { etPort = it.filter { c -> c.isDigit() } },
+                            label = { Text("ET Port") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.width(120.dp),
+                        )
+                    }
+
+                    // Transport helper text
+                    if (selectedTransport == "MOSH") {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Requires mosh-server on remote host",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (selectedTransport == "ET") {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Requires etserver on remote host (port ${etPort.ifBlank { "2022" }})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
 
                     // SSH options
@@ -512,6 +552,7 @@ fun ConnectionEditDialog(
             TextButton(
                 onClick = {
                     val portInt = port.toIntOrNull() ?: 22
+                    val etPortInt = etPort.toIntOrNull() ?: 2022
                     val profile = if (connectionType == "SSH") {
                         (existing ?: ConnectionProfile(
                             label = label,
@@ -528,7 +569,9 @@ fun ConnectionEditDialog(
                             jumpProfileId = jumpProfileId,
                             sshOptions = sshOptions.ifBlank { null },
                             sessionManager = selectedSessionManager,
-                            useMosh = useMosh,
+                            useMosh = selectedTransport == "MOSH",
+                            useEternalTerminal = selectedTransport == "ET",
+                            etPort = etPortInt,
                         )
                     } else {
                         val savedHost = if (localSideband) "127.0.0.1" else rnsHost

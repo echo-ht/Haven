@@ -118,7 +118,6 @@ fun HavenNavHost(
                             pagerState.animateScrollToPage(Screen.Terminal.ordinal)
                         }
                     },
-                    moshEnabled = true,
                 )
                 Screen.Terminal -> {
                     TerminalScreen(

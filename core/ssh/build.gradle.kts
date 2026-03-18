@@ -29,6 +29,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:reticulum"))
     implementation(project(":core:mosh"))
+    implementation(project(":core:et"))
     implementation(libs.bouncycastle)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)

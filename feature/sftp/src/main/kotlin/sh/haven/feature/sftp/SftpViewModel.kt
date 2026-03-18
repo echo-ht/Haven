@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.haven.core.data.db.entities.ConnectionProfile
 import sh.haven.core.data.repository.ConnectionRepository
+import sh.haven.core.et.EtSessionManager
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.ssh.SshClient
 import sh.haven.core.ssh.SshSessionManager
@@ -42,6 +43,7 @@ enum class SortMode {
 class SftpViewModel @Inject constructor(
     private val sessionManager: SshSessionManager,
     private val moshSessionManager: MoshSessionManager,
+    private val etSessionManager: EtSessionManager,
     private val repository: ConnectionRepository,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -93,7 +95,16 @@ class SftpViewModel @Inject constructor(
                 .map { it.profileId }
                 .toSet()
 
-            val connectedProfileIds = sshProfileIds + moshProfileIds
+            // Collect profile IDs from ET sessions that have a live SSH client
+            val etProfileIds = etSessionManager.sessions.value.values
+                .filter {
+                    it.status == EtSessionManager.SessionState.Status.CONNECTED &&
+                        it.sshClient != null
+                }
+                .map { it.profileId }
+                .toSet()
+
+            val connectedProfileIds = sshProfileIds + moshProfileIds + etProfileIds
 
             if (connectedProfileIds.isEmpty()) {
                 _connectedProfiles.value = emptyList()
@@ -298,9 +309,10 @@ class SftpViewModel @Inject constructor(
 
     private fun getOrOpenChannel(profileId: String): ChannelSftp? {
         sftpChannel?.let { if (it.isConnected) return it }
-        // Try SSH session first, then mosh bootstrap SSH client
+        // Try SSH session first, then mosh/ET bootstrap SSH client
         val channel = sessionManager.openSftpForProfile(profileId)
             ?: openMoshSftpChannel(profileId)
+            ?: openEtSftpChannel(profileId)
             ?: return null
         sftpChannel = channel
         return channel
@@ -313,6 +325,17 @@ class SftpViewModel @Inject constructor(
             client.openSftpChannel()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open SFTP channel via mosh SSH client", e)
+            null
+        }
+    }
+
+    private fun openEtSftpChannel(profileId: String): ChannelSftp? {
+        val client = etSessionManager.getSshClientForProfile(profileId) as? SshClient
+            ?: return null
+        return try {
+            client.openSftpChannel()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open SFTP channel via ET SSH client", e)
             null
         }
     }

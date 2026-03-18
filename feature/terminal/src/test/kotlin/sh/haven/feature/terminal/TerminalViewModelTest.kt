@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import sh.haven.core.et.EtSessionManager
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.reticulum.ReticulumSessionManager
 import sh.haven.core.ssh.SshClient
@@ -16,6 +17,7 @@ class TerminalViewModelTest {
     private lateinit var sessionManager: SshSessionManager
     private lateinit var reticulumSessionManager: ReticulumSessionManager
     private lateinit var moshSessionManager: MoshSessionManager
+    private lateinit var etSessionManager: EtSessionManager
     private lateinit var viewModel: TerminalViewModel
 
     @Before
@@ -27,7 +29,10 @@ class TerminalViewModelTest {
         moshSessionManager = mockk<MoshSessionManager>(relaxed = true) {
             every { sessions } returns MutableStateFlow(emptyMap())
         }
-        viewModel = TerminalViewModel(sessionManager, reticulumSessionManager, moshSessionManager, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true))
+        etSessionManager = mockk<EtSessionManager>(relaxed = true) {
+            every { sessions } returns MutableStateFlow(emptyMap())
+        }
+        viewModel = TerminalViewModel(sessionManager, reticulumSessionManager, moshSessionManager, etSessionManager, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true))
     }
 
     @Test

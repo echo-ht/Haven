@@ -35,6 +35,7 @@ dependencies {
     implementation(project(":core:ssh"))
     implementation(project(":core:reticulum"))
     implementation(project(":core:mosh"))
+    implementation(project(":core:et"))
     implementation(project(":core:security"))
 
     implementation(libs.termlib)

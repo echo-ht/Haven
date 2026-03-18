@@ -107,6 +107,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:reticulum"))
     implementation(project(":core:mosh"))
+    implementation(project(":core:et"))
     implementation(project(":core:vnc"))
 
     implementation(project(":feature:connections"))

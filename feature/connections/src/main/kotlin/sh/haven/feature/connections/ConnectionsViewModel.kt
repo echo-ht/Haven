@@ -37,6 +37,7 @@ import sh.haven.core.ssh.SessionManager
 import sh.haven.core.ssh.SshSessionManager
 import sh.haven.core.data.db.entities.KnownHost
 import sh.haven.core.mosh.MoshSessionManager
+import sh.haven.core.et.EtSessionManager
 import sh.haven.core.reticulum.ReticulumBridge
 import sh.haven.core.reticulum.ReticulumSessionManager
 import android.util.Log
@@ -57,6 +58,7 @@ class ConnectionsViewModel @Inject constructor(
     private val sshSessionManager: SshSessionManager,
     private val reticulumSessionManager: ReticulumSessionManager,
     private val moshSessionManager: MoshSessionManager,
+    private val etSessionManager: EtSessionManager,
     private val reticulumBridge: ReticulumBridge,
     private val sshKeyRepository: SshKeyRepository,
     private val preferencesRepository: UserPreferencesRepository,
@@ -75,13 +77,14 @@ class ConnectionsViewModel @Inject constructor(
 
     val sessions: StateFlow<Map<String, SshSessionManager.SessionState>> = sshSessionManager.sessions
 
-    /** Derive profile-level statuses for the connections list UI (merges SSH + Reticulum + Mosh). */
+    /** Derive profile-level statuses for the connections list UI (merges SSH + Reticulum + Mosh + ET). */
     val profileStatuses: StateFlow<Map<String, ProfileStatus>> =
         combine(
             sshSessionManager.sessions,
             reticulumSessionManager.sessions,
             moshSessionManager.sessions,
-        ) { sshMap, rnsMap, moshMap ->
+            etSessionManager.sessions,
+        ) { sshMap, rnsMap, moshMap, etMap ->
             val result = mutableMapOf<String, ProfileStatus>()
 
             // SSH statuses
@@ -123,6 +126,21 @@ class ConnectionsViewModel @Inject constructor(
                 val existing = result[profileId]
                 if (existing == null || moshStatus.ordinal < existing.ordinal) {
                     result[profileId] = moshStatus
+                }
+            }
+
+            // ET statuses
+            etMap.values.groupBy { it.profileId }.forEach { (profileId, states) ->
+                val statuses = states.map { it.status }
+                val etStatus = when {
+                    EtSessionManager.SessionState.Status.CONNECTED in statuses -> ProfileStatus.CONNECTED
+                    EtSessionManager.SessionState.Status.CONNECTING in statuses -> ProfileStatus.CONNECTING
+                    EtSessionManager.SessionState.Status.ERROR in statuses -> ProfileStatus.ERROR
+                    else -> ProfileStatus.DISCONNECTED
+                }
+                val existing = result[profileId]
+                if (existing == null || etStatus.ordinal < existing.ordinal) {
+                    result[profileId] = etStatus
                 }
             }
 
@@ -348,6 +366,10 @@ class ConnectionsViewModel @Inject constructor(
             connectReticulum(profile)
             return
         }
+        if (profile.isEternalTerminal) {
+            connectEternalTerminal(profile, password, keyOnly)
+            return
+        }
         if (profile.isMosh) {
             connectMosh(profile, password, keyOnly)
             return
@@ -522,6 +544,143 @@ class ConnectionsViewModel @Inject constructor(
                 )
                 reticulumSessionManager.removeSession(sessionId)
                 _error.value = e.message ?: "Reticulum connection failed"
+            } finally {
+                _connectingProfileId.value = null
+            }
+        }
+    }
+
+    private fun connectEternalTerminal(profile: ConnectionProfile, password: String, keyOnly: Boolean) {
+        viewModelScope.launch {
+            _connectingProfileId.value = profile.id
+            _error.value = null
+
+            val sessionId = etSessionManager.registerSession(
+                profileId = profile.id,
+                label = profile.label,
+            )
+
+            try {
+                // Phase 1: SSH bootstrap — connect, verify host key
+                val client = withContext(Dispatchers.IO) {
+                    val authMethod = resolveAuthMethod(profile, password)
+                    val config = ConnectionConfig(
+                        host = profile.host,
+                        port = profile.port,
+                        username = profile.username,
+                        authMethod = authMethod,
+                        sshOptions = ConnectionConfig.parseSshOptions(profile.sshOptions),
+                    )
+
+                    val sshClient = SshClient()
+
+                    // Jump host support
+                    val jumpProfileId = profile.jumpProfileId
+                    val proxy = if (jumpProfileId != null) {
+                        val (jid, _) = connectJumpHost(jumpProfileId, password)
+                        sshSessionManager.createProxyJump(jid)
+                    } else null
+
+                    val hostKeyEntry = sshClient.connect(config, proxy = proxy)
+
+                    // TOFU host key verification
+                    when (val result = hostKeyVerifier.verify(hostKeyEntry)) {
+                        is HostKeyResult.Trusted -> {}
+                        is HostKeyResult.NewHost -> {
+                            val deferred = CompletableDeferred<Boolean>()
+                            _hostKeyPrompt.value = HostKeyPrompt.NewHost(result.entry, deferred)
+                            if (!deferred.await()) {
+                                sshClient.disconnect()
+                                throw Exception("Host key rejected by user")
+                            }
+                            hostKeyVerifier.accept(result.entry)
+                        }
+                        is HostKeyResult.KeyChanged -> {
+                            val deferred = CompletableDeferred<Boolean>()
+                            _hostKeyPrompt.value = HostKeyPrompt.KeyChanged(
+                                oldFingerprint = result.old.fingerprint,
+                                entry = result.new,
+                                deferred = deferred,
+                            )
+                            if (!deferred.await()) {
+                                sshClient.disconnect()
+                                throw Exception("Host key change rejected by user")
+                            }
+                            hostKeyVerifier.accept(result.new)
+                        }
+                    }
+
+                    sshClient
+                }
+
+                // Phase 2: SSH bootstrap — exec etterminal to get session credentials
+                val etPort = profile.etPort
+                val (etClientId, etPasskey) = withContext(Dispatchers.IO) {
+                    // Generate random id (16 chars) and passkey (32 chars)
+                    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                    fun randomAlphaNum(len: Int) = String(CharArray(len) { chars.random() })
+                    val proposedId = "XXX" + randomAlphaNum(13) // XXX prefix = new client
+                    val proposedKey = randomAlphaNum(32)
+                    val term = "xterm-256color"
+
+                    val etCmd = "echo '${proposedId}/${proposedKey}_${term}' | etterminal"
+                    Log.d(TAG, "ET bootstrap: running etterminal via SSH")
+                    val result = client.execCommand(etCmd)
+                    val output = result.stdout + "\n" + result.stderr
+
+                    // Parse IDPASSKEY:<16-char-id>/<32-char-passkey>
+                    val marker = "IDPASSKEY:"
+                    val markerPos = output.indexOf(marker)
+                    if (markerPos < 0) {
+                        client.disconnect()
+                        throw Exception(
+                            "etterminal not found or failed on remote host. " +
+                                "Install with: apt install et\n" +
+                                "Output: ${output.take(200)}"
+                        )
+                    }
+                    val idPasskey = output.substring(markerPos + marker.length).trim().take(49)
+                    val parts = idPasskey.split("/", limit = 2)
+                    if (parts.size != 2 || parts[0].length != 16 || parts[1].length != 32) {
+                        client.disconnect()
+                        throw Exception("Unexpected etterminal output: $idPasskey")
+                    }
+                    Pair(parts[0], parts[1])
+                }
+
+                val serverHost = profile.host
+                Log.d(TAG, "ET bootstrap: got clientId=${etClientId.take(6)}... connecting to $serverHost:$etPort")
+
+                withContext(Dispatchers.IO) {
+                    etSessionManager.connectSession(
+                        sessionId = sessionId,
+                        serverHost = serverHost,
+                        etPort = etPort,
+                        clientId = etClientId,
+                        passkey = etPasskey,
+                        sshClient = client,
+                    )
+                }
+
+                repository.markConnected(profile.id)
+                startForegroundServiceIfNeeded()
+                _navigateToTerminal.value = profile.id
+            } catch (e: Exception) {
+                Log.e(TAG, "connectEternalTerminal failed for ${profile.label}: ${e.message}", e)
+                etSessionManager.updateStatus(sessionId, EtSessionManager.SessionState.Status.ERROR)
+                etSessionManager.removeSession(sessionId)
+                val msg = e.message ?: ""
+                val isAuthError = keyOnly && (
+                    msg.contains("Auth fail", ignoreCase = true) ||
+                        msg.contains("Auth cancel", ignoreCase = true) ||
+                        msg.contains("authentication", ignoreCase = true) ||
+                        msg.contains("publickey", ignoreCase = true)
+                    )
+                if (isAuthError || (keyOnly && msg.isBlank())) {
+                    _passwordFallback.value = profile
+                } else {
+                    _error.value = msg.ifBlank { "Eternal Terminal connection failed" }
+                }
             } finally {
                 _connectingProfileId.value = null
             }
@@ -1169,11 +1328,14 @@ class ConnectionsViewModel @Inject constructor(
     fun disconnect(profileId: String) {
         sshSessionManager.removeAllSessionsForProfile(profileId)
         reticulumSessionManager.removeAllSessionsForProfile(profileId)
+        moshSessionManager.removeAllSessionsForProfile(profileId)
+        etSessionManager.removeAllSessionsForProfile(profileId)
         updateServiceNotification()
     }
 
     private fun updateServiceNotification() {
-        if (sshSessionManager.hasActiveSessions || reticulumSessionManager.activeSessions.isNotEmpty()) {
+        if (sshSessionManager.hasActiveSessions || reticulumSessionManager.activeSessions.isNotEmpty() ||
+            moshSessionManager.activeSessions.isNotEmpty() || etSessionManager.activeSessions.isNotEmpty()) {
             // Re-start the service to refresh the notification count
             startForegroundServiceIfNeeded()
         } else {

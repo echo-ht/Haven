@@ -9,6 +9,7 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
+import sh.haven.core.et.EtSessionManager
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.reticulum.ReticulumSessionManager
 import javax.inject.Inject
@@ -24,6 +25,9 @@ class SshConnectionService : Service() {
 
     @Inject
     lateinit var moshSessionManager: MoshSessionManager
+
+    @Inject
+    lateinit var etSessionManager: EtSessionManager
 
     companion object {
         const val CHANNEL_ID = "haven_connection"
@@ -49,6 +53,7 @@ class SshConnectionService : Service() {
             sessionManager.disconnectAll()
             reticulumSessionManager.disconnectAll()
             moshSessionManager.disconnectAll()
+            etSessionManager.disconnectAll()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             // Bring the activity to the foreground so it can finish itself
@@ -70,18 +75,21 @@ class SshConnectionService : Service() {
         sessionManager.disconnectAll()
         reticulumSessionManager.disconnectAll()
         moshSessionManager.disconnectAll()
+        etSessionManager.disconnectAll()
     }
 
     private fun buildNotification(): Notification {
         val sshActive = sessionManager.activeSessions
         val rnsActive = reticulumSessionManager.activeSessions
         val moshActive = moshSessionManager.activeSessions
-        val count = sshActive.size + rnsActive.size + moshActive.size
+        val etActive = etSessionManager.activeSessions
+        val count = sshActive.size + rnsActive.size + moshActive.size + etActive.size
 
         val sshLabels = sshActive.distinctBy { it.profileId }.map { it.label }
         val rnsLabels = rnsActive.distinctBy { it.profileId }.map { it.label }
         val moshLabels = moshActive.distinctBy { it.profileId }.map { it.label }
-        val labels = (sshLabels + rnsLabels + moshLabels).joinToString(", ")
+        val etLabels = etActive.distinctBy { it.profileId }.map { it.label }
+        val labels = (sshLabels + rnsLabels + moshLabels + etLabels).joinToString(", ")
 
         val disconnectIntent = Intent(this, SshConnectionService::class.java).apply {
             action = ACTION_DISCONNECT_ALL
