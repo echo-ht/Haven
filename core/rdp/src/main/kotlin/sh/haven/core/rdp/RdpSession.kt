@@ -90,14 +90,11 @@ class RdpSession(
 
             // Initial frame
             refreshBitmap()
-        } catch (e: RdpException) {
-            Log.e(TAG, "RDP connection failed", e)
-            onError?.invoke(e)
-            onDisconnected?.invoke()
         } catch (e: Exception) {
             Log.e(TAG, "RDP connection failed", e)
             onError?.invoke(e)
             onDisconnected?.invoke()
+            throw e
         }
     }
 

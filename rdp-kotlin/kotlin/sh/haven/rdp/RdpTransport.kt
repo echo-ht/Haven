@@ -68,7 +68,7 @@ interface ClipboardCallback {
 
 /** RDP error types. */
 sealed class RdpException(message: String) : Exception(message) {
-    class ConnectionFailed : RdpException("Connection failed")
+    class ConnectionFailed : RdpException("RDP connection failed. The native RDP library may not be fully initialized.")
     class AuthenticationFailed : RdpException("Authentication failed")
     class ProtocolError : RdpException("Protocol error")
     class TlsError : RdpException("TLS error")
@@ -93,6 +93,7 @@ class RdpClient(private val config: RdpConfig) {
     private var nativePtr: Long = 0
 
     private var connected = false
+    private var nativeAvailable = false
 
     init {
         try {
@@ -101,22 +102,25 @@ class RdpClient(private val config: RdpConfig) {
                 config.username, config.password, config.domain,
                 config.width.toInt(), config.height.toInt(), config.colorDepth.toInt(),
             )
+            nativeAvailable = true
         } catch (e: UnsatisfiedLinkError) {
-            // Native library not available — stub mode for compilation
+            // Native library or JNI symbols not available
             nativePtr = 0
+            nativeAvailable = false
         }
     }
 
     @Throws(RdpException::class)
     fun connect(host: String, port: UShort) {
-        if (nativePtr != 0L) {
-            val result = nativeConnect(nativePtr, host, port.toInt())
-            if (result != 0) {
-                throw when (result) {
-                    1 -> RdpException.AuthenticationFailed()
-                    2 -> RdpException.TlsError()
-                    else -> RdpException.ConnectionFailed()
-                }
+        if (!nativeAvailable) {
+            throw RdpException.ConnectionFailed()
+        }
+        val result = nativeConnect(nativePtr, host, port.toInt())
+        if (result != 0) {
+            throw when (result) {
+                1 -> RdpException.AuthenticationFailed()
+                2 -> RdpException.TlsError()
+                else -> RdpException.ConnectionFailed()
             }
         }
         connected = true
@@ -129,7 +133,7 @@ class RdpClient(private val config: RdpConfig) {
         }
     }
 
-    fun isConnected(): Boolean = connected && (nativePtr == 0L || nativeIsConnected(nativePtr))
+    fun isConnected(): Boolean = connected && nativeAvailable && nativeIsConnected(nativePtr)
 
     fun getFramebuffer(): FrameData? {
         if (nativePtr == 0L) return null
