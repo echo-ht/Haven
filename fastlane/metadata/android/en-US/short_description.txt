@@ -1,1 +1,1 @@
-Secure SSH terminal, VNC desktop, and SFTP client for Android
+Secure SSH terminal, VNC/RDP desktop, and SFTP client for Android
