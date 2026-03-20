@@ -1,6 +1,7 @@
 package sh.haven.core.ssh
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -108,5 +109,96 @@ class SshKeyImporterTest {
         assertEquals(r1.keyType, r2.keyType)
         assertEquals(r1.fingerprintSha256, r2.fingerprintSha256)
         assertEquals(r1.publicKeyOpenSsh, r2.publicKeyOpenSsh)
+    }
+
+    // ---- import() with passphrase ----
+
+    // Throwaway RSA 2048-bit key encrypted with passphrase "test-passphrase" for use as a test fixture only.
+    // Generated with: ssh-keygen -t rsa -b 2048 -N "test-passphrase" -f /tmp/haven_enc_rsa_test_key
+    // RSA is used (not Ed25519) because JSch supports writePrivateKey() for RSA but not Ed25519.
+    // This key must never be used for real authentication.
+    private val encryptedRsaPem = """
+        -----BEGIN OPENSSH PRIVATE KEY-----
+        b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCdMXrGfM
+        Q5sCH5WDSNCuRvAAAAGAAAAAEAAAEXAAAAB3NzaC1yc2EAAAADAQABAAABAQDgWRIAPwGL
+        HMU9snxLbALQbY6MxmSpGiAbsCR9Kzq95kAqbK7ozS9a10LpNjhL80S8USQJQKEV6QFVuN
+        gv9NzxJfhhhHOeZJVrkzw6TRasrDQuNKIhMvXBsygicJKlRkOlYbOlWZVUSSLmMt58Ohq4
+        1vLStbREryirNByCSLMCYIqH0itClYgbuI/QhMk5mIXkbRvxyW1zL8ybVqecCcVWpy6AnI
+        qHeIcKNlacRvLck/8YrI9TlazOIgRILHHVApK0XdaT1Eq7L0+a+eEzM2RTNNuPQM9m2aBU
+        v7VWCsLhDHoWDyt8v5t1jmBpBBm8pyuypCWCC4ivvGWP+MGpX3bpAAAD0JOxj2Ze7njGZF
+        i1j6YEcOZRjf0Tliz5eOrdYnaYtJNF+I3yTKb3VpMuLylvdreOCHL3dn7tnNFjZDsE/bc+
+        Mf6Y/Sr8ji+WjrJVETMiiQ+Q9J7Q1fTP7j6SmyUpdXjbFxQ/5DP98BNgzXTC684H6qTVK+
+        B4UC1fjCaU54fErqglw7bN0NkDXil6wJJM3nliONiiwcp0Q8bJBbemhaUfeisLRIbHYkBU
+        z/S/Q5yOEm0bogij6nyDd/sJ3htDYdSGN5bh6fOzwcN6d3WQXSpJNnMjUh4wbxh+UDBcas
+        MStA2btGKx08r/XWV5UnK8Og4ok5zBuTQXr8sr+M9pWOBwRHnQRAmaAkg8QWK+yVioWDp0
+        Dr1Gf66EAykjMKo7LPvFzpNixnSI4/TjexU4cH+5/V13g7asuz2Ws5Htd41OPky5zP2ttG
+        InYifXVLwb+qySpBiAbHutmeQdqoLLJ0W2ulrPkhpKnNSxNe76vEhBBlG4kmk7UfgbW/NC
+        AbYNwnygrMHXmOYi2anG2wS+Mh8WLlNi4aCT14PSV3s6ZBE+ygdipJXqL8IrRpJQ7lFBhu
+        FDWgR9OX+KtOkUkH0QX9loiMG5kXTla+sMLkXfI/IxB/qu1NRLKlhBNTX1toYgFPNyGY2A
+        8bziMBgVZuuWRaoFBLAxgT+YwjoQ7VhO0zalLuEyFbs+5pGLxRLMJw2VqoIPVQRTQDkyDs
+        rWt3Kk90ACOB3g8XbQJ+AGHKqMa0Cvd5aXzAZqirdQ/3de3N5J6nyKGyWifhvDncosuqFl
+        3bqnc4lvb28W35aJl/QxezD3Kc9h0ch9Rs6MjhxeX/SpwAyowbHQz66BjOxdoBxLgsh1HU
+        zq0wtwgtl6jE9PvvqrcsoEQOdEiOlWfJEH/jsifteOi9qZakJ5K2DkUsYIuekwGpQr6Qq8
+        JxjFvd035xv/JQOVVg8tBGQGkxHKan1oDSMWYJZEkEEQB6lIpbjo5as/1KJuZjm2kozuXb
+        d//PkCJGMMbHMDOOq7+FijjXd1CWJq6aIaMygy5S9s4QycD/ngn6+Ppx5eNql+pxuCAMUD
+        49pbgruARf32Jgb+YiwL5+85aWbcwqu8DQZuMeCW8cm2/Vsqeig8RUyHCBbGQvjrN6HOmu
+        BJzgc3peO2gZbludmndsdKB+ojY4B5j+xE61lWaMWG2/8jYSbkDHUfTZIwbrCCPCM1yNuH
+        vhD5DZyS9uW93ZTjX5GH7IAQt7QcJusQyvfqU/8T1DU2i/j9/r+FmxkG918zwDZxNqNef2
+        PsVIuNOjBodkljf1EuEN7VoLnYpK0=
+        -----END OPENSSH PRIVATE KEY-----
+    """.trimIndent().toByteArray()
+
+    @Test(expected = SshKeyImporter.EncryptedKeyException::class)
+    fun `import encrypted key without passphrase throws EncryptedKeyException`() {
+        SshKeyImporter.import(encryptedRsaPem)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `import encrypted key with wrong passphrase throws IllegalArgumentException`() {
+        SshKeyImporter.import(encryptedRsaPem, "wrong-passphrase")
+    }
+
+    @Test
+    fun `import encrypted key with correct passphrase stores decrypted bytes`() {
+        val result = SshKeyImporter.import(encryptedRsaPem, "test-passphrase")
+        // The stored bytes must differ from the encrypted input — they should be the
+        // decrypted (unencrypted) private key written out by JSch.
+        assertFalse(
+            "Stored key bytes should not equal the encrypted input",
+            encryptedRsaPem.contentEquals(result.privateKeyBytes)
+        )
+    }
+
+    @Test
+    fun `import encrypted key with correct passphrase produces valid fingerprint`() {
+        val result = SshKeyImporter.import(encryptedRsaPem, "test-passphrase")
+        assertTrue(
+            "Expected fingerprint to start with SHA256:, got: ${result.fingerprintSha256}",
+            result.fingerprintSha256.startsWith("SHA256:")
+        )
+    }
+
+    @Test
+    fun `import encrypted key with correct passphrase returns ssh-rsa type`() {
+        val result = SshKeyImporter.import(encryptedRsaPem, "test-passphrase")
+        assertEquals("ssh-rsa", result.keyType)
+    }
+
+    @Test
+    fun `import encrypted key with correct passphrase produces openssh public key line`() {
+        val result = SshKeyImporter.import(encryptedRsaPem, "test-passphrase")
+        assertTrue(
+            "Expected public key to start with ssh-rsa, got: ${result.publicKeyOpenSsh}",
+            result.publicKeyOpenSsh.startsWith("ssh-rsa ")
+        )
+    }
+
+    @Test
+    fun `import encrypted key result is consistent across calls`() {
+        val r1 = SshKeyImporter.import(encryptedRsaPem, "test-passphrase")
+        val r2 = SshKeyImporter.import(encryptedRsaPem, "test-passphrase")
+        assertEquals(r1.fingerprintSha256, r2.fingerprintSha256)
+        assertEquals(r1.publicKeyOpenSsh, r2.publicKeyOpenSsh)
+        assertEquals(r1.keyType, r2.keyType)
     }
 }
