@@ -1,13 +1,12 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
 
 android {
-    namespace = "sh.haven.feature.connections"
+    namespace = "sh.haven.core.fido"
     compileSdk = 36
 
     defaultConfig {
@@ -19,26 +18,22 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-
-    buildFeatures {
-        compose = true
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 }
 
 dependencies {
-    implementation(project(":core:ui"))
-    implementation(project(":core:ssh"))
-    implementation(project(":core:reticulum"))
-    implementation(project(":core:mosh"))
-    implementation(project(":core:et"))
-    implementation(project(":core:data"))
-    implementation(project(":core:smb"))
-    implementation(project(":core:fido"))
-
+    api(libs.yubikit.android)
+    api(libs.yubikit.fido)
+    implementation(libs.jsch)
+    implementation(libs.bouncycastle)
+    implementation(libs.coroutines.core)
+    implementation(libs.coroutines.android)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
-    implementation(libs.lifecycle.viewmodel)
+
+    testImplementation(libs.junit)
 }
 
 kotlin {

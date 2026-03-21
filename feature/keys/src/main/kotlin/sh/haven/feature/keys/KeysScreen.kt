@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -199,7 +200,10 @@ fun KeysScreen(
                             },
                             leadingContent = {
                                 Icon(
-                                    Icons.Filled.VpnKey,
+                                    if (sshKey.keyType.startsWith("sk-"))
+                                        Icons.Filled.Key
+                                    else
+                                        Icons.Filled.VpnKey,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
@@ -220,16 +224,18 @@ fun KeysScreen(
                                     Icon(Icons.Filled.ContentCopy, contentDescription = null)
                                 },
                             )
-                            DropdownMenuItem(
-                                text = { Text("Export private key") },
-                                onClick = {
-                                    contextMenuKeyId = null
-                                    viewModel.requestExport(sshKey.id)
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.FileDownload, contentDescription = null)
-                                },
-                            )
+                            if (!sshKey.keyType.startsWith("sk-")) {
+                                DropdownMenuItem(
+                                    text = { Text("Export private key") },
+                                    onClick = {
+                                        contextMenuKeyId = null
+                                        viewModel.requestExport(sshKey.id)
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Filled.FileDownload, contentDescription = null)
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = {
                                     Text("Delete", color = MaterialTheme.colorScheme.error)

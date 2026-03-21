@@ -31,6 +31,7 @@ dependencies {
     implementation(project(":core:mosh"))
     implementation(project(":core:et"))
     implementation(project(":core:rdp"))
+    implementation(project(":core:fido"))
     implementation(libs.bouncycastle)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)

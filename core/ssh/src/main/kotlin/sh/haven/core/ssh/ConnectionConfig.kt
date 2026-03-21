@@ -24,6 +24,15 @@ data class ConnectionConfig(
             override fun hashCode(): Int = keyBytes.contentHashCode() * 31 + passphrase.hashCode()
         }
         data class PrivateKeys(val keys: List<Pair<String, ByteArray>>) : AuthMethod
+        /** FIDO2 SK key — signing delegated to hardware security key. */
+        data class FidoKey(val skKeyData: ByteArray) : AuthMethod {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (other !is FidoKey) return false
+                return skKeyData.contentEquals(other.skKeyData)
+            }
+            override fun hashCode(): Int = skKeyData.contentHashCode()
+        }
     }
 
     companion object {

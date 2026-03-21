@@ -7,6 +7,9 @@ import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Proxy
 import com.jcraft.jsch.Session
+import sh.haven.core.fido.FidoAuthenticator
+import sh.haven.core.fido.FidoIdentity
+import sh.haven.core.fido.SkKeyData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.Closeable
@@ -29,6 +32,8 @@ data class ExecResult(
  */
 class SshClient : Closeable {
     private val jsch = JSch()
+    /** Set before connecting with a FidoKey auth method. */
+    var fidoAuthenticator: FidoAuthenticator? = null
     private var session: Session? = null
 
     val isConnected: Boolean
@@ -76,6 +81,18 @@ class SshClient : Closeable {
                 auth.keys.forEachIndexed { i, (label, keyBytes) ->
                     jsch.addIdentity("haven-key-$i-$label", keyBytes, null, null)
                 }
+            }
+            is ConnectionConfig.AuthMethod.FidoKey -> {
+                val skData = SkKeyData.deserialize(auth.skKeyData)
+                Log.d(TAG, "FIDO2 SK key: alg=${skData.algorithmName}, app=${skData.application}")
+                val fidoIdentity = FidoIdentity(skData, fidoAuthenticator!!)
+                jsch.addIdentity(fidoIdentity, null)
+                // Add SK algorithms to accepted list
+                val currentAlgs = sess.getConfig("PubkeyAcceptedAlgorithms") ?: ""
+                val skAlgs = "sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com"
+                sess.setConfig("PubkeyAcceptedAlgorithms",
+                    if (currentAlgs.isNotEmpty()) "$skAlgs,$currentAlgs" else skAlgs)
+                Log.d(TAG, "PubkeyAcceptedAlgorithms: ${sess.getConfig("PubkeyAcceptedAlgorithms")}")
             }
         }
 
@@ -185,6 +202,16 @@ class SshClient : Closeable {
                 auth.keys.forEachIndexed { i, (label, keyBytes) ->
                     jsch.addIdentity("haven-key-$i-$label", keyBytes, null, null)
                 }
+            }
+            is ConnectionConfig.AuthMethod.FidoKey -> {
+                val skData = SkKeyData.deserialize(auth.skKeyData)
+                Log.d(TAG, "FIDO2 SK key (reconnect): alg=${skData.algorithmName}")
+                val fidoIdentity = FidoIdentity(skData, fidoAuthenticator!!)
+                jsch.addIdentity(fidoIdentity, null)
+                val currentAlgs = sess.getConfig("PubkeyAcceptedAlgorithms") ?: ""
+                val skAlgs = "sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com"
+                sess.setConfig("PubkeyAcceptedAlgorithms",
+                    if (currentAlgs.isNotEmpty()) "$skAlgs,$currentAlgs" else skAlgs)
             }
         }
 

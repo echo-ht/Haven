@@ -2,6 +2,7 @@ package sh.haven.core.ssh
 
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.KeyPair
+import sh.haven.core.fido.SkKeyParser
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.Base64
@@ -22,13 +23,23 @@ object SshKeyImporter {
 
     class EncryptedKeyException : Exception("Key is encrypted — passphrase required")
 
+    /** Thrown when the key file is a FIDO2 SK key that needs special handling. */
+    class SkKeyDetectedException(val fileBytes: ByteArray) :
+        Exception("FIDO2 security key file detected")
+
     /**
      * Parse a private key file and extract metadata for storage.
      *
      * @throws EncryptedKeyException if the key is encrypted and no passphrase given
+     * @throws SkKeyDetectedException if the file is a FIDO2 SK key
      * @throws IllegalArgumentException if the passphrase is wrong or key is unreadable
      */
     fun import(fileBytes: ByteArray, passphrase: String? = null): ImportedKey {
+        // Detect FIDO2 SK keys before JSch (which doesn't support them)
+        if (SkKeyParser.isSkKeyFile(fileBytes)) {
+            throw SkKeyDetectedException(fileBytes)
+        }
+
         val jsch = JSch()
         val kpair = try {
             KeyPair.load(jsch, fileBytes, null)

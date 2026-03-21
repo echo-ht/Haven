@@ -16,3 +16,4 @@ local.properties
 *.keystore
 /releases
 build-mosh/
+com/jcraft/jsch/

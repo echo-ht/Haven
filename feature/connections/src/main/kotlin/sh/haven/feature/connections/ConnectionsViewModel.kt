@@ -38,6 +38,7 @@ import sh.haven.core.ssh.SshSessionManager
 import sh.haven.core.data.db.entities.KnownHost
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.et.EtSessionManager
+import sh.haven.core.fido.FidoAuthenticator
 import sh.haven.core.reticulum.ReticulumBridge
 import sh.haven.core.reticulum.ReticulumSessionManager
 import sh.haven.core.smb.SmbSessionManager
@@ -62,6 +63,7 @@ class ConnectionsViewModel @Inject constructor(
     private val etSessionManager: EtSessionManager,
     private val reticulumBridge: ReticulumBridge,
     private val smbSessionManager: SmbSessionManager,
+    private val fidoAuthenticator: FidoAuthenticator,
     private val sshKeyRepository: SshKeyRepository,
     private val preferencesRepository: UserPreferencesRepository,
     private val hostKeyVerifier: HostKeyVerifier,
@@ -544,7 +546,7 @@ class ConnectionsViewModel @Inject constructor(
             _connectingProfileId.value = profile.id
             _error.value = null
 
-            val client = SshClient()
+            val client = SshClient().apply { fidoAuthenticator = this@ConnectionsViewModel.fidoAuthenticator }
             val sessionId = sshSessionManager.registerSession(profile.id, profile.label, client)
 
             // Track whether we auto-created the jump session (for cleanup on failure)
@@ -1398,6 +1400,11 @@ class ConnectionsViewModel @Inject constructor(
             val keyBytes = sshKeyRepository.getDecryptedKeyBytes(keyId)
             val key = sshKeyRepository.getById(keyId)
             if (keyBytes != null && key != null) {
+                // FIDO2 SK keys use hardware signing, not PEM key material
+                if (key.keyType.startsWith("sk-")) {
+                    Log.d(TAG, "Using FIDO2 SK key: ${key.keyType}")
+                    return ConnectionConfig.AuthMethod.FidoKey(skKeyData = keyBytes)
+                }
                 return ConnectionConfig.AuthMethod.PrivateKey(
                     keyBytes = rawKeyToPem(keyBytes, key.keyType),
                     passphrase = password,

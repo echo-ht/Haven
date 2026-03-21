@@ -63,6 +63,7 @@ include(":core:et")
 include(":core:vnc")
 include(":core:rdp")
 include(":core:smb")
+include(":core:fido")
 
 include(":feature:settings")
 include(":feature:vnc")

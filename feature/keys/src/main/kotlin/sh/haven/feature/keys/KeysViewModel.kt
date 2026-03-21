@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.haven.core.data.db.entities.SshKey
 import sh.haven.core.data.repository.SshKeyRepository
+import sh.haven.core.fido.SkKeyData
+import sh.haven.core.fido.SkKeyParser
 import sh.haven.core.security.SshKeyGenerator
 import sh.haven.core.ssh.SshKeyExporter
 import sh.haven.core.ssh.SshKeyImporter
@@ -98,6 +100,8 @@ class KeysViewModel @Inject constructor(
                     SshKeyImporter.import(fileBytes)
                 }
                 _importResult.value = imported
+            } catch (e: SshKeyImporter.SkKeyDetectedException) {
+                handleSkKeyImport(e.fileBytes)
             } catch (_: SshKeyImporter.EncryptedKeyException) {
                 pendingImportBytes = fileBytes
                 _needsPassphrase.value = true
@@ -144,6 +148,27 @@ class KeysViewModel @Inject constructor(
                 repository.save(entity)
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to save key"
+            }
+        }
+    }
+
+    private fun handleSkKeyImport(fileBytes: ByteArray) {
+        viewModelScope.launch {
+            try {
+                val skData = SkKeyParser.parse(fileBytes)
+                val entity = SshKey(
+                    label = "FIDO2: ${skData.application}",
+                    keyType = skData.algorithmName,
+                    privateKeyBytes = SkKeyData.serialize(skData),
+                    publicKeyOpenSsh = SkKeyParser.formatPublicKeyLine(skData),
+                    fingerprintSha256 = SkKeyParser.fingerprintSha256(skData.publicKeyBlob),
+                )
+                repository.save(entity)
+                _message.value = "FIDO2 security key imported"
+                Log.d("KeysViewModel", "SK key imported: ${skData.algorithmName}, app=${skData.application}")
+            } catch (e: Exception) {
+                Log.e("KeysViewModel", "SK key import failed", e)
+                _error.value = "FIDO2 key import failed: ${e.message}"
             }
         }
     }

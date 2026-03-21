@@ -30,6 +30,7 @@ dependencies {
     implementation(project(":core:security"))
     implementation(project(":core:ssh"))
     implementation(project(":core:data"))
+    implementation(project(":core:fido"))
 
     implementation(libs.activity.compose)
     implementation(libs.hilt.android)
