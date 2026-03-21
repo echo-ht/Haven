@@ -201,6 +201,10 @@ class KeysViewModel @Inject constructor(
         }
     }
 
+    fun showError(msg: String) {
+        _error.value = msg
+    }
+
     fun dismissError() {
         _error.value = null
     }

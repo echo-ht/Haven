@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.VpnKey
@@ -262,6 +263,16 @@ fun KeysScreen(
                 showAddKeyDialog = false
                 filePickerLauncher.launch(arrayOf("*/*"))
             },
+            onPaste = {
+                showAddKeyDialog = false
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val text = clipboard.primaryClip?.getItemAt(0)?.text?.toString()
+                if (text.isNullOrBlank()) {
+                    viewModel.showError("Clipboard is empty")
+                } else {
+                    viewModel.startImport(text.toByteArray())
+                }
+            },
             onDismiss = { showAddKeyDialog = false },
         )
     }
@@ -297,6 +308,7 @@ fun KeysScreen(
 private fun AddKeyChooser(
     onGenerate: () -> Unit,
     onImport: () -> Unit,
+    onPaste: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -318,6 +330,14 @@ private fun AddKeyChooser(
                     supportingContent = { Text("PEM or OpenSSH format") },
                     leadingContent = {
                         Icon(Icons.Filled.FileUpload, contentDescription = null)
+                    },
+                )
+                ListItem(
+                    modifier = Modifier.clickable { onPaste() },
+                    headlineContent = { Text("Paste from clipboard") },
+                    supportingContent = { Text("Paste a PEM or OpenSSH private key") },
+                    leadingContent = {
+                        Icon(Icons.Filled.ContentPaste, contentDescription = null)
                     },
                 )
             }
