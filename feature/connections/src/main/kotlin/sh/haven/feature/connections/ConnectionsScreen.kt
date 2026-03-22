@@ -760,7 +760,9 @@ private fun ConnectionTreeItem(
             ListItem(
                 headlineContent = { Text(profile.label) },
                 supportingContent = {
-                    if (profile.isReticulum) {
+                    if (profile.isLocal) {
+                        Text("PRoot Alpine Linux")
+                    } else if (profile.isReticulum) {
                         Text("RNS: ${profile.destinationHash?.take(12) ?: ""}... via ${profile.reticulumHost}:${profile.reticulumPort}")
                     } else {
                         val suffix = if (jumpHostLabel != null && indent == 0) " via $jumpHostLabel" else ""

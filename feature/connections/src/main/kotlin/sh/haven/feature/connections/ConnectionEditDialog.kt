@@ -136,7 +136,7 @@ fun ConnectionEditDialog(
                     "SSH" to "SSH",
                     "MOSH" to "Mosh",
                     "ET" to "Eternal Terminal",
-                    "LOCAL" to "Local Terminal",
+                    "LOCAL" to "Local Shell (PRoot)",
                     "VNC" to "VNC (Desktop)",
                     "RDP" to "RDP (Desktop)",
                     "SMB" to "SMB (File Share)",
@@ -192,7 +192,7 @@ fun ConnectionEditDialog(
                     placeholder = {
                         Text(
                             when (connectionType) {
-                                "LOCAL" -> "Local Terminal"
+                                "LOCAL" -> "Local Shell"
                                 "VNC" -> "My VNC Desktop"
                                 "RDP" -> "My RDP Desktop"
                                 "SMB" -> "My File Share"
@@ -208,7 +208,9 @@ fun ConnectionEditDialog(
 
                 if (connectionType == "LOCAL") {
                     Text(
-                        "Opens a local shell on this device. No network connection needed.",
+                        "Runs an Alpine Linux shell locally via PRoot. " +
+                            "Downloads a minimal rootfs (~4MB) on first use. " +
+                            "No root or network connection needed.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1059,7 +1061,7 @@ fun ConnectionEditDialog(
                             host = "localhost",
                             username = "",
                         )).copy(
-                            label = label.ifBlank { "Local Terminal" },
+                            label = label.ifBlank { "Local Shell" },
                             host = "localhost",
                             port = 0,
                             username = "",
