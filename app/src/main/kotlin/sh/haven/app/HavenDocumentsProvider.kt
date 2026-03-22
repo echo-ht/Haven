@@ -232,15 +232,27 @@ class HavenDocumentsProvider : DocumentsProvider() {
             val channel = getSftpChannel(profileId)
             if (channel != null) {
                 try {
+                    data class PendingEntry(val name: String, val path: String, val isLink: Boolean,
+                        val isDir: Boolean, val size: Long, val mTime: Long)
+                    val pending = mutableListOf<PendingEntry>()
                     channel.ls(path) { lsEntry ->
                         val name = lsEntry.filename
                         if (name != "." && name != "..") {
                             val attrs = lsEntry.attrs
                             val childPath = path.trimEnd('/') + "/" + name
-                            addDocRow(cursor, profileId, name, childPath,
-                                attrs.isDir, attrs.size, attrs.mTime.toLong())
+                            pending.add(PendingEntry(name, childPath, attrs.isLink,
+                                attrs.isDir, attrs.size, attrs.mTime.toLong()))
                         }
                         ChannelSftp.LsEntrySelector.CONTINUE
+                    }
+                    for (entry in pending) {
+                        val isDir = if (entry.isLink && !entry.isDir) {
+                            try { channel.stat(entry.path).isDir } catch (_: Exception) { false }
+                        } else {
+                            entry.isDir
+                        }
+                        addDocRow(cursor, profileId, entry.name, entry.path,
+                            isDir, entry.size, entry.mTime)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "SFTP ls failed: $path", e)

@@ -447,14 +447,17 @@ class SftpViewModel @Inject constructor(
 
     private fun loadEntries(channel: ChannelSftp, path: String) {
         val results = mutableListOf<SftpEntry>()
+        val symlinkIndices = mutableListOf<Int>()
         channel.ls(path) { lsEntry ->
             val name = lsEntry.filename
             if (name != "." && name != "..") {
                 val attrs = lsEntry.attrs
+                val fullPath = path.trimEnd('/') + "/" + name
+                if (attrs.isLink) symlinkIndices.add(results.size)
                 results.add(
                     SftpEntry(
                         name = name,
-                        path = path.trimEnd('/') + "/" + name,
+                        path = fullPath,
                         isDirectory = attrs.isDir,
                         size = attrs.size,
                         modifiedTime = attrs.mTime.toLong(),
@@ -463,6 +466,17 @@ class SftpViewModel @Inject constructor(
                 )
             }
             ChannelSftp.LsEntrySelector.CONTINUE
+        }
+        // Resolve symlinks AFTER ls() completes — calling stat() inside the ls
+        // callback corrupts JSch's read buffer (interleaved SFTP requests).
+        for (i in symlinkIndices) {
+            try {
+                if (channel.stat(results[i].path).isDir) {
+                    results[i] = results[i].copy(isDirectory = true)
+                }
+            } catch (_: Exception) {
+                // broken symlink or permission denied
+            }
         }
         _allEntries.value = sortEntries(results, _sortMode.value)
         applyFilter()
