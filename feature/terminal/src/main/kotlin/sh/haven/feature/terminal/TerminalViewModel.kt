@@ -175,7 +175,7 @@ class TerminalViewModel @Inject constructor(
     private val localSessionManager: sh.haven.core.local.LocalSessionManager,
     private val hostKeyVerifier: HostKeyVerifier,
     private val preferencesRepository: UserPreferencesRepository,
-    private val connectionDao: sh.haven.core.data.db.ConnectionDao,
+    private val connectionRepository: sh.haven.core.data.repository.ConnectionRepository,
 ) : ViewModel() {
 
     override fun onCleared() {
@@ -230,7 +230,7 @@ class TerminalViewModel @Inject constructor(
     /** Get VNC connection info for the active terminal tab's SSH host. */
     suspend fun getActiveVncInfo(): VncInfo? {
         val tab = _tabs.value.getOrNull(_activeTabIndex.value) ?: return null
-        val profile = connectionDao.getById(tab.profileId)
+        val profile = connectionRepository.getById(tab.profileId)
         // For SSH tabs, use the stored connection config; for mosh/ET, use the profile directly
         val host = sessionManager.getConnectionConfigForProfile(tab.profileId)?.first?.host
             ?: profile?.host
@@ -254,7 +254,7 @@ class TerminalViewModel @Inject constructor(
     fun sendRedrawIfZellij() {
         val tab = _tabs.value.getOrNull(_activeTabIndex.value) ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            val profile = connectionDao.getById(tab.profileId)
+            val profile = connectionRepository.getById(tab.profileId)
             val smOverride = profile?.sessionManager
             val isZellij = if (smOverride != null) {
                 smOverride.equals("ZELLIJ", ignoreCase = true)
@@ -273,7 +273,7 @@ class TerminalViewModel @Inject constructor(
     /** Save VNC settings for a profile. */
     fun saveVncSettings(profileId: String, port: Int, password: String?, sshForward: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            connectionDao.updateVncSettings(profileId, port, password, sshForward)
+            connectionRepository.updateVncSettings(profileId, port, password, sshForward)
         }
     }
 

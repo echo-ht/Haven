@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardAlt
@@ -81,6 +82,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val biometricEnabled by viewModel.biometricEnabled.collectAsState()
+    val screenSecurity by viewModel.screenSecurity.collectAsState()
     val lockTimeout by viewModel.lockTimeout.collectAsState()
     val fontSize by viewModel.terminalFontSize.collectAsState()
     val theme by viewModel.theme.collectAsState()
@@ -155,6 +157,13 @@ fun SettingsScreen(
                 )
             }
         }
+        SettingsToggleItem(
+            icon = Icons.Filled.ScreenLockPortrait,
+            title = "Prevent screenshots",
+            subtitle = "Block screen capture and task switcher preview",
+            checked = screenSecurity,
+            onCheckedChange = viewModel::setScreenSecurity,
+        )
         SettingsItem(
             icon = Icons.Filled.Terminal,
             title = "Session persistence",

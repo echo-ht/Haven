@@ -30,9 +30,21 @@ class UserPreferencesRepository @Inject constructor(
     private val sessionCommandOverrideKey = stringPreferencesKey("session_command_override")
     private val sftpSortModeKey = stringPreferencesKey("sftp_sort_mode")
     private val lockTimeoutKey = stringPreferencesKey("lock_timeout")
+    private val screenSecurityKey = booleanPreferencesKey("screen_security")
 
     val biometricEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[biometricEnabledKey] ?: false
+    }
+
+    /** Prevent screenshots and screen recording (FLAG_SECURE). */
+    val screenSecurity: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[screenSecurityKey] ?: false
+    }
+
+    suspend fun setScreenSecurity(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[screenSecurityKey] = enabled
+        }
     }
 
     val terminalFontSize: Flow<Int> = dataStore.data.map { prefs ->

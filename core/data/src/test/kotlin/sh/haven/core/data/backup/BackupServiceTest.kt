@@ -41,6 +41,7 @@ class BackupServiceTest {
     val tempFolder = TemporaryFolder()
 
     private lateinit var connectionDao: ConnectionDao
+    private lateinit var connectionRepository: sh.haven.core.data.repository.ConnectionRepository
     private lateinit var sshKeyDao: SshKeyDao
     private lateinit var sshKeyRepository: sh.haven.core.data.repository.SshKeyRepository
     private lateinit var knownHostDao: KnownHostDao
@@ -51,6 +52,7 @@ class BackupServiceTest {
     @Before
     fun setup() {
         connectionDao = mockk(relaxed = true)
+        connectionRepository = mockk(relaxed = true)
         sshKeyDao = mockk(relaxed = true)
         sshKeyRepository = mockk(relaxed = true)
         knownHostDao = mockk(relaxed = true)
@@ -59,14 +61,14 @@ class BackupServiceTest {
         val prefsFile = File(tempFolder.root, "test.preferences_pb")
         dataStore = PreferenceDataStoreFactory.create { prefsFile }
 
-        service = BackupService(connectionDao, sshKeyDao, sshKeyRepository, knownHostDao, portForwardRuleDao, dataStore)
+        service = BackupService(connectionDao, connectionRepository, sshKeyDao, sshKeyRepository, knownHostDao, portForwardRuleDao, dataStore)
     }
 
     // -- Encrypt/Decrypt roundtrip --
 
     @Test
     fun `export and import roundtrip with empty data`() = runTest {
-        coEvery { connectionDao.getAll() } returns emptyList()
+        coEvery { connectionRepository.getAll() } returns emptyList()
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -81,7 +83,7 @@ class BackupServiceTest {
 
     @Test(expected = Exception::class)
     fun `import with wrong password throws`() = runTest {
-        coEvery { connectionDao.getAll() } returns emptyList()
+        coEvery { connectionRepository.getAll() } returns emptyList()
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -122,7 +124,7 @@ class BackupServiceTest {
             vncSshForward = false,
         )
 
-        coEvery { connectionDao.getAll() } returns listOf(profile)
+        coEvery { connectionRepository.getAll() } returns listOf(profile)
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -132,7 +134,7 @@ class BackupServiceTest {
 
         // Capture the upserted profile on import
         val captured = slot<ConnectionProfile>()
-        coEvery { connectionDao.upsert(capture(captured)) } returns Unit
+        coEvery { connectionRepository.save(capture(captured)) } returns Unit
 
         val result = service.import(encrypted, "pw")
         assertTrue("Import errors: ${result.errors}", result.errors.isEmpty())
@@ -168,7 +170,7 @@ class BackupServiceTest {
             username = "user",
         )
 
-        coEvery { connectionDao.getAll() } returns listOf(profile)
+        coEvery { connectionRepository.getAll() } returns listOf(profile)
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -177,7 +179,7 @@ class BackupServiceTest {
         val encrypted = service.export("pw")
 
         val captured = slot<ConnectionProfile>()
-        coEvery { connectionDao.upsert(capture(captured)) } returns Unit
+        coEvery { connectionRepository.save(capture(captured)) } returns Unit
 
         service.import(encrypted, "pw")
 
@@ -206,7 +208,7 @@ class BackupServiceTest {
             createdAt = 1700000000000L,
         )
 
-        coEvery { connectionDao.getAll() } returns emptyList()
+        coEvery { connectionRepository.getAll() } returns emptyList()
         coEvery { sshKeyDao.getAll() } returns listOf(key)
         coEvery { sshKeyRepository.getAllDecrypted() } returns listOf(key)
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -243,7 +245,7 @@ class BackupServiceTest {
             firstSeen = 1700000000000L,
         )
 
-        coEvery { connectionDao.getAll() } returns emptyList()
+        coEvery { connectionRepository.getAll() } returns emptyList()
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns listOf(host)
@@ -280,7 +282,7 @@ class BackupServiceTest {
             enabled = true,
         )
 
-        coEvery { connectionDao.getAll() } returns emptyList()
+        coEvery { connectionRepository.getAll() } returns emptyList()
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -317,7 +319,7 @@ class BackupServiceTest {
             enabled = false,
         )
 
-        coEvery { connectionDao.getAll() } returns emptyList()
+        coEvery { connectionRepository.getAll() } returns emptyList()
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -346,7 +348,7 @@ class BackupServiceTest {
             prefs[booleanPreferencesKey("hapticFeedback")] = true
         }
 
-        coEvery { connectionDao.getAll() } returns emptyList()
+        coEvery { connectionRepository.getAll() } returns emptyList()
         coEvery { sshKeyDao.getAll() } returns emptyList()
         coEvery { sshKeyRepository.getAllDecrypted() } returns emptyList()
         coEvery { knownHostDao.getAll() } returns emptyList()
@@ -406,7 +408,7 @@ class BackupServiceTest {
         val encrypted = encryptForTest(plaintext, "pw")
 
         val captured = slot<ConnectionProfile>()
-        coEvery { connectionDao.upsert(capture(captured)) } returns Unit
+        coEvery { connectionRepository.save(capture(captured)) } returns Unit
 
         val result = service.import(encrypted, "pw")
         assertTrue("Import errors: ${result.errors}", result.errors.isEmpty())
@@ -458,7 +460,7 @@ class BackupServiceTest {
                 bindPort = 8080, targetPort = 80),
         )
 
-        coEvery { connectionDao.getAll() } returns connections
+        coEvery { connectionRepository.getAll() } returns connections
         coEvery { sshKeyDao.getAll() } returns keys
         coEvery { sshKeyRepository.getAllDecrypted() } returns keys
         coEvery { knownHostDao.getAll() } returns hosts
@@ -471,7 +473,7 @@ class BackupServiceTest {
         // 1 key + 2 connections + 3 hosts + 1 forward = 7
         assertEquals(7, result.count)
 
-        coVerify(exactly = 2) { connectionDao.upsert(any()) }
+        coVerify(exactly = 2) { connectionRepository.save(any()) }
         coVerify(exactly = 1) { sshKeyRepository.save(any()) }
         coVerify(exactly = 3) { knownHostDao.upsert(any()) }
         coVerify(exactly = 1) { portForwardRuleDao.upsert(any()) }

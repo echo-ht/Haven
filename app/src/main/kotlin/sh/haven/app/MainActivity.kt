@@ -4,10 +4,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,6 +22,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import dagger.hilt.android.AndroidEntryPoint
 import sh.haven.app.navigation.HavenNavHost
 import sh.haven.core.data.preferences.UserPreferencesRepository
+import sh.haven.core.data.repository.ConnectionRepository
 import sh.haven.core.security.BiometricAuthenticator
 import sh.haven.core.ssh.SshConnectionService
 import sh.haven.core.ui.KeyEventInterceptor
@@ -31,6 +34,8 @@ class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var preferencesRepository: UserPreferencesRepository
     @Inject lateinit var biometricAuthenticator: BiometricAuthenticator
+    // Eagerly injected to trigger one-time password encryption migration
+    @Inject lateinit var connectionRepository: ConnectionRepository
 
     private fun exitIfDisconnected() {
         if (SshConnectionService.disconnectedAll) {
@@ -61,6 +66,17 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            // Prevent screenshots/screen recording when enabled
+            val screenSecurity by preferencesRepository.screenSecurity
+                .collectAsState(initial = false)
+            LaunchedEffect(screenSecurity) {
+                if (screenSecurity) {
+                    window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+
             val themeMode by preferencesRepository.theme
                 .collectAsState(initial = UserPreferencesRepository.ThemeMode.SYSTEM)
             val darkTheme = when (themeMode) {

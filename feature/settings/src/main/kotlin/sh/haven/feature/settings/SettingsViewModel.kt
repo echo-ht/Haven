@@ -78,6 +78,9 @@ class SettingsViewModel @Inject constructor(
     val biometricEnabled: StateFlow<Boolean> = preferencesRepository.biometricEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val screenSecurity: StateFlow<Boolean> = preferencesRepository.screenSecurity
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val terminalFontSize: StateFlow<Int> = preferencesRepository.terminalFontSize
         .stateIn(
             viewModelScope,
@@ -146,6 +149,12 @@ class SettingsViewModel @Inject constructor(
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setBiometricEnabled(enabled)
+        }
+    }
+
+    fun setScreenSecurity(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setScreenSecurity(enabled)
         }
     }
 

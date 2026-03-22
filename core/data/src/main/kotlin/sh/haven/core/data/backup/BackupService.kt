@@ -26,6 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class BackupService @Inject constructor(
     private val connectionDao: ConnectionDao,
+    private val connectionRepository: sh.haven.core.data.repository.ConnectionRepository,
     private val sshKeyDao: SshKeyDao,
     private val sshKeyRepository: sh.haven.core.data.repository.SshKeyRepository,
     private val knownHostDao: KnownHostDao,
@@ -39,9 +40,9 @@ class BackupService @Inject constructor(
         json.put("version", BACKUP_VERSION)
         json.put("created", System.currentTimeMillis())
 
-        // Connections
+        // Connections (decrypted — backup file has its own encryption layer)
         val connections = JSONArray()
-        connectionDao.getAll().forEach { p ->
+        connectionRepository.getAll().forEach { p ->
             connections.put(JSONObject().apply {
                 put("id", p.id)
                 put("label", p.label)
@@ -172,7 +173,7 @@ class BackupService @Inject constructor(
             for (i in 0 until connections.length()) {
                 try {
                     val c = connections.getJSONObject(i)
-                    connectionDao.upsert(
+                    connectionRepository.save(
                         ConnectionProfile(
                             id = c.getString("id"),
                             label = c.getString("label"),
