@@ -40,6 +40,7 @@ import sh.haven.core.data.db.entities.KnownHost
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.et.EtSessionManager
 import sh.haven.core.fido.FidoAuthenticator
+import sh.haven.core.local.LocalSessionManager
 import sh.haven.core.reticulum.ReticulumBridge
 import sh.haven.core.reticulum.ReticulumSessionManager
 import sh.haven.core.smb.SmbSessionManager
@@ -64,6 +65,7 @@ class ConnectionsViewModel @Inject constructor(
     private val reticulumBridge: ReticulumBridge,
     private val smbSessionManager: SmbSessionManager,
     private val fidoAuthenticator: FidoAuthenticator,
+    private val localSessionManager: LocalSessionManager,
     private val sshKeyRepository: SshKeyRepository,
     private val preferencesRepository: UserPreferencesRepository,
     private val hostKeyVerifier: HostKeyVerifier,
@@ -90,8 +92,11 @@ class ConnectionsViewModel @Inject constructor(
                 moshSessionManager.sessions,
                 etSessionManager.sessions,
             ) { ssh, rns, mosh, et -> arrayOf(ssh, rns, mosh, et) },
-            smbSessionManager.sessions,
-        ) { base, smbMap ->
+            combine(
+                smbSessionManager.sessions,
+                localSessionManager.sessions,
+            ) { smb, local -> arrayOf(smb, local) },
+        ) { base, extra ->
             @Suppress("UNCHECKED_CAST")
             val sshMap = base[0] as Map<String, SshSessionManager.SessionState>
             @Suppress("UNCHECKED_CAST")
@@ -100,6 +105,10 @@ class ConnectionsViewModel @Inject constructor(
             val moshMap = base[2] as Map<String, MoshSessionManager.SessionState>
             @Suppress("UNCHECKED_CAST")
             val etMap = base[3] as Map<String, EtSessionManager.SessionState>
+            @Suppress("UNCHECKED_CAST")
+            val smbMap = extra[0] as Map<String, SmbSessionManager.SessionState>
+            @Suppress("UNCHECKED_CAST")
+            val localMap = extra[1] as Map<String, LocalSessionManager.SessionState>
             val result = mutableMapOf<String, ProfileStatus>()
 
             // SSH statuses
@@ -171,6 +180,21 @@ class ConnectionsViewModel @Inject constructor(
                 val existing = result[profileId]
                 if (existing == null || smbStatus.ordinal < existing.ordinal) {
                     result[profileId] = smbStatus
+                }
+            }
+
+            // Local statuses
+            localMap.values.groupBy { it.profileId }.forEach { (profileId, states) ->
+                val statuses = states.map { it.status }
+                val localStatus = when {
+                    LocalSessionManager.SessionState.Status.CONNECTED in statuses -> ProfileStatus.CONNECTED
+                    LocalSessionManager.SessionState.Status.CONNECTING in statuses -> ProfileStatus.CONNECTING
+                    LocalSessionManager.SessionState.Status.ERROR in statuses -> ProfileStatus.ERROR
+                    else -> ProfileStatus.DISCONNECTED
+                }
+                val existing = result[profileId]
+                if (existing == null || localStatus.ordinal < existing.ordinal) {
+                    result[profileId] = localStatus
                 }
             }
 
@@ -430,6 +454,10 @@ class ConnectionsViewModel @Inject constructor(
     }
 
     fun connect(profile: ConnectionProfile, password: String, keyOnly: Boolean = false, rememberPassword: Boolean? = null) {
+        if (profile.isLocal) {
+            connectLocal(profile)
+            return
+        }
         if (profile.isVnc) {
             connectVnc(profile)
             return
@@ -539,6 +567,39 @@ class ConnectionsViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to connect SMB", e)
                 _error.value = "SMB: ${e.message}"
+            } finally {
+                _connectingProfileId.value = null
+            }
+        }
+    }
+
+    private fun connectLocal(profile: ConnectionProfile) {
+        viewModelScope.launch {
+            _connectingProfileId.value = profile.id
+            _error.value = null
+
+            // If proot binary is available but rootfs isn't installed, download it first
+            val prootManager = localSessionManager.prootManager
+            if (prootManager.prootBinary != null && !prootManager.isRootfsInstalled) {
+                Log.d(TAG, "PRoot available but rootfs not installed — downloading...")
+                prootManager.installRootfs()
+                if (prootManager.state.value is sh.haven.core.local.ProotManager.SetupState.Error) {
+                    val err = prootManager.state.value as sh.haven.core.local.ProotManager.SetupState.Error
+                    Log.w(TAG, "Rootfs install failed: ${err.message}, falling back to plain shell")
+                }
+            }
+
+            val sessionId = localSessionManager.registerSession(profile.id, profile.label)
+            try {
+                localSessionManager.connectSession(sessionId)
+                repository.markConnected(profile.id)
+                startForegroundServiceIfNeeded()
+                _navigateToTerminal.value = profile.id
+            } catch (e: Exception) {
+                Log.e(TAG, "connectLocal failed: ${e.message}", e)
+                localSessionManager.updateStatus(sessionId, LocalSessionManager.SessionState.Status.ERROR)
+                localSessionManager.removeSession(sessionId)
+                _error.value = e.message ?: "Local terminal failed"
             } finally {
                 _connectingProfileId.value = null
             }

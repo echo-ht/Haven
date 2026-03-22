@@ -64,6 +64,7 @@ fun ConnectionEditDialog(
 ) {
     // Transport dropdown maps to: connectionType + useMosh + useEternalTerminal
     val initialTransport = when {
+        existing?.isLocal == true -> "LOCAL"
         existing?.isVnc == true -> "VNC"
         existing?.isRdp == true -> "RDP"
         existing?.isSmb == true -> "SMB"
@@ -75,6 +76,7 @@ fun ConnectionEditDialog(
     var selectedTransport by rememberSaveable { mutableStateOf(initialTransport) }
     // Derived connectionType for field visibility
     val connectionType = when (selectedTransport) {
+        "LOCAL" -> "LOCAL"
         "RETICULUM" -> "RETICULUM"
         "VNC" -> "VNC"
         "RDP" -> "RDP"
@@ -134,6 +136,7 @@ fun ConnectionEditDialog(
                     "SSH" to "SSH",
                     "MOSH" to "Mosh",
                     "ET" to "Eternal Terminal",
+                    "LOCAL" to "Local Terminal",
                     "VNC" to "VNC (Desktop)",
                     "RDP" to "RDP (Desktop)",
                     "SMB" to "SMB (File Share)",
@@ -189,6 +192,7 @@ fun ConnectionEditDialog(
                     placeholder = {
                         Text(
                             when (connectionType) {
+                                "LOCAL" -> "Local Terminal"
                                 "VNC" -> "My VNC Desktop"
                                 "RDP" -> "My RDP Desktop"
                                 "SMB" -> "My File Share"
@@ -202,7 +206,13 @@ fun ConnectionEditDialog(
                 )
                 Spacer(Modifier.height(8.dp))
 
-                if (connectionType == "VNC") {
+                if (connectionType == "LOCAL") {
+                    Text(
+                        "Opens a local shell on this device. No network connection needed.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (connectionType == "VNC") {
                     // VNC: host, port, password
                     OutlinedTextField(
                         value = host,
@@ -1033,6 +1043,7 @@ fun ConnectionEditDialog(
         },
         confirmButton = {
             val canSave = when (connectionType) {
+                "LOCAL" -> true // No host/auth needed
                 "SSH" -> host.isNotBlank() && username.isNotBlank()
                 "VNC" -> host.isNotBlank()
                 "RDP" -> host.isNotBlank() && rdpUsername.isNotBlank() && (!rdpSshForward || rdpSshProfileId != null)
@@ -1042,7 +1053,19 @@ fun ConnectionEditDialog(
             TextButton(
                 onClick = {
                     val etPortInt = etPort.toIntOrNull() ?: 2022
-                    val profile = if (connectionType == "VNC") {
+                    val profile = if (connectionType == "LOCAL") {
+                        (existing ?: ConnectionProfile(
+                            label = label,
+                            host = "localhost",
+                            username = "",
+                        )).copy(
+                            label = label.ifBlank { "Local Terminal" },
+                            host = "localhost",
+                            port = 0,
+                            username = "",
+                            connectionType = "LOCAL",
+                        )
+                    } else if (connectionType == "VNC") {
                         val vncPortInt = port.toIntOrNull() ?: 5900
                         (existing ?: ConnectionProfile(
                             label = label,

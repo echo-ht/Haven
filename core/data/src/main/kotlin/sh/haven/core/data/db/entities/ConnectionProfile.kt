@@ -56,6 +56,7 @@ data class ConnectionProfile(
     val isVnc: Boolean get() = connectionType == "VNC"
     val isRdp: Boolean get() = connectionType == "RDP"
     val isSmb: Boolean get() = connectionType == "SMB"
+    val isLocal: Boolean get() = connectionType == "LOCAL"
     val isDesktop: Boolean get() = isVnc || isRdp
     val isTerminal: Boolean get() = !isDesktop && !isSmb
 }

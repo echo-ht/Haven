@@ -659,6 +659,9 @@ private fun onTapProfile(
         // ensureShellForProfile navigates via _navigateToTerminal when ready
         // (handles jump host sessions that need shell setup or session picker)
         viewModel.ensureShellForProfile(profile.id)
+    } else if (profile.isLocal) {
+        // Local: no auth needed
+        viewModel.connect(profile, "")
     } else if (profile.isVnc) {
         // VNC: connect directly (password stored in profile)
         viewModel.connect(profile, "")

@@ -17,3 +17,5 @@ local.properties
 /releases
 build-mosh/
 com/jcraft/jsch/
+build-proot/build-*/
+build-proot/dl/

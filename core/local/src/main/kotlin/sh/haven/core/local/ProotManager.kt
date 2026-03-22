@@ -1,0 +1,308 @@
+package sh.haven.core.local
+
+import android.content.Context
+import android.os.Build
+import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URL
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private const val TAG = "ProotManager"
+
+/**
+ * Manages the PRoot binary and Alpine Linux rootfs.
+ *
+ * PRoot is bundled as libproot.so in jniLibs (extracted to nativeLibraryDir
+ * by Android, executable on Android 14+).
+ *
+ * The Alpine rootfs is downloaded on first use (~3MB compressed) and
+ * extracted to filesDir/proot/rootfs/alpine/.
+ */
+@Singleton
+class ProotManager @Inject constructor(
+    @ApplicationContext private val context: Context,
+) {
+    sealed class SetupState {
+        data object NotInstalled : SetupState()
+        data class Downloading(val progress: Int) : SetupState()
+        data object Extracting : SetupState()
+        data object Ready : SetupState()
+        data class Error(val message: String) : SetupState()
+    }
+
+    private val _state = MutableStateFlow<SetupState>(SetupState.NotInstalled)
+    val state: StateFlow<SetupState> = _state.asStateFlow()
+
+    private val rootfsDir: File
+        get() = File(context.filesDir, "proot/rootfs/alpine")
+
+    val isRootfsInstalled: Boolean
+        get() = java.nio.file.Files.exists(
+            File(rootfsDir, "bin/sh").toPath(),
+            java.nio.file.LinkOption.NOFOLLOW_LINKS,
+        )
+
+    val prootBinary: String?
+        get() {
+            val nativeDir = context.applicationInfo.nativeLibraryDir
+            val proot = File(nativeDir, "libproot.so")
+            return if (proot.canExecute()) proot.absolutePath else null
+        }
+
+    val isReady: Boolean
+        get() = prootBinary != null && isRootfsInstalled
+
+    init {
+        _state.value = if (isReady) SetupState.Ready else SetupState.NotInstalled
+    }
+
+    /**
+     * Download and extract the Alpine Linux rootfs.
+     * Safe to call if already installed — returns immediately.
+     */
+    suspend fun installRootfs() {
+        if (isRootfsInstalled) {
+            _state.value = SetupState.Ready
+            return
+        }
+
+        try {
+            _state.value = SetupState.Downloading(0)
+
+            val arch = when {
+                Build.SUPPORTED_ABIS.contains("arm64-v8a") -> "aarch64"
+                Build.SUPPORTED_ABIS.contains("x86_64") -> "x86_64"
+                else -> throw IllegalStateException("Unsupported ABI: ${Build.SUPPORTED_ABIS.toList()}")
+            }
+
+            val url = "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/$arch/alpine-minirootfs-3.21.3-$arch.tar.gz"
+            val tarball = File(context.cacheDir, "alpine-minirootfs.tar.gz")
+
+            // Download
+            withContext(Dispatchers.IO) {
+                Log.d(TAG, "Downloading rootfs: $url")
+                val conn = URL(url).openConnection()
+                val totalSize = conn.contentLength
+                BufferedInputStream(conn.getInputStream()).use { input ->
+                    FileOutputStream(tarball).use { output ->
+                        val buf = ByteArray(8192)
+                        var downloaded = 0L
+                        var n: Int
+                        while (input.read(buf).also { n = it } != -1) {
+                            output.write(buf, 0, n)
+                            downloaded += n
+                            if (totalSize > 0) {
+                                _state.value = SetupState.Downloading(
+                                    (downloaded * 100 / totalSize).toInt()
+                                )
+                            }
+                        }
+                    }
+                }
+                Log.d(TAG, "Download complete: ${tarball.length()} bytes")
+            }
+
+            // Extract
+            _state.value = SetupState.Extracting
+            withContext(Dispatchers.IO) {
+                extractTarGz(tarball, rootfsDir)
+                tarball.delete()
+                Log.d(TAG, "Rootfs extracted to ${rootfsDir.absolutePath}")
+
+                // Android doesn't have /etc/resolv.conf — write one with public DNS
+                val resolvConf = File(rootfsDir, "etc/resolv.conf")
+                resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
+                Log.d(TAG, "Wrote resolv.conf")
+            }
+
+            _state.value = SetupState.Ready
+        } catch (e: Exception) {
+            Log.e(TAG, "Rootfs install failed", e)
+            _state.value = SetupState.Error(e.message ?: "Installation failed")
+        }
+    }
+
+    /**
+     * Extract a .tar.gz file to a directory using Java streams.
+     * Implements minimal POSIX tar parsing (512-byte headers, ustar format).
+     */
+    private fun extractTarGz(tarball: File, destDir: File) {
+        destDir.mkdirs()
+        var fileCount = 0
+        var symlinkCount = 0
+
+        java.util.zip.GZIPInputStream(tarball.inputStream().buffered()).use { gzIn ->
+            val header = ByteArray(512)
+            var pendingLongName: String? = null
+
+            while (true) {
+                val headerRead = readFully(gzIn, header)
+                if (headerRead < 512) break
+                if (header.all { it == 0.toByte() }) break
+
+                val name = extractString(header, 0, 100)
+                if (name.isEmpty() && pendingLongName == null) break
+
+                val modeStr = extractString(header, 100, 8)
+                val sizeStr = extractString(header, 124, 12)
+                val typeFlag = header[156]
+                val linkTarget = extractString(header, 157, 100)
+
+                val size = try {
+                    sizeStr.trim().toLong(8)
+                } catch (_: Exception) { 0L }
+
+                // GNU long name: type 'L' means the data is a long filename
+                // for the NEXT entry
+                if (typeFlag == 'L'.code.toByte()) {
+                    val nameBytes = ByteArray(size.toInt())
+                    readFully(gzIn, nameBytes)
+                    skipToBlock(gzIn, size)
+                    pendingLongName = String(nameBytes).trimEnd('\u0000')
+                    continue // next header is the actual entry
+                }
+
+                // Resolve final name
+                val entryName = pendingLongName ?: run {
+                    val prefix = extractString(header, 345, 155)
+                    if (prefix.isNotEmpty()) "$prefix/$name" else name
+                }
+                pendingLongName = null
+
+                val outFile = File(destDir, entryName)
+
+                when (typeFlag) {
+                    '5'.code.toByte() -> {
+                        outFile.mkdirs()
+                    }
+                    '2'.code.toByte() -> {
+                        // Symlink
+                        outFile.parentFile?.mkdirs()
+                        try {
+                            outFile.delete()
+                            java.nio.file.Files.createSymbolicLink(
+                                outFile.toPath(),
+                                java.nio.file.Paths.get(linkTarget),
+                            )
+                            symlinkCount++
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Symlink failed: $entryName -> $linkTarget: ${e.message}")
+                        }
+                    }
+                    '1'.code.toByte() -> {
+                        // Hard link — copy the target file
+                        outFile.parentFile?.mkdirs()
+                        try {
+                            val targetFile = File(destDir, linkTarget)
+                            if (targetFile.exists()) {
+                                targetFile.copyTo(outFile, overwrite = true)
+                            }
+                        } catch (e: Exception) {
+                            Log.d(TAG, "Hard link failed: $entryName -> $linkTarget: ${e.message}")
+                        }
+                    }
+                    '0'.code.toByte(), 0.toByte() -> {
+                        // Regular file
+                        outFile.parentFile?.mkdirs()
+                        FileOutputStream(outFile).use { fos ->
+                            var remaining = size
+                            val copyBuf = ByteArray(8192)
+                            while (remaining > 0) {
+                                val toRead = minOf(remaining.toInt(), copyBuf.size)
+                                val n = gzIn.read(copyBuf, 0, toRead)
+                                if (n <= 0) break
+                                fos.write(copyBuf, 0, n)
+                                remaining -= n
+                            }
+                        }
+                        try {
+                            val mode = modeStr.trim().toIntOrNull(8) ?: 0
+                            if (mode and 0x49 != 0) {
+                                outFile.setExecutable(true, false)
+                            }
+                        } catch (_: Exception) {}
+                        skipToBlock(gzIn, size)
+                        fileCount++
+                    }
+                    else -> {
+                        // Skip unknown types (but still consume data)
+                        if (size > 0) {
+                            var remaining = size
+                            val skipBuf = ByteArray(8192)
+                            while (remaining > 0) {
+                                val toRead = minOf(remaining.toInt(), skipBuf.size)
+                                val n = gzIn.read(skipBuf, 0, toRead)
+                                if (n <= 0) break
+                                remaining -= n
+                            }
+                            skipToBlock(gzIn, size)
+                        }
+                    }
+                }
+
+                // Also handle directory entries without explicit type flag
+                if (typeFlag != '5'.code.toByte() && entryName.endsWith("/")) {
+                    outFile.mkdirs()
+                }
+            }
+        }
+
+        Log.d(TAG, "Extracted $fileCount files, $symlinkCount symlinks to ${destDir.absolutePath}")
+
+        // Check bin/sh exists — it's a symlink to /bin/busybox so we must
+        // not follow the link (the target is inside the rootfs, not the host)
+        val binSh = File(destDir, "bin/sh").toPath()
+        if (!java.nio.file.Files.exists(binSh, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            val binDir = File(destDir, "bin")
+            val binContents = if (binDir.isDirectory) binDir.list()?.toList() else null
+            throw RuntimeException(
+                "Extracted $fileCount files, $symlinkCount symlinks but bin/sh not found. " +
+                    "bin/ contents: $binContents"
+            )
+        }
+    }
+
+    private fun readFully(input: java.io.InputStream, buf: ByteArray): Int {
+        var total = 0
+        while (total < buf.size) {
+            val n = input.read(buf, total, buf.size - total)
+            if (n <= 0) break
+            total += n
+        }
+        return total
+    }
+
+    private fun extractString(buf: ByteArray, offset: Int, length: Int): String {
+        var end = offset + length
+        for (i in offset until offset + length) {
+            if (buf[i] == 0.toByte()) { end = i; break }
+        }
+        return String(buf, offset, end - offset, Charsets.US_ASCII).trim()
+    }
+
+    /** Skip remaining bytes in the current tar block (blocks are 512-byte aligned). */
+    private fun skipToBlock(input: java.io.InputStream, dataSize: Long) {
+        val remainder = (512 - (dataSize % 512)) % 512
+        if (remainder > 0) {
+            val skip = ByteArray(remainder.toInt())
+            readFully(input, skip)
+        }
+    }
+
+    /**
+     * Delete the rootfs to free space.
+     */
+    fun deleteRootfs() {
+        rootfsDir.deleteRecursively()
+        _state.value = SetupState.NotInstalled
+    }
+}

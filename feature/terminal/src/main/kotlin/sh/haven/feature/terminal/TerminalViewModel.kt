@@ -172,6 +172,7 @@ class TerminalViewModel @Inject constructor(
     private val reticulumSessionManager: ReticulumSessionManager,
     private val moshSessionManager: MoshSessionManager,
     private val etSessionManager: EtSessionManager,
+    private val localSessionManager: sh.haven.core.local.LocalSessionManager,
     private val hostKeyVerifier: HostKeyVerifier,
     private val preferencesRepository: UserPreferencesRepository,
     private val connectionDao: sh.haven.core.data.db.ConnectionDao,
@@ -188,6 +189,7 @@ class TerminalViewModel @Inject constructor(
                 "RETICULUM" -> reticulumSessionManager.detachTerminalSession(tab.sessionId)
                 "MOSH" -> moshSessionManager.detachTerminalSession(tab.sessionId)
                 "ET" -> etSessionManager.detachTerminalSession(tab.sessionId)
+                "LOCAL" -> localSessionManager.detachTerminalSession(tab.sessionId)
             }
         }
         trackedSessionIds.clear()
@@ -318,6 +320,9 @@ class TerminalViewModel @Inject constructor(
         viewModelScope.launch {
             etSessionManager.sessions.collect { syncSessions() }
         }
+        viewModelScope.launch {
+            localSessionManager.sessions.collect { syncSessions() }
+        }
     }
 
     /**
@@ -329,6 +334,7 @@ class TerminalViewModel @Inject constructor(
         val rnsSessions = reticulumSessionManager.sessions.value
         val moshSessions = moshSessionManager.sessions.value
         val etSessions = etSessionManager.sessions.value
+        val localSessions = localSessionManager.sessions.value
 
         // Find SSH sessions that are connected or reconnecting
         val activeSshIds = sshSessions.values
@@ -363,7 +369,15 @@ class TerminalViewModel @Inject constructor(
             .map { it.sessionId }
             .toSet()
 
-        val allActiveIds = activeSshIds + activeRnsIds + activeMoshIds + activeEtIds
+        // Find Local sessions that are connected
+        val activeLocalIds = localSessions.values
+            .filter {
+                it.status == sh.haven.core.local.LocalSessionManager.SessionState.Status.CONNECTED
+            }
+            .map { it.sessionId }
+            .toSet()
+
+        val allActiveIds = activeSshIds + activeRnsIds + activeMoshIds + activeEtIds + activeLocalIds
 
         val currentTabs = _tabs.value.toMutableList()
 
@@ -379,6 +393,8 @@ class TerminalViewModel @Inject constructor(
                     moshSessions[tab.sessionId]?.moshSession == null
                 "ET" -> tab.sessionId !in activeEtIds ||
                     etSessions[tab.sessionId]?.etSession == null
+                "LOCAL" -> tab.sessionId !in activeLocalIds ||
+                    localSessions[tab.sessionId]?.localSession == null
                 else -> true
             }
         }
@@ -700,6 +716,74 @@ class TerminalViewModel @Inject constructor(
             trackedSessionIds.add(session.sessionId)
         }
 
+        // Create tabs for new Local sessions
+        for (sessionId in activeLocalIds) {
+            if (sessionId in trackedSessionIds) continue
+            if (!localSessionManager.isReadyForTerminal(sessionId)) continue
+
+            val session = localSessions[sessionId] ?: continue
+            val tabLabel = generateTabLabel(session.label, session.profileId, currentTabs)
+
+            lateinit var emulator: TerminalEmulator
+            val localWriteBuffer = EmulatorWriteBuffer { emulator }
+            val localMouseTracker = MouseModeTracker()
+            val localOscHandler = OscHandler()
+            val localCwdFlow = MutableStateFlow<String?>(null)
+            val localHyperlinkFlow = MutableStateFlow<String?>(null)
+            localOscHandler.onCwdChanged = { localCwdFlow.value = it }
+            localOscHandler.onHyperlink = { uri -> localHyperlinkFlow.value = uri }
+            val localSession = localSessionManager.createTerminalSession(
+                sessionId = sessionId,
+                onDataReceived = { data, offset, length ->
+                    localOscHandler.process(data, offset, length)
+                    localMouseTracker.process(localOscHandler.outputBuf, 0, localOscHandler.outputLen)
+                    val len = localOscHandler.outputLen
+                    if (len > 0) {
+                        localWriteBuffer.append(localOscHandler.outputBuf, 0, len)
+                    }
+                },
+            ) ?: continue
+
+            val localCoalescer = InputCoalescer { data -> localSession.sendInput(data) }
+            val localScheme = terminalColorScheme.value
+            emulator = TerminalEmulatorFactory.create(
+                initialRows = 24,
+                initialCols = 80,
+                defaultForeground = Color(localScheme.foreground),
+                defaultBackground = Color(localScheme.background),
+                onKeyboardInput = { data -> localCoalescer.send(applyModifiers(data)) },
+                onResize = { dims ->
+                    Log.d(TAG, "LOCAL onResize: ${dims.columns}x${dims.rows}")
+                    for (tab in _tabs.value) {
+                        tab.resize(dims.columns, dims.rows)
+                    }
+                    localSession.resize(dims.columns, dims.rows)
+                },
+            )
+
+            localSession.start()
+
+            currentTabs.add(
+                TerminalTab(
+                    sessionId = session.sessionId,
+                    profileId = session.profileId,
+                    label = tabLabel,
+                    transportType = "LOCAL",
+                    emulator = emulator,
+                    mouseMode = localMouseTracker.mouseMode,
+                    bracketPasteMode = localMouseTracker.bracketPasteMode,
+                    oscHandler = localOscHandler,
+                    cwd = localCwdFlow,
+                    hyperlinkUri = localHyperlinkFlow,
+                    isReconnecting = MutableStateFlow(false),
+                    sendInput = { data -> localSession.sendInput(data) },
+                    resize = { cols, rows -> localSession.resize(cols, rows) },
+                    close = { localSession.close() },
+                )
+            )
+            trackedSessionIds.add(session.sessionId)
+        }
+
         _tabs.value = currentTabs
 
         // Clamp active index
@@ -765,6 +849,8 @@ class TerminalViewModel @Inject constructor(
             moshSessionManager.removeSession(sessionId)
         } else if (etSessionManager.sessions.value.containsKey(sessionId)) {
             etSessionManager.removeSession(sessionId)
+        } else if (localSessionManager.sessions.value.containsKey(sessionId)) {
+            localSessionManager.removeSession(sessionId)
         } else {
             reticulumSessionManager.removeSession(sessionId)
         }
@@ -778,6 +864,7 @@ class TerminalViewModel @Inject constructor(
         reticulumSessionManager.removeAllSessionsForProfile(profileId)
         moshSessionManager.removeAllSessionsForProfile(profileId)
         etSessionManager.removeAllSessionsForProfile(profileId)
+        localSessionManager.removeAllSessionsForProfile(profileId)
         trackedSessionIds.removeAll(
             _tabs.value.filter { it.profileId == profileId }.map { it.sessionId }.toSet()
         )
