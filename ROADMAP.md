@@ -2,35 +2,77 @@
 
 ## Completed
 
-- [x] **Paste into terminal** — Paste button on keyboard toolbar and selection toolbar. Clipboard text sent as terminal input; selection cleared on paste.
-- [x] **Import existing SSH keys** — Allow importing private keys (PEM/OpenSSH/PuTTY PPK format) from device storage, with passphrase support.
-- [x] **Background connection notification** — Persistent Android notification while SSH sessions are active, so users know there's an open connection.
-- [x] **OSC sequence support** — OSC 8 hyperlinks (clickable links in terminal output), OSC 9/777 notifications (toast foreground, Android notification background), OSC 7 working directory tracking.
-- [x] **Bracket paste mode** — Wrap pasted text in `ESC[200~`/`ESC[201~` when DECSET 2004 is enabled, preventing accidental execution of multi-line paste.
-- [x] **Highlighter-style text selection** — Long-press and drag to extend selection like a highlighter pen, with edge-scroll for selecting beyond the visible screen. Mutually exclusive gesture handling for tab swipe, scroll, and selection.
-- [x] **Terminal rendering fix** — Post emulator writes to main thread to prevent concurrent native access during resize, fixing animation scroll corruption.
-- [x] **Keyboard toolbar customization** — Configurable keyboard toolbar with JSON layout support: smaller keys, more keys per row, user-editable layout.
-- [x] **Network discovery** — Automatic LAN discovery of SSH hosts via mDNS/broadcast, shown in the connection creation dialog.
-- [x] **Port forwarding** — Local (`-L`) and remote (`-R`) SSH port forwarding with visual flow diagrams showing tunnel direction. Rules persist across sessions, auto-activate on connect, restore on reconnect. Live add/edit/remove on active sessions with port validation.
-- [x] **ProxyJump / multi-hop tunneling** — `ssh -J` style jump hosts via JSch direct-tcpip channels. Jump host selector in connection editor, tree view of dependencies, cascade disconnect, and terminal access on the jump host with tmux/screen session flow.
-- [x] **Backup & restore** — Encrypted export/import of SSH keys, connections, port forward rules, known hosts, and settings. AES-256-GCM with PBKDF2 key derivation, accessible from Settings.
-- [x] **Custom session commands** — Override the default tmux/byobu/screen/zellij command template with a custom command using `{name}` placeholder for session name.
-- [x] **Per-connection SSH options** — Freeform ssh_config-style options (Key Value per line) applied as JSch session config per connection profile.
+### Terminal
+- [x] **Paste into terminal** — clipboard paste on toolbar/selection bar
+- [x] **Bracket paste mode** — `ESC[200~`/`ESC[201~` wrapping for safe multi-line paste
+- [x] **Highlighter-style text selection** — long-press drag with edge-scroll
+- [x] **Terminal rendering fix** — main-thread emulator writes prevent resize corruption
+- [x] **Keyboard toolbar customization** — JSON layout, configurable rows and keys
+- [x] **Terminal color schemes** — Haven, Solarized Dark/Light, Monokai, Dracula, Nord, Gruvbox
+- [x] **Arrow key fix for TUI apps** — correct VT key dispatch in termlib
+- [x] **OSC sequence support** — OSC 8 hyperlinks, OSC 9/777 notifications, OSC 7 CWD tracking
+- [x] **Smart clipboard** — strip TUI borders and unwrap soft-wrapped lines on copy
+- [x] **Session manager search** — magnifying glass sends native search keys (tmux/zellij/screen/byobu), falls back to shell Ctrl+R
+
+### Connections
+- [x] **Import SSH keys** — PEM/OpenSSH/PuTTY PPK format with passphrase support
+- [x] **FIDO2 SSH keys** — ecdsa-sk, ed25519-sk hardware key support
+- [x] **Network discovery** — mDNS/broadcast LAN scanning for SSH hosts
+- [x] **Port forwarding** — local (`-L`) and remote (`-R`) with visual flow diagrams, live add/edit/remove
+- [x] **ProxyJump / multi-hop** — `ssh -J` style jump hosts via direct-tcpip channels
+- [x] **Custom session commands** — override tmux/screen/zellij template with `{name}` placeholder
+- [x] **Per-connection SSH options** — freeform ssh_config-style key-value pairs
+- [x] **Drag-to-reorder connections** — manual ordering of connection list
+- [x] **Fresh DNS resolution** — re-resolve hostnames on each connection attempt
+- [x] **Background notification** — persistent notification with disconnect action while sessions active
+- [x] **Mosh support** — UDP-based mobile shell for unreliable connections
+- [x] **Eternal Terminal** — ET protocol support
+- [x] **Reticulum** — mesh network transport
+
+### Security
+- [x] **Encrypted password storage** — AES-256-GCM encrypted stored passwords
+- [x] **Encrypted SSH keys at rest** — Android Keystore wrapping
+- [x] **Prevent screenshots** — optional FLAG_SECURE
+- [x] **Zero passwords from memory** — wipe credential buffers after auth
+- [x] **Biometric app lock** — fingerprint/face unlock on launch
+- [x] **Backup & restore** — encrypted export/import of all data (AES-256-GCM, PBKDF2)
+
+### Remote Desktop
+- [x] **VNC viewer** — embedded VNC client over SSH port forwarding
+- [x] **RDP** — Windows remote desktop via FreeRDP NDK
+- [x] **Local Xfce desktop** — PRoot VNC desktop environment
+
+### File Transfer
+- [x] **SFTP browser** — full file browser with upload/download/open
+- [x] **SMB/CIFS** — Windows file share browsing
+- [x] **DocumentsProvider** — expose SFTP as Android storage provider
+
+### PRoot / Local
+- [x] **Local Alpine Linux terminal** — PRoot-based local shell
+- [x] **Desktop environment setup** — one-tap Xfce4 + VNC installation
 
 ## Near-term
 
-- [ ] **Agent forwarding** — SSH agent forwarding for key-based authentication to hop hosts. Note: ProxyJump already solves multi-hop more securely (keys never leave the device). Agent forwarding is mainly useful for workflows like `git push` from a remote server using your local key.
-- [ ] **Snippet/command library** — Save and recall frequently used commands.
-- [ ] **Connection groups/folders** — Organize saved connections by project or environment.
+### Terminal depth
+- [ ] **Split panes** — horizontal/vertical splits within a tab, independent SSH sessions per pane
+- [ ] **Semantic shell integration** — OSC 133 prompt markers for "copy last output" and per-command navigation
+
+### Workflow continuity
+- [ ] **Network-aware reconnect** — detect WiFi/cellular/VPN changes via ConnectivityManager, trigger immediate reconnect instead of waiting for TCP timeout
+- [ ] **Workspace profiles** — "Work" opens SSH tabs + port forwards + SFTP in one tap
+
+### PRoot development
+- [ ] **Curated dev stacks** — one-tap Python/Node.js/Rust/Go installation following the existing DesktopEnvironment enum pattern
+- [ ] **sshfs mounts** — mount remote filesystems inside PRoot
+
+### Security
+- [ ] **Agent forwarding** — SSH agent for `git push` from remote servers
+- [ ] **Tor/SOCKS proxy** — connect to onion services (JSch proxy infra exists)
 
 ## Longer-term
 
-- [ ] **Mosh support** — UDP-based mobile shell for unreliable network connections.
-
-## Haven 2.0 — Remote Desktop
-
-Integrated graphical remote access over SSH, with no additional software required on the client side.
-
-- [ ] **VNC viewer** — Embedded VNC client that connects through Haven's existing SSH port forwarding. Fork [vernacular-vnc](https://github.com/shinyhut/vernacular-vnc) (MIT, pure Java), replace AWT rendering with Android Bitmap/Canvas, render in Compose. User sets up a local forward to the remote VNC server and the viewer connects to localhost.
-- [ ] **X11 forwarding** — Lightweight X11 server using [android-xserver](https://github.com/nwrkbiz/android-xserver) (MIT, pure Java, embeddable library). JSch already supports X11 channel forwarding. Suitable for individual X11 applications (xterm, plotting tools, simple GUIs) rather than full desktops.
-- [ ] **RDP** — Windows remote desktop via [FreeRDP](https://github.com/FreeRDP/FreeRDP) (Apache 2.0). NDK/JNI integration, higher build complexity. Tunnelled over SSH for security.
+- [ ] **X11 forwarding** — lightweight X11 server for individual GUI applications
+- [ ] **Connection groups/folders** — organize by project or environment
+- [ ] **Snippet/command library** — save and recall frequent commands
+- [ ] **Per-profile biometric unlock** — require biometric for high-security connections
+- [ ] **Audit log UI** — surface ConnectionLog entity for security-conscious users
