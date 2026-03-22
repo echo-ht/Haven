@@ -1151,7 +1151,10 @@ private fun DesktopSetupDialog(
                 when (desktopState) {
                     is sh.haven.core.local.ProotManager.DesktopSetupState.Idle -> {
                         Text(
-                            "Install a desktop environment and VNC server in the PRoot environment.",
+                            "Install a desktop environment and VNC server in the PRoot environment." +
+                                if (deOptions[selectedDe] == sh.haven.core.local.ProotManager.DesktopEnvironment.OPENBOX)
+                                    " Openbox is minimal — right-click the desktop for the app menu."
+                                else "",
                             style = MaterialTheme.typography.bodySmall,
                         )
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {

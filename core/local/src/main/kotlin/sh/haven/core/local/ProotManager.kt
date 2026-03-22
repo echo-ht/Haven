@@ -93,7 +93,10 @@ class ProotManager @Inject constructor(
             val marker = File(rootfsDir, "root/.haven-desktop")
             if (!marker.exists()) return null
             return try {
-                DesktopEnvironment.valueOf(marker.readText().trim())
+                // Marker format: "DE_NAME\npackage list" — match both name and packages
+                val lines = marker.readText().trim().lines()
+                val de = DesktopEnvironment.valueOf(lines.first())
+                if (lines.size >= 2 && lines[1] == de.packages) de else null
             } catch (_: Exception) { null }
         }
 
@@ -411,7 +414,7 @@ class ProotManager @Inject constructor(
 
             // Write marker so we know which DE is installed
             File(rootfsDir, "root").mkdirs()
-            File(rootfsDir, "root/.haven-desktop").writeText(de.name)
+            File(rootfsDir, "root/.haven-desktop").writeText("${de.name}\n${de.packages}")
             Log.d(TAG, "${de.label} packages installed")
             }
 
@@ -473,6 +476,8 @@ chmod +x /root/.vnc/xstartup""")
         rootHome.mkdirs()
         File(rootHome, ".ICEauthority").apply { if (!exists()) createNewFile() }
         File(rootHome, ".Xauthority").apply { if (!exists()) createNewFile() }
+
+
 
         // Use VncAuth if password file exists and has content, otherwise None
         val passwdFile = File(rootfsDir, "root/.vnc/passwd")

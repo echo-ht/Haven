@@ -1,6 +1,7 @@
 package sh.haven.feature.vnc
 
 import android.graphics.Bitmap
+import android.os.SystemClock
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -76,6 +77,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -95,6 +97,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import sh.haven.core.data.preferences.ToolbarKey
 import sh.haven.core.data.preferences.ToolbarLayout
 import kotlin.math.abs
@@ -175,6 +178,7 @@ fun VncScreen(
             fullscreen = fullscreen,
             toolbarLayout = toolbarLayout,
             onTap = { x, y -> viewModel.sendClick(x, y) },
+            onLongPress = { x, y -> viewModel.sendClick(x, y, button = 3) },
             onDragStart = { x, y ->
                 viewModel.sendPointer(x, y)
                 viewModel.pressButton(1)
@@ -235,6 +239,7 @@ private fun VncViewer(
     fullscreen: Boolean,
     toolbarLayout: ToolbarLayout = ToolbarLayout.DEFAULT,
     onTap: (Int, Int) -> Unit,
+    onLongPress: (Int, Int) -> Unit,
     onDragStart: (Int, Int) -> Unit,
     onDrag: (Int, Int) -> Unit,
     onDragEnd: () -> Unit,
@@ -308,9 +313,38 @@ private fun VncViewer(
                         var totalMovement = 0f
                         var lastSinglePos = firstDown.position
                         var dragging = false
+                        var longPressFired = false
+                        val longPressMs = viewConfiguration.longPressTimeoutMillis
+                        val downUptimeMs = firstDown.uptimeMillis
 
+                        var event: PointerEvent
                         do {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            // Use timeout to detect long press when finger is still
+                            val remaining = if (!longPressFired && totalMovement < touchSlopPx)
+                                (longPressMs - (SystemClock.uptimeMillis() - downUptimeMs)).coerceAtLeast(1)
+                            else Long.MAX_VALUE
+
+                            val timedEvent = withTimeoutOrNull(remaining) {
+                                awaitPointerEvent(PointerEventPass.Initial)
+                            }
+
+                            if (timedEvent == null) {
+                                // Timeout — fire long press (right-click)
+                                if (!longPressFired && !dragging && totalMovement < touchSlopPx) {
+                                    val pos = screenToVnc(
+                                        lastSinglePos, viewSize,
+                                        frame.width, frame.height,
+                                        zoom, panX, panY,
+                                    )
+                                    onLongPress(pos.first, pos.second)
+                                    longPressFired = true
+                                }
+                                // Wait for the actual next event
+                                event = awaitPointerEvent(PointerEventPass.Initial)
+                            } else {
+                                event = timedEvent
+                            }
+
                             val pointers = event.changes.filter { it.pressed }
                             val count = pointers.size
 
@@ -364,7 +398,7 @@ private fun VncViewer(
                                     zoom, panX, panY,
                                 )
                                 // Start drag (button 1 press) once movement exceeds touch slop
-                                if (!dragging && totalMovement >= touchSlopPx) {
+                                if (!longPressFired && !dragging && totalMovement >= touchSlopPx) {
                                     onDragStart(pos.first, pos.second)
                                     dragging = true
                                 } else if (dragging) {
@@ -379,8 +413,8 @@ private fun VncViewer(
                             onDragEnd()
                         }
 
-                        // Short tap with little movement = click
-                        if (totalFingers == 1 && totalMovement < touchSlopPx) {
+                        // Short tap with little movement = click (skip if long press fired)
+                        if (totalFingers == 1 && totalMovement < touchSlopPx && !longPressFired) {
                             val (vx, vy) = screenToVnc(
                                 lastSinglePos, viewSize,
                                 frame.width, frame.height,
