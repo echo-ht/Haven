@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import sh.haven.core.data.db.ConnectionLogDao
 import sh.haven.core.data.db.entities.ConnectionLog
+import sh.haven.core.data.db.entities.ConnectionLogSummary
 import sh.haven.core.data.preferences.UserPreferencesRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,18 +19,28 @@ class ConnectionLogRepository @Inject constructor(
         status: ConnectionLog.Status,
         durationMs: Long = 0,
         details: String? = null,
+        verboseLog: String? = null,
     ) {
         if (!preferencesRepository.connectionLoggingEnabled.first()) return
         connectionLogDao.insert(
-            ConnectionLog(profileId = profileId, status = status, durationMs = durationMs, details = details)
+            ConnectionLog(
+                profileId = profileId,
+                status = status,
+                durationMs = durationMs,
+                details = details,
+                verboseLog = verboseLog,
+            )
         )
     }
 
-    fun observeAll(limit: Int = 200): Flow<List<ConnectionLog>> =
-        connectionLogDao.observeAll(limit)
+    fun observeAllSummary(limit: Int = 200): Flow<List<ConnectionLogSummary>> =
+        connectionLogDao.observeAllSummary(limit)
 
     fun observeForProfile(profileId: String, limit: Int = 50): Flow<List<ConnectionLog>> =
         connectionLogDao.observeForProfile(profileId, limit)
+
+    suspend fun getById(id: Long): ConnectionLog? =
+        connectionLogDao.getById(id)
 
     suspend fun clearAll() = connectionLogDao.deleteAll()
 }

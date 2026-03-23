@@ -34,6 +34,7 @@ class UserPreferencesRepository @Inject constructor(
     private val showSearchButtonKey = booleanPreferencesKey("show_search_button")
     private val showCopyOutputButtonKey = booleanPreferencesKey("show_copy_output_button")
     private val connectionLoggingEnabledKey = booleanPreferencesKey("connection_logging_enabled")
+    private val verboseLoggingEnabledKey = booleanPreferencesKey("verbose_logging_enabled")
 
     val biometricEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[biometricEnabledKey] ?: false
@@ -80,6 +81,17 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setConnectionLoggingEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[connectionLoggingEnabledKey] = enabled
+        }
+    }
+
+    /** Capture SSH protocol details (key exchange, auth, ciphers). Off by default. */
+    val verboseLoggingEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[verboseLoggingEnabledKey] ?: false
+    }
+
+    suspend fun setVerboseLoggingEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[verboseLoggingEnabledKey] = enabled
         }
     }
 

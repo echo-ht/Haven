@@ -34,6 +34,8 @@ class SshClient : Closeable {
     private val jsch = JSch()
     /** Set before connecting with a FidoKey auth method. */
     var fidoAuthenticator: FidoAuthenticator? = null
+    /** Set before connect() to capture verbose SSH protocol output. */
+    var verboseLogger: SshVerboseLogger? = null
     private var session: Session? = null
 
     val isConnected: Boolean
@@ -54,6 +56,7 @@ class SshClient : Closeable {
         proxy: Proxy? = null,
     ): KnownHostEntry = withContext(Dispatchers.IO) {
         disconnect()
+        verboseLogger?.let { jsch.setInstanceLogger(it) }
 
         val resolvedIp = if (proxy != null) config.host else resolveHost(config.host)
         val sess = jsch.getSession(config.username, resolvedIp, config.port)
@@ -178,6 +181,7 @@ class SshClient : Closeable {
      */
     fun connectBlocking(config: ConnectionConfig, connectTimeoutMs: Int = 10_000, proxy: Proxy? = null): KnownHostEntry {
         disconnect()
+        verboseLogger?.let { jsch.setInstanceLogger(it) }
 
         val resolvedIp = if (proxy != null) config.host else resolveHost(config.host)
         val sess = jsch.getSession(config.username, resolvedIp, config.port)

@@ -39,6 +39,7 @@ import sh.haven.core.ssh.SshKeyExporter
 import sh.haven.core.ssh.SessionManager
 import sh.haven.core.ssh.SessionManagerRegistry
 import sh.haven.core.ssh.SshSessionManager
+import sh.haven.core.ssh.SshVerboseLogger
 import sh.haven.core.data.db.entities.KnownHost
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.et.EtSessionManager
@@ -75,6 +76,9 @@ class ConnectionsViewModel @Inject constructor(
     private val hostKeyVerifier: HostKeyVerifier,
     private val connectionLogRepository: ConnectionLogRepository,
 ) : ViewModel() {
+
+    /** Verbose SSH log captured during connect, keyed by sessionId. Consumed by finishConnect. */
+    private val pendingVerboseLogs = mutableMapOf<String, String>()
 
     val connections: StateFlow<List<ConnectionProfile>> = repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -720,7 +724,12 @@ class ConnectionsViewModel @Inject constructor(
             _connectingProfileId.value = profile.id
             _error.value = null
 
-            val client = SshClient().apply { fidoAuthenticator = this@ConnectionsViewModel.fidoAuthenticator }
+            val verboseEnabled = preferencesRepository.verboseLoggingEnabled.first()
+            val verboseLogger = if (verboseEnabled) SshVerboseLogger() else null
+            val client = SshClient().apply {
+                fidoAuthenticator = this@ConnectionsViewModel.fidoAuthenticator
+                this.verboseLogger = verboseLogger
+            }
             val sessionId = sshSessionManager.registerSession(profile.id, profile.label, client)
 
             // Track whether we auto-created the jump session (for cleanup on failure)
@@ -789,6 +798,9 @@ class ConnectionsViewModel @Inject constructor(
                     sshSessionMgr
                 }
 
+                // Drain verbose log now (before session picker might return from the coroutine)
+                verboseLogger?.drain()?.let { pendingVerboseLogs[sessionId] = it }
+
                 // If session manager supports listing, check for existing sessions
                 val listCmd = sshSessionMgr.listCommand
                 if (listCmd != null) {
@@ -816,7 +828,7 @@ class ConnectionsViewModel @Inject constructor(
                 }
 
                 // No existing sessions or no session manager — proceed directly
-                finishConnect(sessionId, profile.id)
+                finishConnect(sessionId, profile.id, verboseLog = verboseLogger?.drain())
 
                 // Save or clear remembered password after successful connect
                 if (rememberPassword == true && password.isNotBlank()) {
@@ -831,7 +843,7 @@ class ConnectionsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "connectSsh failed for ${profile.label}: ${e.message}", e)
-                connectionLogRepository.logEvent(profile.id, ConnectionLog.Status.FAILED, details = e.message)
+                connectionLogRepository.logEvent(profile.id, ConnectionLog.Status.FAILED, details = e.message, verboseLog = verboseLogger?.drain())
                 sshSessionManager.updateStatus(sessionId, SshSessionManager.SessionState.Status.ERROR)
                 sshSessionManager.removeSession(sessionId)
                 // Clean up auto-created jump session if the final host failed
@@ -1411,7 +1423,7 @@ class ConnectionsViewModel @Inject constructor(
         return jumpSessionId to false
     }
 
-    private suspend fun finishConnect(sessionId: String, profileId: String) {
+    private suspend fun finishConnect(sessionId: String, profileId: String, verboseLog: String? = pendingVerboseLogs.remove(sessionId)) {
         withContext(Dispatchers.IO) {
             sshSessionManager.openShellForSession(sessionId)
 
@@ -1434,7 +1446,7 @@ class ConnectionsViewModel @Inject constructor(
                 is ConnectionConfig.AuthMethod.FidoKey -> "FIDO2"
             }
         }
-        connectionLogRepository.logEvent(profileId, ConnectionLog.Status.CONNECTED, details = authDetail)
+        connectionLogRepository.logEvent(profileId, ConnectionLog.Status.CONNECTED, details = authDetail, verboseLog = verboseLog)
         startForegroundServiceIfNeeded()
         _navigateToTerminal.value = profileId
     }

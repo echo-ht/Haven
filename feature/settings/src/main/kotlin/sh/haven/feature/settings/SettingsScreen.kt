@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ColorLens
@@ -98,6 +99,7 @@ fun SettingsScreen(
     val showSearchButton by viewModel.showSearchButton.collectAsState()
     val showCopyOutputButton by viewModel.showCopyOutputButton.collectAsState()
     val connectionLoggingEnabled by viewModel.connectionLoggingEnabled.collectAsState()
+    val verboseLoggingEnabled by viewModel.verboseLoggingEnabled.collectAsState()
     val backupStatus by viewModel.backupStatus.collectAsState()
     var showAuditLog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
@@ -192,6 +194,13 @@ fun SettingsScreen(
                 title = "View connection log",
                 subtitle = "Connection history and events",
                 onClick = { showAuditLog = true },
+            )
+            SettingsToggleItem(
+                icon = Icons.Filled.BugReport,
+                title = "Verbose SSH logging",
+                subtitle = "Capture protocol details (key exchange, auth, ciphers). May include hostnames and usernames",
+                checked = verboseLoggingEnabled,
+                onCheckedChange = viewModel::setVerboseLoggingEnabled,
             )
         }
         SettingsItem(
