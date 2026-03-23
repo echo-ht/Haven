@@ -7,8 +7,16 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 import sh.haven.core.et.EtSessionManager
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.local.LocalSessionManager
@@ -37,6 +45,11 @@ class SshConnectionService : Service() {
     @Inject
     lateinit var localSessionManager: LocalSessionManager
 
+    @Inject
+    lateinit var networkMonitor: NetworkMonitor
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     companion object {
         const val CHANNEL_ID = "haven_connection"
         const val NOTIFICATION_ID = 1
@@ -50,9 +63,21 @@ class SshConnectionService : Service() {
         fun clearDisconnectedAll() { disconnectedAll = false }
     }
 
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        networkMonitor.start()
+        serviceScope.launch {
+            networkMonitor.events
+                .debounce(2_000) // network changes fire rapidly during handoff
+                .collect { event ->
+                    if (event is NetworkMonitor.Event.Available) {
+                        Log.d("SshConnectionService", "Network available — requesting reconnect for disconnected sessions")
+                        sessionManager.requestReconnectAll()
+                    }
+                }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -81,6 +106,8 @@ class SshConnectionService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        networkMonitor.stop()
+        serviceScope.cancel()
         super.onDestroy()
         sessionManager.disconnectAll()
         reticulumSessionManager.disconnectAll()

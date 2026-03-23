@@ -76,10 +76,14 @@ class TerminalSession(
 
                     // After delivering output, check if we have a pending session
                     // manager command to send once the shell prompt appears.
+                    // Strip ANSI/OSC escape sequences before checking for prompt chars,
+                    // since shell integration (OSC 133) wraps the prompt in escape codes
+                    // that would mask the trailing $ / # / % / > character.
                     if (!pendingSent && pendingCommand != null) {
-                        val text = String(buffer, 0, bytesRead).trimEnd()
-                        if (text.isNotEmpty()) {
-                            val last = text.last()
+                        val raw = String(buffer, 0, bytesRead)
+                        val stripped = raw.replace(Regex("\u001b(?:\\[[^a-zA-Z]*[a-zA-Z]|][^\u0007]*\u0007)"), "").trimEnd()
+                        if (stripped.isNotEmpty()) {
+                            val last = stripped.last()
                             if (last == '$' || last == '#' || last == '%' || last == '>') {
                                 Log.d(TAG, "Shell prompt detected ('$last'), sending pending command")
                                 sendToSsh((pendingCommand!! + "\n").toByteArray())

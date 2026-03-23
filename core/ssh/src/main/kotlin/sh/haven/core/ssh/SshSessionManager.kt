@@ -224,6 +224,34 @@ class SshSessionManager @Inject constructor(
     }
 
     /**
+     * Request reconnection of a specific session.
+     * No-op if session is already RECONNECTING or CONNECTED, or has no connection config.
+     * Used by [NetworkMonitor] to trigger immediate reconnect on network change.
+     */
+    fun requestReconnect(sessionId: String) {
+        val session = _sessions.value[sessionId] ?: return
+        if (session.status == SessionState.Status.RECONNECTING) return
+        if (session.status == SessionState.Status.CONNECTED) return
+        if (session.connectionConfig == null) return
+        Log.d(TAG, "requestReconnect: $sessionId (status=${session.status})")
+        ioExecutor.execute { attemptReconnect(sessionId) }
+    }
+
+    /**
+     * Request reconnection of all sessions that are DISCONNECTED or ERROR.
+     * Used by [SshConnectionService] when network becomes available.
+     */
+    fun requestReconnectAll() {
+        _sessions.value.forEach { (id, session) ->
+            if (session.status in listOf(SessionState.Status.DISCONNECTED, SessionState.Status.ERROR)
+                && session.connectionConfig != null
+            ) {
+                requestReconnect(id)
+            }
+        }
+    }
+
+    /**
      * Attempt to reconnect a dropped session with exponential backoff.
      * Called on the ioExecutor thread.
      */
