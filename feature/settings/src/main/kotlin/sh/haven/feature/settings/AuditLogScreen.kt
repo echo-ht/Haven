@@ -155,7 +155,10 @@ private fun LogItem(item: LogDisplayItem) {
             Text("${item.profileLabel}${if (item.host.isNotEmpty()) " (${item.host})" else ""}")
         },
         supportingContent = {
-            Text("${item.status.name.lowercase().replaceFirstChar { it.uppercase() }} - $timeText")
+            val statusLabel = item.status.name.lowercase().replaceFirstChar { it.uppercase() }
+            val line = if (item.details != null) "$statusLabel (${ item.details }) - $timeText"
+            else "$statusLabel - $timeText"
+            Text(line)
         },
     )
 }

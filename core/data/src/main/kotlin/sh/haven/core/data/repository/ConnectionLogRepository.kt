@@ -13,10 +13,15 @@ class ConnectionLogRepository @Inject constructor(
     private val connectionLogDao: ConnectionLogDao,
     private val preferencesRepository: UserPreferencesRepository,
 ) {
-    suspend fun logEvent(profileId: String, status: ConnectionLog.Status, durationMs: Long = 0) {
+    suspend fun logEvent(
+        profileId: String,
+        status: ConnectionLog.Status,
+        durationMs: Long = 0,
+        details: String? = null,
+    ) {
         if (!preferencesRepository.connectionLoggingEnabled.first()) return
         connectionLogDao.insert(
-            ConnectionLog(profileId = profileId, status = status, durationMs = durationMs)
+            ConnectionLog(profileId = profileId, status = status, durationMs = durationMs, details = details)
         )
     }
 

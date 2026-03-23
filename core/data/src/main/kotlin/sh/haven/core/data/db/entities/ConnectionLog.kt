@@ -24,6 +24,7 @@ data class ConnectionLog(
     val timestamp: Long = System.currentTimeMillis(),
     val durationMs: Long = 0,
     val status: Status = Status.CONNECTED,
+    val details: String? = null,
 ) {
     enum class Status {
         CONNECTED,

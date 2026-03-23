@@ -705,7 +705,7 @@ class ConnectionsViewModel @Inject constructor(
                 _navigateToTerminal.value = profile.id
             } catch (e: Exception) {
                 Log.e(TAG, "connectLocal failed: ${e.message}", e)
-                connectionLogRepository.logEvent(profile.id, ConnectionLog.Status.FAILED)
+                connectionLogRepository.logEvent(profile.id, ConnectionLog.Status.FAILED, details = e.message)
                 localSessionManager.updateStatus(sessionId, LocalSessionManager.SessionState.Status.ERROR)
                 localSessionManager.removeSession(sessionId)
                 _error.value = e.message ?: "Local terminal failed"
@@ -831,7 +831,7 @@ class ConnectionsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "connectSsh failed for ${profile.label}: ${e.message}", e)
-                connectionLogRepository.logEvent(profile.id, ConnectionLog.Status.FAILED)
+                connectionLogRepository.logEvent(profile.id, ConnectionLog.Status.FAILED, details = e.message)
                 sshSessionManager.updateStatus(sessionId, SshSessionManager.SessionState.Status.ERROR)
                 sshSessionManager.removeSession(sessionId)
                 // Clean up auto-created jump session if the final host failed
@@ -1426,7 +1426,15 @@ class ConnectionsViewModel @Inject constructor(
         }
         sshSessionManager.updateStatus(sessionId, SshSessionManager.SessionState.Status.CONNECTED)
         repository.markConnected(profileId)
-        connectionLogRepository.logEvent(profileId, ConnectionLog.Status.CONNECTED)
+        val authDetail = sshSessionManager.getConnectionConfigForProfile(profileId)?.first?.let { config ->
+            when (config.authMethod) {
+                is ConnectionConfig.AuthMethod.Password -> "password"
+                is ConnectionConfig.AuthMethod.PrivateKey -> "key"
+                is ConnectionConfig.AuthMethod.PrivateKeys -> "key"
+                is ConnectionConfig.AuthMethod.FidoKey -> "FIDO2"
+            }
+        }
+        connectionLogRepository.logEvent(profileId, ConnectionLog.Status.CONNECTED, details = authDetail)
         startForegroundServiceIfNeeded()
         _navigateToTerminal.value = profileId
     }

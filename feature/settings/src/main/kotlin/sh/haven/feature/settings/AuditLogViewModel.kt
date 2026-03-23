@@ -23,6 +23,7 @@ data class LogDisplayItem(
     val timestamp: Long,
     val status: ConnectionLog.Status,
     val durationMs: Long,
+    val details: String?,
 )
 
 @HiltViewModel
@@ -51,6 +52,7 @@ class AuditLogViewModel @Inject constructor(
                     timestamp = log.timestamp,
                     status = log.status,
                     durationMs = log.durationMs,
+                    details = log.details,
                 )
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
