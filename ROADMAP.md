@@ -13,6 +13,8 @@
 - [x] **OSC sequence support** — OSC 8 hyperlinks, OSC 9/777 notifications, OSC 7 CWD tracking
 - [x] **Smart clipboard** — strip TUI borders and unwrap soft-wrapped lines on copy
 - [x] **Session manager search** — magnifying glass sends native search keys (tmux/zellij/screen/byobu), falls back to shell Ctrl+R
+- [x] **Copy last command output** — OSC 133 semantic shell integration, one-tap copy of last command's output with setup dialog
+- [x] **OSC 133-safe prompt detection** — session manager commands (tmux/zellij) work alongside shell integration escape sequences
 
 ### Connections
 - [x] **Import SSH keys** — PEM/OpenSSH/PuTTY PPK format with passphrase support
@@ -28,6 +30,7 @@
 - [x] **Mosh support** — UDP-based mobile shell for unreliable connections
 - [x] **Eternal Terminal** — ET protocol support
 - [x] **Reticulum** — mesh network transport
+- [x] **Network-aware reconnect** — ConnectivityManager detects WiFi/cellular/VPN changes, triggers immediate SSH reconnect (2s debounce) instead of waiting for TCP timeout
 
 ### Security
 - [x] **Encrypted password storage** — AES-256-GCM encrypted stored passwords
@@ -55,10 +58,9 @@
 
 ### Terminal depth
 - [ ] **Split panes** — horizontal/vertical splits within a tab, independent SSH sessions per pane
-- [ ] **Semantic shell integration** — OSC 133 prompt markers for "copy last output" and per-command navigation
+- [ ] **Prompt-to-prompt navigation** — jump between commands using OSC 133 markers (infrastructure exists in termlib accessibility layer)
 
 ### Workflow continuity
-- [ ] **Network-aware reconnect** — detect WiFi/cellular/VPN changes via ConnectivityManager, trigger immediate reconnect instead of waiting for TCP timeout
 - [ ] **Workspace profiles** — "Work" opens SSH tabs + port forwards + SFTP in one tap
 
 ### PRoot development
