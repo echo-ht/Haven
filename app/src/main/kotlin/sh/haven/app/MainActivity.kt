@@ -93,7 +93,9 @@ class MainActivity : AppCompatActivity() {
                 var unlocked by remember { mutableStateOf(false) }
                 var backgroundedAt by remember { mutableStateOf(0L) }
 
-                // Re-lock when app goes to background, respecting timeout
+                // Re-lock when app goes to background, respecting timeout.
+                // Minimum 5s grace period so file pickers, permission dialogs,
+                // and other brief system activities don't trigger re-lock.
                 val lifecycleOwner = LocalLifecycleOwner.current
                 DisposableEffect(lifecycleOwner) {
                     val observer = LifecycleEventObserver { _, event ->
@@ -102,7 +104,8 @@ class MainActivity : AppCompatActivity() {
                         }
                         if (event == Lifecycle.Event.ON_START && unlocked && backgroundedAt > 0) {
                             val elapsed = (System.currentTimeMillis() - backgroundedAt) / 1000
-                            if (elapsed >= lockTimeout.seconds) {
+                            val effectiveTimeout = maxOf(lockTimeout.seconds, 5L)
+                            if (elapsed >= effectiveTimeout) {
                                 unlocked = false
                             }
                         }
