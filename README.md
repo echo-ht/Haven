@@ -55,7 +55,7 @@
 
 **SSH Keys** — Generate Ed25519, RSA, and ECDSA keys on-device. Import keys from file (PEM/OpenSSH format). One-tap public key copy and deploy key dialog for `authorized_keys` setup. Assign specific keys to individual connections.
 
-**Connections** — Saved profiles with transport selection (SSH, Mosh, Eternal Terminal, VNC, RDP, Reticulum), host key TOFU verification, fingerprint change detection, auto-reconnect with backoff, password fallback, local/remote port forwarding (-L/-R), ProxyJump multi-hop tunneling (-J) with tree view, and RDP-over-SSH tunnel profiles.
+**Connections** — Saved profiles with transport selection (SSH, Mosh, Eternal Terminal, VNC, RDP, Reticulum), host key TOFU verification, fingerprint change detection, auto-reconnect with backoff, password fallback, local/remote port forwarding (-L/-R), ProxyJump multi-hop tunneling (-J) with tree view, SOCKS5/SOCKS4/HTTP proxy support (Tor .onion compatible), and RDP-over-SSH tunnel profiles.
 
 **Reticulum** — Connect over [Reticulum](https://reticulum.network) mesh networks via [rnsh](https://github.com/acehoss/rnsh) or [Sideband](https://github.com/markqvist/Sideband) with announce-based destination discovery and hop count.
 

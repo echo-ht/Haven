@@ -56,7 +56,7 @@ No other Android app ships a full Linux userland. This is Haven's unique wedge.
 
 ### 4. Security as brand
 
-- **Tor/SOCKS proxy support** — connect to onion services via SSH. The JSch proxy infrastructure is already there.
+- ~~**Tor/SOCKS proxy support**~~ — shipped in v3.11.0. SOCKS5/SOCKS4/HTTP proxy per profile, .onion address detection.
 - **Per-profile biometric unlock** — high-security connections require biometric each time, not just at app launch.
 - **Audit log** — surface the existing ConnectionLog entity in the UI for security-conscious users.
 
