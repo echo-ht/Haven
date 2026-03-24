@@ -101,6 +101,7 @@ fun SettingsScreen(
     val connectionLoggingEnabled by viewModel.connectionLoggingEnabled.collectAsState()
     val verboseLoggingEnabled by viewModel.verboseLoggingEnabled.collectAsState()
     val mouseInputEnabled by viewModel.mouseInputEnabled.collectAsState()
+    val terminalRightClick by viewModel.terminalRightClick.collectAsState()
     val backupStatus by viewModel.backupStatus.collectAsState()
     var showAuditLog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
@@ -255,6 +256,13 @@ fun SettingsScreen(
             subtitle = "Forward taps as clicks and long-press as right-click when apps like htop, mc, or vim enable mouse tracking",
             checked = mouseInputEnabled,
             onCheckedChange = viewModel::setMouseInputEnabled,
+        )
+        SettingsToggleItem(
+            icon = Icons.Filled.Terminal,
+            title = "Long-press sends right-click",
+            subtitle = "Send right-click to terminal instead of starting text selection. Useful for tmux context menus",
+            checked = terminalRightClick,
+            onCheckedChange = viewModel::setTerminalRightClick,
         )
         SettingsItem(
             icon = Icons.Filled.ColorLens,

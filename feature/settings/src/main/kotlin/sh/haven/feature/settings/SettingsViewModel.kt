@@ -96,6 +96,9 @@ class SettingsViewModel @Inject constructor(
     val mouseInputEnabled: StateFlow<Boolean> = preferencesRepository.mouseInputEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val terminalRightClick: StateFlow<Boolean> = preferencesRepository.terminalRightClick
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val terminalFontSize: StateFlow<Int> = preferencesRepository.terminalFontSize
         .stateIn(
             viewModelScope,
@@ -200,6 +203,12 @@ class SettingsViewModel @Inject constructor(
     fun setMouseInputEnabled(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setMouseInputEnabled(enabled)
+        }
+    }
+
+    fun setTerminalRightClick(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setTerminalRightClick(enabled)
         }
     }
 

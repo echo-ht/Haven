@@ -100,6 +100,7 @@ fun TerminalScreen(
     showSearchButton: Boolean = false,
     showCopyOutputButton: Boolean = false,
     mouseInputEnabled: Boolean = true,
+    terminalRightClick: Boolean = false,
     onNavigateToConnections: () -> Unit = {},
     onNavigateToVnc: (host: String, port: Int, password: String?, sshForward: Boolean, sshSessionId: String?) -> Unit = { _, _, _, _, _ -> },
     onSelectionActiveChanged: (Boolean) -> Unit = {},
@@ -392,7 +393,7 @@ fun TerminalScreen(
                     // Build gesture callback when mouse mode is active.
                     // Taps and long-presses are gated by mouseInputEnabled;
                     // scroll wheel always works when the TUI requests mouse mode.
-                    val gestureCallback = remember(activeTab, isMouseMode, mouseInputEnabled) {
+                    val gestureCallback = remember(activeTab, isMouseMode, mouseInputEnabled, terminalRightClick) {
                         if (isMouseMode) object : org.connectbot.terminal.TerminalGestureCallback {
                             override fun onTap(col: Int, row: Int): Boolean {
                                 if (!mouseInputEnabled) return false
@@ -402,9 +403,10 @@ fun TerminalScreen(
                             }
                             override fun onLongPress(col: Int, row: Int): Boolean {
                                 if (!mouseInputEnabled) return false
+                                if (!terminalRightClick) return false // allow text selection instead
                                 activeTab.sendInput(sgrMouseButton(2, col + 1, row + 1, true))
                                 activeTab.sendInput(sgrMouseButton(2, col + 1, row + 1, false))
-                                return false // also allow selection after right-click
+                                return true // suppress text selection
                             }
                             override fun onScroll(col: Int, row: Int, scrollUp: Boolean): Boolean {
                                 activeTab.sendInput(sgrMouseWheel(scrollUp, col + 1, row + 1))

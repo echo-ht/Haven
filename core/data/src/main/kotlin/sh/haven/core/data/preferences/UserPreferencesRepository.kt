@@ -36,6 +36,7 @@ class UserPreferencesRepository @Inject constructor(
     private val connectionLoggingEnabledKey = booleanPreferencesKey("connection_logging_enabled")
     private val verboseLoggingEnabledKey = booleanPreferencesKey("verbose_logging_enabled")
     private val mouseInputEnabledKey = booleanPreferencesKey("mouse_input_enabled")
+    private val terminalRightClickKey = booleanPreferencesKey("terminal_right_click")
 
     val biometricEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[biometricEnabledKey] ?: false
@@ -104,6 +105,17 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setMouseInputEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[mouseInputEnabledKey] = enabled
+        }
+    }
+
+    /** Send long-press as right-click to TUI apps instead of starting text selection. */
+    val terminalRightClick: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[terminalRightClickKey] ?: false
+    }
+
+    suspend fun setTerminalRightClick(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[terminalRightClickKey] = enabled
         }
     }
 
