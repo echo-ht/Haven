@@ -747,6 +747,8 @@ fun ConnectionsScreen(
                         val deps = dependentsByParent[profile.id].orEmpty()
                         deps.forEachIndexed { index, dep ->
                             item(key = dep.id) {
+                                // Children follow parent during drag
+                                val parentDragged = draggedId == profile.id
                                 ConnectionTreeItem(
                                     profile = dep,
                                     indent = 1,
@@ -770,6 +772,13 @@ fun ConnectionsScreen(
                                     onLaunchDesktop = { viewModel.launchDesktop(dep) },
                                     isDesktopInstalled = viewModel.isDesktopInstalled,
                                     isLaunchingDesktop = launchingDesktop,
+                                    dragModifier = if (parentDragged) Modifier
+                                        .zIndex(1f)
+                                        .offset(
+                                            y = with(LocalDensity.current) {
+                                                dragOffset.roundToInt().toDp()
+                                            },
+                                        ) else Modifier,
                                 )
                             }
                         }
