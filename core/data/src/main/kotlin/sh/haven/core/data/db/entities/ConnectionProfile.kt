@@ -46,6 +46,7 @@ data class ConnectionProfile(
     val proxyType: String? = null,       // "SOCKS5", "SOCKS4", "HTTP", or null (none)
     val proxyHost: String? = null,
     val proxyPort: Int = 1080,
+    val groupId: String? = null,
 ) {
     enum class AuthType {
         PASSWORD,

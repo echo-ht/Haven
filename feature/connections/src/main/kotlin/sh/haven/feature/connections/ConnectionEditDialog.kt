@@ -74,6 +74,7 @@ fun ConnectionEditDialog(
     discoveredHosts: List<DiscoveredHost> = emptyList(),
     discoveredSmbHosts: List<DiscoveredHost> = emptyList(),
     sshProfiles: List<ConnectionProfile> = emptyList(),
+    groups: List<sh.haven.core.data.db.entities.ConnectionGroup> = emptyList(),
     sshKeys: List<sh.haven.core.data.db.entities.SshKey> = emptyList(),
     globalSessionManagerLabel: String = "None",
     subnetScanning: Boolean = false,
@@ -106,6 +107,7 @@ fun ConnectionEditDialog(
     }
     var label by rememberSaveable { mutableStateOf(existing?.label ?: "") }
     var colorTag by rememberSaveable { mutableIntStateOf(existing?.colorTag ?: 0) }
+    var groupId by rememberSaveable { mutableStateOf(existing?.groupId) }
     var host by rememberSaveable { mutableStateOf(existing?.host ?: "") }
     var port by rememberSaveable {
         mutableStateOf(
@@ -287,6 +289,49 @@ fun ConnectionEditDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
+
+                // Group picker
+                if (groups.isNotEmpty()) {
+                    var groupExpanded by remember { mutableStateOf(false) }
+                    val selectedGroup = groups.firstOrNull { it.id == groupId }
+                    ExposedDropdownMenuBox(
+                        expanded = groupExpanded,
+                        onExpandedChange = { groupExpanded = it },
+                    ) {
+                        OutlinedTextField(
+                            value = selectedGroup?.label ?: "None",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Group") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(groupExpanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = groupExpanded,
+                            onDismissRequest = { groupExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("None") },
+                                onClick = {
+                                    groupId = null
+                                    groupExpanded = false
+                                },
+                            )
+                            groups.forEach { group ->
+                                DropdownMenuItem(
+                                    text = { Text(group.label) },
+                                    onClick = {
+                                        groupId = group.id
+                                        groupExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
 
                 if (connectionType == "LOCAL") {
                     Text(
@@ -1257,6 +1302,7 @@ fun ConnectionEditDialog(
                             username = "",
                             connectionType = "LOCAL",
                             colorTag = colorTag,
+                            groupId = groupId,
                         )
                     } else if (connectionType == "VNC") {
                         val vncPortInt = port.toIntOrNull() ?: 5900
@@ -1273,6 +1319,7 @@ fun ConnectionEditDialog(
                             vncPort = vncPortInt,
                             vncPassword = vncPassword.ifBlank { null },
                             colorTag = colorTag,
+                            groupId = groupId,
                         )
                     } else if (connectionType == "RDP") {
                         val rdpPortInt = port.toIntOrNull() ?: 3389
@@ -1293,6 +1340,7 @@ fun ConnectionEditDialog(
                             rdpSshForward = rdpSshForward,
                             rdpSshProfileId = if (rdpSshForward) rdpSshProfileId else null,
                             colorTag = colorTag,
+                            groupId = groupId,
                         )
                     } else if (connectionType == "SMB") {
                         val smbPortInt = port.toIntOrNull() ?: 445
@@ -1313,6 +1361,7 @@ fun ConnectionEditDialog(
                             smbSshForward = smbSshForward,
                             smbSshProfileId = if (smbSshForward) smbSshProfileId else null,
                             colorTag = colorTag,
+                            groupId = groupId,
                         )
                     } else if (connectionType == "SSH") {
                         val portInt = port.toIntOrNull() ?: 22
@@ -1339,6 +1388,7 @@ fun ConnectionEditDialog(
                             useEternalTerminal = selectedTransport == "ET",
                             etPort = etPortInt,
                             colorTag = colorTag,
+                            groupId = groupId,
                         )
                     } else {
                         val savedHost = if (localSideband) "127.0.0.1" else rnsHost
@@ -1358,6 +1408,7 @@ fun ConnectionEditDialog(
                             reticulumHost = savedHost,
                             reticulumPort = savedPort,
                             colorTag = colorTag,
+                            groupId = groupId,
                         )
                     }
                     onSave(profile)

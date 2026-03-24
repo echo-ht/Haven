@@ -7,9 +7,11 @@ import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.haven.core.data.db.ConnectionDao
+import sh.haven.core.data.db.ConnectionGroupDao
 import sh.haven.core.data.db.KnownHostDao
 import sh.haven.core.data.db.PortForwardRuleDao
 import sh.haven.core.data.db.SshKeyDao
+import sh.haven.core.data.db.entities.ConnectionGroup
 import sh.haven.core.data.db.entities.ConnectionProfile
 import sh.haven.core.data.db.entities.KnownHost
 import sh.haven.core.data.db.entities.PortForwardRule
@@ -27,6 +29,7 @@ import javax.inject.Singleton
 class BackupService @Inject constructor(
     private val connectionDao: ConnectionDao,
     private val connectionRepository: sh.haven.core.data.repository.ConnectionRepository,
+    private val connectionGroupDao: ConnectionGroupDao,
     private val sshKeyDao: SshKeyDao,
     private val sshKeyRepository: sh.haven.core.data.repository.SshKeyRepository,
     private val knownHostDao: KnownHostDao,
@@ -83,9 +86,23 @@ class BackupService @Inject constructor(
                 put("proxyType", p.proxyType ?: JSONObject.NULL)
                 put("proxyHost", p.proxyHost ?: JSONObject.NULL)
                 put("proxyPort", p.proxyPort)
+                put("groupId", p.groupId ?: JSONObject.NULL)
             })
         }
         json.put("connections", connections)
+
+        // Connection groups
+        val groups = JSONArray()
+        connectionGroupDao.getAll().forEach { g ->
+            groups.put(JSONObject().apply {
+                put("id", g.id)
+                put("label", g.label)
+                put("colorTag", g.colorTag)
+                put("sortOrder", g.sortOrder)
+                put("collapsed", g.collapsed)
+            })
+        }
+        json.put("groups", groups)
 
         // SSH keys
         val keys = JSONArray()
@@ -161,6 +178,28 @@ class BackupService @Inject constructor(
         var count = 0
         val errors = mutableListOf<String>()
 
+        // Connection groups (import before connections since connections reference groupId)
+        val groups = json.optJSONArray("groups")
+        if (groups != null) {
+            for (i in 0 until groups.length()) {
+                try {
+                    val g = groups.getJSONObject(i)
+                    connectionGroupDao.upsert(
+                        ConnectionGroup(
+                            id = g.getString("id"),
+                            label = g.getString("label"),
+                            colorTag = g.optInt("colorTag", 0),
+                            sortOrder = g.optInt("sortOrder", 0),
+                            collapsed = g.optBoolean("collapsed", false),
+                        ),
+                    )
+                    count++
+                } catch (e: Exception) {
+                    errors.add("Group ${i}: ${e.message}")
+                }
+            }
+        }
+
         // SSH keys (import first since connections reference keyId)
         val keys = json.optJSONArray("keys")
         if (keys != null) {
@@ -234,6 +273,7 @@ class BackupService @Inject constructor(
                             proxyType = c.optStringOrNull("proxyType"),
                             proxyHost = c.optStringOrNull("proxyHost"),
                             proxyPort = c.optInt("proxyPort", 1080),
+                            groupId = c.optStringOrNull("groupId"),
                         ),
                     )
                     count++

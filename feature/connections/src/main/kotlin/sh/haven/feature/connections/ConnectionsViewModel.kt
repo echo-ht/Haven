@@ -63,6 +63,7 @@ enum class ProfileStatus { CONNECTING, CONNECTED, RECONNECTING, DISCONNECTED, ER
 class ConnectionsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val repository: ConnectionRepository,
+    private val connectionGroupDao: sh.haven.core.data.db.ConnectionGroupDao,
     private val portForwardRepository: PortForwardRepository,
     private val sshSessionManager: SshSessionManager,
     private val reticulumSessionManager: ReticulumSessionManager,
@@ -101,6 +102,10 @@ class ConnectionsViewModel @Inject constructor(
 
     val connections: StateFlow<List<ConnectionProfile>> = repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val groups: StateFlow<List<sh.haven.core.data.db.entities.ConnectionGroup>> =
+        connectionGroupDao.observeAll()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val sshKeys: StateFlow<List<SshKey>> = sshKeyRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -461,6 +466,66 @@ class ConnectionsViewModel @Inject constructor(
     }
 
     /** Persist new sort order for a reordered list of top-level profile IDs. */
+    fun createGroup(label: String) {
+        viewModelScope.launch {
+            connectionGroupDao.upsert(sh.haven.core.data.db.entities.ConnectionGroup(label = label))
+        }
+    }
+
+    fun renameGroup(id: String, label: String) {
+        viewModelScope.launch {
+            connectionGroupDao.getById(id)?.let {
+                connectionGroupDao.upsert(it.copy(label = label))
+            }
+        }
+    }
+
+    fun deleteGroup(id: String) {
+        viewModelScope.launch {
+            // Move connections in this group to ungrouped
+            connections.value.filter { it.groupId == id }.forEach { profile ->
+                repository.save(profile.copy(groupId = null))
+            }
+            connectionGroupDao.deleteById(id)
+        }
+    }
+
+    fun toggleGroupCollapsed(id: String) {
+        viewModelScope.launch {
+            connectionGroupDao.getById(id)?.let {
+                connectionGroupDao.updateCollapsed(id, !it.collapsed)
+            }
+        }
+    }
+
+    fun reorderGroups(orderedIds: List<String>) {
+        viewModelScope.launch {
+            orderedIds.forEachIndexed { index, id ->
+                connectionGroupDao.updateSortOrder(id, index)
+            }
+        }
+    }
+
+    fun updateGroupSortOrder(id: String, sortOrder: Int) {
+        viewModelScope.launch {
+            connectionGroupDao.updateSortOrder(id, sortOrder)
+        }
+    }
+
+    fun updateSortOrder(profileId: String, sortOrder: Int) {
+        viewModelScope.launch {
+            repository.updateSortOrder(profileId, sortOrder)
+        }
+    }
+
+    fun updateGroupColor(id: String, colorTag: Int) {
+        viewModelScope.launch {
+            connectionGroupDao.getById(id)?.let {
+                connectionGroupDao.upsert(it.copy(colorTag = colorTag))
+            }
+        }
+    }
+
     fun reorderConnections(orderedIds: List<String>) {
         viewModelScope.launch {
             orderedIds.forEachIndexed { index, id ->

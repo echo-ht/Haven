@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import sh.haven.core.data.db.entities.ConnectionGroup
 import sh.haven.core.data.db.entities.ConnectionLog
 import sh.haven.core.data.db.entities.ConnectionProfile
 import sh.haven.core.data.db.entities.KnownHost
@@ -13,16 +14,18 @@ import sh.haven.core.data.db.entities.SshKey
 @Database(
     entities = [
         ConnectionProfile::class,
+        ConnectionGroup::class,
         KnownHost::class,
         ConnectionLog::class,
         SshKey::class,
         PortForwardRule::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = true,
 )
 abstract class HavenDatabase : RoomDatabase() {
     abstract fun connectionDao(): ConnectionDao
+    abstract fun connectionGroupDao(): ConnectionGroupDao
     abstract fun knownHostDao(): KnownHostDao
     abstract fun connectionLogDao(): ConnectionLogDao
     abstract fun sshKeyDao(): SshKeyDao
@@ -179,6 +182,22 @@ abstract class HavenDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE connection_profiles ADD COLUMN proxyType TEXT")
                 db.execSQL("ALTER TABLE connection_profiles ADD COLUMN proxyHost TEXT")
                 db.execSQL("ALTER TABLE connection_profiles ADD COLUMN proxyPort INTEGER NOT NULL DEFAULT 1080")
+            }
+        }
+
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `connection_groups` (
+                        `id` TEXT NOT NULL,
+                        `label` TEXT NOT NULL,
+                        `colorTag` INTEGER NOT NULL DEFAULT 0,
+                        `sortOrder` INTEGER NOT NULL DEFAULT 0,
+                        `collapsed` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+                db.execSQL("ALTER TABLE connection_profiles ADD COLUMN groupId TEXT")
             }
         }
     }
