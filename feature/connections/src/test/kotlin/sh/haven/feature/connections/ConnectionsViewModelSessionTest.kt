@@ -125,6 +125,9 @@ class ConnectionsViewModelSessionTest {
                     every { label } returns "None"
                 })
             },
+            connectionGroupDao = mockk(relaxed = true) {
+                every { observeAll() } returns flowOf(emptyList())
+            },
             hostKeyVerifier = mockk(relaxed = true),
             connectionLogRepository = mockk(relaxed = true),
         )
