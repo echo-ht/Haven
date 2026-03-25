@@ -120,7 +120,10 @@ class MainActivity : AppCompatActivity() {
                         onUnlocked = { unlocked = true },
                     )
                 } else {
-                    HavenNavHost(preferencesRepository = preferencesRepository)
+                    HavenNavHost(
+                        preferencesRepository = preferencesRepository,
+                        connectionRepository = connectionRepository,
+                    )
                 }
             }
         }

@@ -33,6 +33,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import sh.haven.core.data.preferences.UserPreferencesRepository
+import sh.haven.core.data.repository.ConnectionRepository
 import sh.haven.feature.connections.ConnectionsScreen
 import sh.haven.feature.keys.KeysScreen
 import sh.haven.feature.settings.SettingsScreen
@@ -43,9 +44,22 @@ import kotlin.math.abs
 @Composable
 fun HavenNavHost(
     preferencesRepository: UserPreferencesRepository,
+    connectionRepository: ConnectionRepository,
 ) {
-    val screens = Screen.entries
+    // Auto-hide tabs for protocols with no configured connections
+    val connections by connectionRepository.observeAll()
+        .collectAsState(initial = emptyList())
+    val hasDesktopConnections = connections.any { it.isVnc || it.isRdp }
+    val screens = remember(hasDesktopConnections) {
+        Screen.entries.filter { screen ->
+            when (screen) {
+                Screen.Desktop -> hasDesktopConnections
+                else -> true
+            }
+        }
+    }
     val pagerState = rememberPagerState { screens.size }
+    fun pageOf(screen: Screen): Int = screens.indexOf(screen).coerceAtLeast(0)
     val coroutineScope = rememberCoroutineScope()
     val terminalFontSize by preferencesRepository.terminalFontSize
         .collectAsState(initial = UserPreferencesRepository.DEFAULT_FONT_SIZE)
@@ -127,13 +141,13 @@ fun HavenNavHost(
                     onNavigateToTerminal = { profileId ->
                         pendingTerminalProfileId = profileId
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(Screen.Terminal.ordinal)
+                            pagerState.animateScrollToPage(pageOf(Screen.Terminal))
                         }
                     },
                     onNavigateToNewSession = { profileId ->
                         pendingNewSessionProfileId = profileId
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(Screen.Terminal.ordinal)
+                            pagerState.animateScrollToPage(pageOf(Screen.Terminal))
                         }
                     },
                     onNavigateToVnc = { host, port, password ->
@@ -143,7 +157,7 @@ fun HavenNavHost(
                         pendingVncSshForward = false
                         pendingVncSshSessionId = null
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(Screen.Desktop.ordinal)
+                            pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                         }
                     },
                     onNavigateToRdp = { host, port, username, password, domain, sshForward, sshProfileId, sshSessionId ->
@@ -156,13 +170,13 @@ fun HavenNavHost(
                         pendingRdpSshProfileId = sshProfileId
                         pendingRdpSshSessionId = sshSessionId
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(Screen.Desktop.ordinal)
+                            pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                         }
                     },
                     onNavigateToSmb = { profileId ->
                         pendingSmbProfileId = profileId
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(Screen.Sftp.ordinal)
+                            pagerState.animateScrollToPage(pageOf(Screen.Sftp))
                         }
                     },
                 )
@@ -170,7 +184,7 @@ fun HavenNavHost(
                     TerminalScreen(
                         navigateToProfileId = pendingTerminalProfileId,
                         newSessionProfileId = pendingNewSessionProfileId,
-                        isActive = pagerState.settledPage == Screen.Terminal.ordinal,
+                        isActive = pagerState.settledPage == pageOf(Screen.Terminal),
                         fontSize = terminalFontSize,
                         toolbarLayout = toolbarLayout,
                         showSearchButton = showSearchButton,
@@ -179,7 +193,7 @@ fun HavenNavHost(
                         terminalRightClick = terminalRightClick,
                         onNavigateToConnections = {
                             coroutineScope.launch {
-                                pagerState.animateScrollToPage(Screen.Connections.ordinal)
+                                pagerState.animateScrollToPage(pageOf(Screen.Connections))
                             }
                         },
                         onNavigateToVnc = { host, port, password, sshForward, sshSessionId ->
@@ -189,7 +203,7 @@ fun HavenNavHost(
                             pendingVncSshForward = sshForward
                             pendingVncSshSessionId = sshSessionId
                             coroutineScope.launch {
-                                pagerState.animateScrollToPage(Screen.Desktop.ordinal)
+                                pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                             }
                         },
                         onSelectionActiveChanged = { terminalSelectionActive = it },
@@ -226,7 +240,7 @@ fun HavenNavHost(
                         pendingRdpSshProfileId = null
                     }
                     DesktopScreen(
-                        isActive = pagerState.settledPage == Screen.Desktop.ordinal,
+                        isActive = pagerState.settledPage == pageOf(Screen.Desktop),
                         pendingVncHost = pendingVncHost,
                         pendingVncPort = pendingVncPort,
                         pendingVncPassword = pendingVncPassword,
