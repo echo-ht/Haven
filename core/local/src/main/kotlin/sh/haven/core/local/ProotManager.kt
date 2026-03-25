@@ -572,12 +572,12 @@ chmod +x /root/.vnc/xstartup""")
             // Android ps: columns are USER PID PPID VSZ RSS WCHAN ADDR S NAME (or similar)
             // Use grep to find Xvnc or proot lines, awk to get PID (field 2)
             val proc = ProcessBuilder("sh", "-c",
-                "ps -A 2>/dev/null | grep -E 'Xvnc|proot' | grep -v grep | awk '{print \$2}'"
+                "ps -A 2>/dev/null | grep 'Xvnc' | grep -v grep | awk '{print \$2}'"
             ).redirectErrorStream(true).start()
             val pids = proc.inputStream.bufferedReader().readText().trim()
             proc.waitFor()
             if (pids.isNotEmpty()) {
-                Log.d(TAG, "Killing orphaned VNC/proot PIDs: $pids")
+                Log.d(TAG, "Killing orphaned Xvnc PIDs: $pids")
                 for (pid in pids.lines()) {
                     try {
                         ProcessBuilder("kill", "-9", pid.trim()).start().waitFor()

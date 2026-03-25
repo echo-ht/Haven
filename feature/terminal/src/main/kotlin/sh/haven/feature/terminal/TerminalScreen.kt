@@ -115,6 +115,7 @@ fun TerminalScreen(
     val newTabSessionPicker by viewModel.newTabSessionPicker.collectAsState()
     val newTabLoading by viewModel.newTabLoading.collectAsState()
     var vncDialogInfo by remember { mutableStateOf<VncInfo?>(null) }
+    var localVncLoading by remember { mutableStateOf(false) }
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     val context = LocalContext.current
@@ -494,7 +495,20 @@ fun TerminalScreen(
                                     vncDialogInfo = info
                                 }
                             }
+                        }} else if (activeTab.transportType == "LOCAL" && viewModel.isLocalDesktopInstalled) {{
+                            if (!localVncLoading) {
+                                localVncLoading = true
+                                coroutineScope.launch {
+                                    viewModel.ensureLocalVncProfile()
+                                    viewModel.startLocalVncServer()
+                                    kotlinx.coroutines.delay(4000)
+                                    val pwd = viewModel.getLocalVncPassword()
+                                    localVncLoading = false
+                                    onNavigateToVnc("localhost", 5901, pwd, false, null)
+                                }
+                            }
                         }} else null,
+                        vncLoading = localVncLoading,
                         selectionController = selectionController,
                         selectionActive = selectionActive,
                         hyperlinkUri = currentHyperlinkUri,

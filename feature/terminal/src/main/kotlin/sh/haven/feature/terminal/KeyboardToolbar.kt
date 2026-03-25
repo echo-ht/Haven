@@ -119,6 +119,7 @@ fun KeyboardToolbar(
     onToggleCtrl: () -> Unit = {},
     onToggleAlt: () -> Unit = {},
     onVncTap: (() -> Unit)? = null,
+    vncLoading: Boolean = false,
     selectionController: SelectionController? = null,
     selectionActive: Boolean = false,
     hyperlinkUri: String? = null,
@@ -155,6 +156,7 @@ fun KeyboardToolbar(
                             imeVisible = imeVisible,
                             view = view,
                             onVncTap = onVncTap,
+                            vncLoading = vncLoading,
                         )
                     }
                     SelectionToolbarContent(
@@ -174,6 +176,7 @@ fun KeyboardToolbar(
                     imeVisible = imeVisible,
                     view = view,
                     onVncTap = onVncTap,
+                    vncLoading = vncLoading,
                 )
             } else {
                 Column {
@@ -188,6 +191,7 @@ fun KeyboardToolbar(
                                 imeVisible = imeVisible,
                                 view = view,
                                 onVncTap = onVncTap,
+                                vncLoading = vncLoading,
                             )
                         }
                     }
@@ -213,6 +217,7 @@ private fun AlignedToolbarContent(
     imeVisible: Boolean,
     view: android.view.View,
     onVncTap: (() -> Unit)?,
+    vncLoading: Boolean = false,
 ) {
     val cb = LocalToolbarCallbacks.current
     // Split each row into: left (non-nav), right (non-nav after nav keys)
@@ -230,9 +235,9 @@ private fun AlignedToolbarContent(
     if (presentNavKeys.isEmpty()) {
         Column {
             ToolbarRow(layout.row1, focusRequester, ctrlActive, altActive,
-                shiftActive, imeVisible, view, onVncTap)
+                shiftActive, imeVisible, view, onVncTap, vncLoading)
             ToolbarRow(layout.row2, focusRequester, ctrlActive, altActive,
-                shiftActive, imeVisible, view, onVncTap)
+                shiftActive, imeVisible, view, onVncTap, vncLoading)
         }
         return
     }
@@ -254,7 +259,19 @@ private fun AlignedToolbarContent(
             KeyRow(Modifier.fillMaxWidth()) {
                 // VNC Desktop icon at start of row 2
                 if (onVncTap != null) {
-                    ToolbarIconButton(Icons.Filled.DesktopWindows, "VNC Desktop", onVncTap)
+                    if (vncLoading) {
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier.size(32.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.Center,
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    } else {
+                        ToolbarIconButton(Icons.Filled.DesktopWindows, "VNC Desktop", onVncTap)
+                    }
                 }
                 for (item in row2Left) {
                     RenderItem(item, focusRequester, ctrlActive, altActive,
@@ -417,6 +434,7 @@ private fun ToolbarRow(
     imeVisible: Boolean,
     view: android.view.View,
     onVncTap: (() -> Unit)? = null,
+    vncLoading: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -428,7 +446,19 @@ private fun ToolbarRow(
             RenderItem(item, focusRequester, ctrlActive, altActive,
                 shiftActive, imeVisible, view)
             if (item is ToolbarItem.BuiltIn && item.key == ToolbarKey.KEYBOARD && onVncTap != null) {
-                ToolbarIconButton(Icons.Filled.DesktopWindows, "VNC Desktop", onVncTap)
+                if (vncLoading) {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.size(32.dp),
+                        contentAlignment = androidx.compose.ui.Alignment.Center,
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                } else {
+                    ToolbarIconButton(Icons.Filled.DesktopWindows, "VNC Desktop", onVncTap)
+                }
             }
         }
     }

@@ -29,6 +29,7 @@ import sh.haven.core.ssh.SshSessionManager.SessionState
 import sh.haven.core.et.EtSessionManager
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.reticulum.ReticulumSessionManager
+import sh.haven.core.data.db.entities.ConnectionProfile
 import sh.haven.core.data.preferences.UserPreferencesRepository
 import javax.inject.Inject
 
@@ -234,10 +235,49 @@ class TerminalViewModel @Inject constructor(
         }
     }
 
+    /** True when the PRoot desktop environment (Xvnc) is installed. */
+    val isLocalDesktopInstalled: Boolean
+        get() = localSessionManager.prootManager.isDesktopInstalled
+
+    /** Start the PRoot VNC server (kills any existing instance first). */
+    suspend fun startLocalVncServer() {
+        withContext(Dispatchers.IO) {
+            localSessionManager.prootManager.startVncServer()
+        }
+    }
+
+    /** Ensure a VNC connection profile exists for local desktop (so Desktop tab is visible). */
+    suspend fun ensureLocalVncProfile() {
+        val existing = connectionRepository.getAll()
+            .find { it.connectionType == "VNC" && it.host == "localhost" && it.vncPort == 5901 }
+        if (existing == null) {
+            val tab = _tabs.value.getOrNull(_activeTabIndex.value)
+            val profile = tab?.let { connectionRepository.getById(it.profileId) }
+            connectionRepository.save(
+                ConnectionProfile(
+                    label = "${profile?.label ?: "Local"} Desktop",
+                    host = "localhost",
+                    port = 5901,
+                    username = "",
+                    connectionType = "VNC",
+                    vncPort = 5901,
+                    vncSshForward = false,
+                )
+            )
+        }
+    }
+
+    /** Get the stored VNC password for local desktop (localhost:5901). */
+    suspend fun getLocalVncPassword(): String? =
+        connectionRepository.getAll()
+            .find { it.connectionType == "VNC" && it.host == "localhost" && it.vncPort == 5901 }
+            ?.vncPassword
+
     /** Get VNC connection info for the active terminal tab's SSH host. */
     suspend fun getActiveVncInfo(): VncInfo? {
         val tab = _tabs.value.getOrNull(_activeTabIndex.value) ?: return null
         val profile = connectionRepository.getById(tab.profileId)
+
         // For SSH tabs, use the stored connection config; for mosh/ET, use the profile directly
         val host = sessionManager.getConnectionConfigForProfile(tab.profileId)?.first?.host
             ?: profile?.host

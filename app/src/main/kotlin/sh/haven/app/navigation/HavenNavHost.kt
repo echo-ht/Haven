@@ -49,7 +49,7 @@ fun HavenNavHost(
     // Auto-hide tabs for protocols with no configured connections
     val connections by connectionRepository.observeAll()
         .collectAsState(initial = emptyList())
-    val hasDesktopConnections = connections.any { it.isVnc || it.isRdp }
+    val hasDesktopConnections = connections.any { it.isVnc || it.isRdp || it.isLocal }
     val screens = remember(hasDesktopConnections) {
         Screen.entries.filter { screen ->
             when (screen) {
