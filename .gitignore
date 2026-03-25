@@ -19,3 +19,4 @@ build-mosh/
 com/jcraft/jsch/
 build-proot/build-*/
 build-proot/dl/
+core/local/src/main/jniLibs/*/libproot*.so

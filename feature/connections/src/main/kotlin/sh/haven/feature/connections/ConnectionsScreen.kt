@@ -917,13 +917,13 @@ private fun onTapProfile(
     viewModel: ConnectionsViewModel,
     showPasswordDialog: () -> Unit,
 ) {
-    if (profileStatus == ProfileStatus.CONNECTED) {
+    if (profile.isLocal) {
+        // Local: no auth needed, handles both fresh connect and re-navigate
+        viewModel.connect(profile, "")
+    } else if (profileStatus == ProfileStatus.CONNECTED) {
         // ensureShellForProfile navigates via _navigateToTerminal when ready
         // (handles jump host sessions that need shell setup or session picker)
         viewModel.ensureShellForProfile(profile.id)
-    } else if (profile.isLocal) {
-        // Local: no auth needed
-        viewModel.connect(profile, "")
     } else if (profile.isVnc) {
         // VNC: connect directly (password stored in profile)
         viewModel.connect(profile, "")

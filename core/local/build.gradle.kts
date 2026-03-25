@@ -43,6 +43,27 @@ dependencies {
     testImplementation(libs.junit)
 }
 
+val buildProot by tasks.registering(Exec::class) {
+    val prootScript = rootProject.file("build-proot/build.sh")
+    val prootSrc = rootProject.file("build-proot/proot-termux/src")
+    val tallocSrc = rootProject.file("build-proot/talloc")
+    val jniLibsDir = file("src/main/jniLibs")
+
+    inputs.file(prootScript)
+    inputs.dir(prootSrc)
+    inputs.dir(tallocSrc)
+    outputs.dir(jniLibsDir)
+
+    workingDir = rootProject.file("build-proot")
+    commandLine("bash", "build.sh")
+    // Let build.sh auto-detect the newest NDK (needs r28+ for ARM64 TLS alignment)
+    environment("PROOT_OUTPUT", jniLibsDir.absolutePath)
+}
+
+tasks.named("preBuild") {
+    dependsOn(buildProot)
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)

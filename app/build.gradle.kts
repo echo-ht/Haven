@@ -21,7 +21,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    flavorDimensions += listOf("abi")
+    flavorDimensions += listOf("abi", "store")
     productFlavors {
         create("arm64") {
             dimension = "abi"
@@ -30,6 +30,12 @@ android {
         create("x64") {
             dimension = "abi"
             ndk { abiFilters += "x86_64" }
+        }
+        create("foss") {
+            dimension = "store"
+        }
+        create("full") {
+            dimension = "store"
         }
     }
 
@@ -58,20 +64,22 @@ android {
         }
     }
 
-    // Version code scheme: base * 10 + offset
-    val variantCodes = mapOf("arm64" to 1, "x64" to 2)
+    // Version code scheme: base * 10 + abiOffset
+    // foss and full share the same codes (different distribution channels)
+    val abiCodes = mapOf("arm64" to 1, "x64" to 2)
 
     applicationVariants.all {
         val variant = this
-        val code = variantCodes[variant.flavorName]
+        val abi = variant.productFlavors.first { it.dimension == "abi" }.name
+        val store = variant.productFlavors.first { it.dimension == "store" }.name
+        val abiCode = abiCodes[abi]
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
-            if (code != null) {
-                output.versionCodeOverride = (defaultConfig.versionCode ?: 0) * 10 + code
+            if (abiCode != null) {
+                output.versionCodeOverride = (defaultConfig.versionCode ?: 0) * 10 + abiCode
             }
-            // e.g., haven-2.0.17-arm64-release.apk
-            val abi = variant.productFlavors.first { it.dimension == "abi" }.name
-            output.outputFileName = "haven-${variant.versionName}-$abi-${variant.buildType.name}.apk"
+            // e.g., haven-3.14.0-arm64-full-release.apk
+            output.outputFileName = "haven-${variant.versionName}-$abi-$store-${variant.buildType.name}.apk"
         }
     }
 
@@ -109,7 +117,7 @@ dependencies {
     implementation(project(":core:mosh"))
     implementation(project(":core:et"))
     implementation(project(":core:vnc"))
-    implementation(project(":core:rdp"))
+    "fullImplementation"(project(":core:rdp"))
     implementation(project(":core:smb"))
     implementation(project(":core:fido"))
     implementation(project(":core:local"))
@@ -120,7 +128,7 @@ dependencies {
     implementation(project(":feature:keys"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:vnc"))
-    implementation(project(":feature:rdp"))
+    "fullImplementation"(project(":feature:rdp"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

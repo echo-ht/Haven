@@ -8,3 +8,6 @@
 [submodule "et-kotlin"]
 	path = et-kotlin
 	url = https://github.com/GlassOnTin/et-kotlin.git
+[submodule "build-proot/proot-termux"]
+	path = build-proot/proot-termux
+	url = https://github.com/termux/proot

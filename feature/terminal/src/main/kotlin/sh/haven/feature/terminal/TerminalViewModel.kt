@@ -974,7 +974,29 @@ class TerminalViewModel @Inject constructor(
             return
         }
 
+        if (activeTab.transportType == "LOCAL") {
+            addLocalTab(activeTab)
+            return
+        }
+
         addSshTabForProfile(activeTab.profileId)
+    }
+
+    private fun addLocalTab(activeTab: TerminalTab) {
+        viewModelScope.launch {
+            _newTabLoading.value = true
+            try {
+                val label = activeTab.label.replace(Regex(" \\(\\d+\\)$"), "")
+                val sessionId = localSessionManager.registerSession(activeTab.profileId, label)
+                localSessionManager.connectSession(sessionId)
+                syncSessions()
+                selectTabBySessionId(sessionId)
+            } catch (e: Exception) {
+                Log.e(TAG, "addLocalTab failed: ${e.message}", e)
+            } finally {
+                _newTabLoading.value = false
+            }
+        }
     }
 
     /**
