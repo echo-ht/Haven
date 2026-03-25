@@ -56,7 +56,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Build full release APK and AAB
-        run: ./gradlew :app:assembleFullRelease :app:bundleFullRelease
+        run: ./gradlew :app:assembleArm64FullRelease :app:assembleX64FullRelease :app:bundleArm64FullRelease :app:bundleX64FullRelease
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
