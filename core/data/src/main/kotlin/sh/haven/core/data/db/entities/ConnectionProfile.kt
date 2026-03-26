@@ -49,6 +49,8 @@ data class ConnectionProfile(
     val groupId: String? = null,
     /** Last session manager session name used (for group launch restore). */
     val lastSessionName: String? = null,
+    /** Disable alternate screen buffer (DECSET 1049) so scrollback works in screen/vim. */
+    val disableAltScreen: Boolean = false,
 ) {
     enum class AuthType {
         PASSWORD,

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.connectbot.terminal.TerminalEmulator
@@ -531,11 +532,13 @@ class TerminalViewModel @Inject constructor(
 
             val coalescer = InputCoalescer { data -> termSession.sendToSsh(data) }
             val scheme = terminalColorScheme.value
+            val sshProfile = runBlocking(Dispatchers.IO) { connectionRepository.getById(session.profileId) }
             emulator = TerminalEmulatorFactory.create(
                 initialRows = 24,
                 initialCols = 80,
                 defaultForeground = Color(scheme.foreground),
                 defaultBackground = Color(scheme.background),
+                enableAltScreen = sshProfile?.disableAltScreen != true,
                 onKeyboardInput = { data -> coalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "SSH onResize: ${dims.columns}x${dims.rows}")
@@ -609,11 +612,13 @@ class TerminalViewModel @Inject constructor(
 
             val rnsCoalescer = InputCoalescer { data -> rnsSession.sendInput(data) }
             val rnsScheme = terminalColorScheme.value
+            val rnsProfile = runBlocking(Dispatchers.IO) { connectionRepository.getById(session.profileId) }
             emulator = TerminalEmulatorFactory.create(
                 initialRows = 24,
                 initialCols = 80,
                 defaultForeground = Color(rnsScheme.foreground),
                 defaultBackground = Color(rnsScheme.background),
+                enableAltScreen = rnsProfile?.disableAltScreen != true,
                 onKeyboardInput = { data -> rnsCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "RNS onResize: ${dims.columns}x${dims.rows}")
@@ -700,10 +705,12 @@ class TerminalViewModel @Inject constructor(
 
             val moshCoalescer = InputCoalescer { data -> moshSession.sendInput(data) }
             val moshScheme = terminalColorScheme.value
+            val moshProfile = runBlocking(Dispatchers.IO) { connectionRepository.getById(session.profileId) }
             emulator = TerminalEmulatorFactory.create(
                 initialRows = 24,
                 initialCols = 80,
                 defaultForeground = Color(moshScheme.foreground),
+                enableAltScreen = moshProfile?.disableAltScreen != true,
                 defaultBackground = Color(moshScheme.background),
                 onKeyboardInput = { data -> moshCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
@@ -790,11 +797,13 @@ class TerminalViewModel @Inject constructor(
 
             val etCoalescer = InputCoalescer { data -> etSession.sendInput(data) }
             val etScheme = terminalColorScheme.value
+            val etProfile = runBlocking(Dispatchers.IO) { connectionRepository.getById(session.profileId) }
             emulator = TerminalEmulatorFactory.create(
                 initialRows = 24,
                 initialCols = 80,
                 defaultForeground = Color(etScheme.foreground),
                 defaultBackground = Color(etScheme.background),
+                enableAltScreen = etProfile?.disableAltScreen != true,
                 onKeyboardInput = { data -> etCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "ET onResize: ${dims.columns}x${dims.rows}")
@@ -859,11 +868,13 @@ class TerminalViewModel @Inject constructor(
 
             val localCoalescer = InputCoalescer { data -> localSession.sendInput(data) }
             val localScheme = terminalColorScheme.value
+            val localProfile = runBlocking(Dispatchers.IO) { connectionRepository.getById(session.profileId) }
             emulator = TerminalEmulatorFactory.create(
                 initialRows = 24,
                 initialCols = 80,
                 defaultForeground = Color(localScheme.foreground),
                 defaultBackground = Color(localScheme.background),
+                enableAltScreen = localProfile?.disableAltScreen != true,
                 onKeyboardInput = { data -> localCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "LOCAL onResize: ${dims.columns}x${dims.rows}")

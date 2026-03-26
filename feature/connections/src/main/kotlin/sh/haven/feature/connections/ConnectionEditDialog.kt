@@ -138,6 +138,7 @@ fun ConnectionEditDialog(
     var proxyPort by rememberSaveable { mutableStateOf(existing?.proxyPort?.toString() ?: "1080") }
     var keyId by rememberSaveable { mutableStateOf(existing?.keyId) }
     var sshOptions by rememberSaveable { mutableStateOf(existing?.sshOptions ?: "") }
+    var disableAltScreen by rememberSaveable { mutableStateOf(existing?.disableAltScreen ?: false) }
     var selectedSessionManager by rememberSaveable { mutableStateOf(existing?.sessionManager) }
     var etPort by rememberSaveable { mutableStateOf(existing?.etPort?.toString() ?: "2022") }
     var localSideband by rememberSaveable {
@@ -1140,6 +1141,21 @@ fun ConnectionEditDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
+                    // Alternate screen buffer toggle
+                    Spacer(Modifier.height(8.dp))
+                    FilterChip(
+                        selected = disableAltScreen,
+                        onClick = { disableAltScreen = !disableAltScreen },
+                        label = { Text("Disable alternate screen") },
+                    )
+                    if (disableAltScreen) {
+                        Text(
+                            "Scrollback works in screen/vim. Program output stays in scrollback on exit.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
                     // SSH key selector
                     if (sshKeys.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
@@ -1383,6 +1399,7 @@ fun ConnectionEditDialog(
                             proxyPort = proxyPort.toIntOrNull() ?: 1080,
                             keyId = keyId,
                             sshOptions = sshOptions.ifBlank { null },
+                            disableAltScreen = disableAltScreen,
                             sessionManager = selectedSessionManager,
                             useMosh = selectedTransport == "MOSH",
                             useEternalTerminal = selectedTransport == "ET",
