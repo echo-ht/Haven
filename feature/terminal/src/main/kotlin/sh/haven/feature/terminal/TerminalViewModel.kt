@@ -538,7 +538,7 @@ class TerminalViewModel @Inject constructor(
                 initialCols = 80,
                 defaultForeground = Color(scheme.foreground),
                 defaultBackground = Color(scheme.background),
-                enableAltScreen = sshProfile?.disableAltScreen != true,
+                enableAltScreen = sshProfile?.disableAltScreen != true && sshProfile?.sessionManager != "screen",
                 onKeyboardInput = { data -> coalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "SSH onResize: ${dims.columns}x${dims.rows}")
@@ -618,7 +618,7 @@ class TerminalViewModel @Inject constructor(
                 initialCols = 80,
                 defaultForeground = Color(rnsScheme.foreground),
                 defaultBackground = Color(rnsScheme.background),
-                enableAltScreen = rnsProfile?.disableAltScreen != true,
+                enableAltScreen = rnsProfile?.disableAltScreen != true && rnsProfile?.sessionManager != "screen",
                 onKeyboardInput = { data -> rnsCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "RNS onResize: ${dims.columns}x${dims.rows}")
@@ -710,7 +710,7 @@ class TerminalViewModel @Inject constructor(
                 initialRows = 24,
                 initialCols = 80,
                 defaultForeground = Color(moshScheme.foreground),
-                enableAltScreen = moshProfile?.disableAltScreen != true,
+                enableAltScreen = moshProfile?.disableAltScreen != true && moshProfile?.sessionManager != "screen",
                 defaultBackground = Color(moshScheme.background),
                 onKeyboardInput = { data -> moshCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
@@ -803,7 +803,7 @@ class TerminalViewModel @Inject constructor(
                 initialCols = 80,
                 defaultForeground = Color(etScheme.foreground),
                 defaultBackground = Color(etScheme.background),
-                enableAltScreen = etProfile?.disableAltScreen != true,
+                enableAltScreen = etProfile?.disableAltScreen != true && etProfile?.sessionManager != "screen",
                 onKeyboardInput = { data -> etCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "ET onResize: ${dims.columns}x${dims.rows}")
@@ -874,7 +874,7 @@ class TerminalViewModel @Inject constructor(
                 initialCols = 80,
                 defaultForeground = Color(localScheme.foreground),
                 defaultBackground = Color(localScheme.background),
-                enableAltScreen = localProfile?.disableAltScreen != true,
+                enableAltScreen = localProfile?.disableAltScreen != true && localProfile?.sessionManager != "screen",
                 onKeyboardInput = { data -> localCoalescer.send(applyModifiers(data)) },
                 onResize = { dims ->
                     Log.d(TAG, "LOCAL onResize: ${dims.columns}x${dims.rows}")
