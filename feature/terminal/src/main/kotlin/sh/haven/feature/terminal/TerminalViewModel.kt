@@ -44,11 +44,20 @@ private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
  *
  * Format: sequential frames of [4-byte LE millis since start][4-byte LE length][data].
  * Replay by reading frames and feeding to TerminalEmulator.writeInput().
+ *
+ * Uses a ring-buffer approach: when the file exceeds [maxBytes], it rotates
+ * to a new file and deletes the oldest, keeping at most 2 files (current + previous).
+ * Default cap: 8MB per file, 16MB total.
  */
-class TerminalRecorder(private val file: java.io.File) : java.io.Closeable {
+class TerminalRecorder(
+    private val file: java.io.File,
+    private val maxBytes: Long = 8L * 1024 * 1024,
+) : java.io.Closeable {
     private val startTime = System.currentTimeMillis()
-    private val out = java.io.BufferedOutputStream(file.outputStream())
+    private var out = java.io.BufferedOutputStream(file.outputStream())
     private val buf = ByteArray(8) // reusable header buffer
+    private var bytesWritten = 0L
+    private var generation = 0
 
     @Synchronized
     fun record(data: ByteArray, offset: Int, length: Int) {
@@ -63,6 +72,28 @@ class TerminalRecorder(private val file: java.io.File) : java.io.Closeable {
         buf[7] = (length ushr 24 and 0xFF).toByte()
         out.write(buf)
         out.write(data, offset, length)
+        bytesWritten += 8 + length
+        if (bytesWritten >= maxBytes) {
+            rotate()
+        }
+    }
+
+    private fun rotate() {
+        try { out.flush(); out.close() } catch (_: Exception) {}
+        generation++
+        // Delete the file from 2 generations ago (keep current + previous)
+        val oldFile = generationFile(generation - 2)
+        oldFile.delete()
+        val newFile = generationFile(generation)
+        out = java.io.BufferedOutputStream(newFile.outputStream())
+        bytesWritten = 0
+    }
+
+    private fun generationFile(gen: Int): java.io.File {
+        if (gen <= 0) return file
+        val base = file.nameWithoutExtension
+        val ext = file.extension
+        return java.io.File(file.parent, "$base.$gen.$ext")
     }
 
     @Synchronized
