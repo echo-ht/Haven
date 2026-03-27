@@ -1111,7 +1111,8 @@ private fun ConnectionTreeItem(
                         )
                         else -> {
                             val tagColor = if (profile.colorTag in 1..PROFILE_COLORS.size)
-                                PROFILE_COLORS[profile.colorTag - 1] else MaterialTheme.colorScheme.outline
+                                PROFILE_COLORS[profile.colorTag - 1].copy(alpha = 0.4f)
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                             Icon(
                                 Icons.Filled.Circle,
                                 contentDescription = "Disconnected",
