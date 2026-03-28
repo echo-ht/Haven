@@ -74,7 +74,6 @@ import java.util.Locale
 @Composable
 fun SftpScreen(
     pendingSmbProfileId: String? = null,
-    pendingRcloneProfileId: String? = null,
     viewModel: SftpViewModel = hiltViewModel(),
 ) {
     val connectedProfiles by viewModel.connectedProfiles.collectAsState()
@@ -91,10 +90,6 @@ fun SftpScreen(
 
     LaunchedEffect(pendingSmbProfileId) {
         pendingSmbProfileId?.let { viewModel.setPendingSmbProfile(it) }
-    }
-
-    LaunchedEffect(pendingRcloneProfileId) {
-        pendingRcloneProfileId?.let { viewModel.setPendingRcloneProfile(it) }
     }
 
     viewModel.syncConnectedProfiles()

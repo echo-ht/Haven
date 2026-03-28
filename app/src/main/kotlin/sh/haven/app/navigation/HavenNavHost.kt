@@ -91,9 +91,6 @@ fun HavenNavHost(
     // SMB auto-connect params
     var pendingSmbProfileId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Rclone auto-connect params
-    var pendingRcloneProfileId by rememberSaveable { mutableStateOf<String?>(null) }
-
     // RDP auto-connect params
     var pendingRdpHost by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingRdpPort by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -184,12 +181,6 @@ fun HavenNavHost(
                     },
                     onNavigateToSmb = { profileId ->
                         pendingSmbProfileId = profileId
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(pageOf(Screen.Sftp))
-                        }
-                    },
-                    onNavigateToRclone = { profileId ->
-                        pendingRcloneProfileId = profileId
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(pageOf(Screen.Sftp))
                         }
@@ -291,18 +282,10 @@ fun HavenNavHost(
                     )
                 }
                 Screen.Sftp -> {
-                    SftpScreen(
-                        pendingSmbProfileId = pendingSmbProfileId,
-                        pendingRcloneProfileId = pendingRcloneProfileId,
-                    )
+                    SftpScreen(pendingSmbProfileId = pendingSmbProfileId)
                     LaunchedEffect(pendingSmbProfileId) {
                         if (pendingSmbProfileId != null) {
                             pendingSmbProfileId = null
-                        }
-                    }
-                    LaunchedEffect(pendingRcloneProfileId) {
-                        if (pendingRcloneProfileId != null) {
-                            pendingRcloneProfileId = null
                         }
                     }
                 }

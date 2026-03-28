@@ -90,7 +90,6 @@ fun ConnectionEditDialog(
         existing?.isVnc == true -> "VNC"
         existing?.isRdp == true -> "RDP"
         existing?.isSmb == true -> "SMB"
-        existing?.isRclone == true -> "RCLONE"
         existing?.isEternalTerminal == true -> "ET"
         existing?.isMosh == true -> "MOSH"
         existing?.isReticulum == true -> "RETICULUM"
@@ -104,7 +103,6 @@ fun ConnectionEditDialog(
         "VNC" -> "VNC"
         "RDP" -> "RDP"
         "SMB" -> "SMB"
-        "RCLONE" -> "RCLONE"
         else -> "SSH"
     }
     var label by rememberSaveable { mutableStateOf(existing?.label ?: "") }
@@ -152,8 +150,6 @@ fun ConnectionEditDialog(
     }
     var rnsHost by rememberSaveable { mutableStateOf(existing?.reticulumHost ?: "") }
     var rnsPort by rememberSaveable { mutableStateOf(existing?.reticulumPort?.toString() ?: "4242") }
-    var rcloneRemoteName by rememberSaveable { mutableStateOf(existing?.rcloneRemoteName ?: "") }
-    var rcloneProvider by rememberSaveable { mutableStateOf(existing?.rcloneProvider ?: "") }
 
     val isEdit = existing != null
     val title = if (isEdit) "Edit Connection" else "New Connection"
@@ -172,7 +168,6 @@ fun ConnectionEditDialog(
                     "VNC" to "VNC (Desktop)",
                     "RDP" to "RDP (Desktop)",
                     "SMB" to "SMB (File Share)",
-                    "RCLONE" to "Cloud Storage (rclone)",
                     "RETICULUM" to "Reticulum",
                 )
                 var transportExpanded by remember { mutableStateOf(false) }
@@ -229,7 +224,6 @@ fun ConnectionEditDialog(
                                 "VNC" -> "My VNC Desktop"
                                 "RDP" -> "My RDP Desktop"
                                 "SMB" -> "My File Share"
-                                "RCLONE" -> "My Google Drive"
                                 "RETICULUM" -> "My Node"
                                 else -> "My Server"
                             }
@@ -348,73 +342,6 @@ fun ConnectionEditDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                } else if (connectionType == "RCLONE") {
-                    // rclone: remote name + provider type
-                    Text(
-                        "Connect to cloud storage via rclone. " +
-                            "Supports Google Drive, Dropbox, S3, OneDrive, and 60+ providers. " +
-                            "Configure the remote in the rclone config flow after saving.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = rcloneRemoteName,
-                        onValueChange = { rcloneRemoteName = it.filter { c -> c.isLetterOrDigit() || c == '_' || c == '-' } },
-                        label = { Text("Remote Name") },
-                        placeholder = { Text("gdrive") },
-                        supportingText = { Text("Internal name for this remote (letters, digits, -, _)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    // Provider type dropdown
-                    val providerOptions = listOf(
-                        "drive" to "Google Drive",
-                        "dropbox" to "Dropbox",
-                        "onedrive" to "Microsoft OneDrive",
-                        "s3" to "Amazon S3 / Compatible",
-                        "b2" to "Backblaze B2",
-                        "sftp" to "SFTP",
-                        "webdav" to "WebDAV",
-                        "ftp" to "FTP",
-                        "mega" to "MEGA",
-                        "pcloud" to "pCloud",
-                        "box" to "Box",
-                        "local" to "Local Filesystem",
-                    )
-                    var providerExpanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = providerExpanded,
-                        onExpandedChange = { providerExpanded = it },
-                    ) {
-                        OutlinedTextField(
-                            value = providerOptions.firstOrNull { it.first == rcloneProvider }?.second
-                                ?: rcloneProvider.ifEmpty { "Select provider..." },
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Provider") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(providerExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = providerExpanded,
-                            onDismissRequest = { providerExpanded = false },
-                        ) {
-                            providerOptions.forEach { (value, displayLabel) ->
-                                DropdownMenuItem(
-                                    text = { Text(displayLabel) },
-                                    onClick = {
-                                        rcloneProvider = value
-                                        providerExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
                 } else if (connectionType == "VNC") {
                     // VNC: host, port, password
                     OutlinedTextField(
@@ -1374,7 +1301,6 @@ fun ConnectionEditDialog(
                 "VNC" -> host.isNotBlank()
                 "RDP" -> host.isNotBlank() && rdpUsername.isNotBlank() && (!rdpSshForward || rdpSshProfileId != null)
                 "SMB" -> host.isNotBlank() && smbShare.isNotBlank() && (!smbSshForward || smbSshProfileId != null)
-                "RCLONE" -> rcloneRemoteName.isNotBlank() && rcloneProvider.isNotBlank()
                 else -> destinationHash.length == 32 && (localSideband || rnsHost.isNotBlank())
             }
             TextButton(
@@ -1429,22 +1355,6 @@ fun ConnectionEditDialog(
                             rdpDomain = rdpDomain.ifBlank { null },
                             rdpSshForward = rdpSshForward,
                             rdpSshProfileId = if (rdpSshForward) rdpSshProfileId else null,
-                            colorTag = colorTag,
-                            groupId = groupId,
-                        )
-                    } else if (connectionType == "RCLONE") {
-                        (existing ?: ConnectionProfile(
-                            label = label,
-                            host = "",
-                            username = "",
-                        )).copy(
-                            label = label.ifBlank { "$rcloneProvider: $rcloneRemoteName" },
-                            host = "",
-                            port = 0,
-                            username = "",
-                            connectionType = "RCLONE",
-                            rcloneRemoteName = rcloneRemoteName,
-                            rcloneProvider = rcloneProvider,
                             colorTag = colorTag,
                             groupId = groupId,
                         )

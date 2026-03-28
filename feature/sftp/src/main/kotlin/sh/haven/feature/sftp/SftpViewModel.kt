@@ -21,8 +21,6 @@ import sh.haven.core.data.preferences.UserPreferencesRepository
 import sh.haven.core.data.repository.ConnectionRepository
 import sh.haven.core.et.EtSessionManager
 import sh.haven.core.mosh.MoshSessionManager
-import sh.haven.core.rclone.RcloneClient
-import sh.haven.core.rclone.RcloneSessionManager
 import sh.haven.core.smb.SmbClient
 import sh.haven.core.smb.SmbSessionManager
 import sh.haven.core.ssh.SshClient
@@ -62,8 +60,6 @@ class SftpViewModel @Inject constructor(
     private val moshSessionManager: MoshSessionManager,
     private val etSessionManager: EtSessionManager,
     private val smbSessionManager: SmbSessionManager,
-    private val rcloneSessionManager: RcloneSessionManager,
-    private val rcloneClient: RcloneClient,
     private val repository: ConnectionRepository,
     private val preferencesRepository: UserPreferencesRepository,
     @ApplicationContext private val appContext: Context,
@@ -112,17 +108,8 @@ class SftpViewModel @Inject constructor(
     /** Tracks which active profile is SMB (vs SFTP). */
     private val _isSmbProfile = MutableStateFlow(false)
 
-    /** Tracks which active profile is rclone (vs SFTP/SMB). */
-    private val _isRcloneProfile = MutableStateFlow(false)
-
-    /** rclone remote name for the active profile. */
-    private var activeRcloneRemote: String? = null
-
     /** Pending SMB profile to auto-select when navigating to Files tab. */
     private val _pendingSmbProfileId = MutableStateFlow<String?>(null)
-
-    /** Pending rclone profile to auto-select when navigating to Files tab. */
-    private val _pendingRcloneProfileId = MutableStateFlow<String?>(null)
 
     init {
         // Restore persisted sort mode
@@ -168,13 +155,7 @@ class SftpViewModel @Inject constructor(
                 .map { it.profileId }
                 .toSet()
 
-            // Collect profile IDs from rclone sessions
-            val rcloneProfileIds = rcloneSessionManager.sessions.value.values
-                .filter { it.status == RcloneSessionManager.SessionState.Status.CONNECTED }
-                .map { it.profileId }
-                .toSet()
-
-            val connectedProfileIds = sshProfileIds + moshProfileIds + etProfileIds + smbProfileIds + rcloneProfileIds
+            val connectedProfileIds = sshProfileIds + moshProfileIds + etProfileIds + smbProfileIds
 
             if (connectedProfileIds.isEmpty()) {
                 _connectedProfiles.value = emptyList()
@@ -195,14 +176,6 @@ class SftpViewModel @Inject constructor(
                 return@launch
             }
 
-            // Handle pending rclone navigation
-            val pendingRclone = _pendingRcloneProfileId.value
-            if (pendingRclone != null && pendingRclone in connectedProfileIds) {
-                _pendingRcloneProfileId.value = null
-                selectProfile(pendingRclone)
-                return@launch
-            }
-
             // Auto-select first connected profile if none selected
             if (_activeProfileId.value == null || _activeProfileId.value !in connectedProfileIds) {
                 _connectedProfiles.value.firstOrNull()?.let { selectProfile(it.id) }
@@ -214,40 +187,39 @@ class SftpViewModel @Inject constructor(
         _pendingSmbProfileId.value = profileId
     }
 
-    fun setPendingRcloneProfile(profileId: String) {
-        _pendingRcloneProfileId.value = profileId
-    }
-
     fun selectProfile(profileId: String) {
-        // Check which backend this profile uses
+        // Check if this is an SMB profile
         val isSmb = smbSessionManager.isProfileConnected(profileId)
-        val isRclone = rcloneSessionManager.isProfileConnected(profileId)
         _isSmbProfile.value = isSmb
-        _isRcloneProfile.value = isRclone
 
-        // Reset state
-        _activeProfileId.value = profileId
-        sftpChannel = null
-        activeSmbClient = null
-        activeRcloneRemote = null
-        _currentPath.value = "/"
-        _allEntries.value = emptyList()
-        _entries.value = emptyList()
-
-        when {
-            isRclone -> openRcloneAndList(profileId)
-            isSmb -> openSmbAndList(profileId)
-            else -> openSftpAndList(profileId, "/")
+        if (isSmb) {
+            if (profileId == _activeProfileId.value && activeSmbClient?.isConnected == true) return
+            _activeProfileId.value = profileId
+            sftpChannel = null
+            activeSmbClient = null
+            _currentPath.value = "/"
+            _allEntries.value = emptyList()
+            _entries.value = emptyList()
+            openSmbAndList(profileId)
+        } else {
+            if (profileId == _activeProfileId.value && sftpChannel?.isConnected == true) return
+            _activeProfileId.value = profileId
+            sftpChannel = null
+            activeSmbClient = null
+            _currentPath.value = "/"
+            _allEntries.value = emptyList()
+            _entries.value = emptyList()
+            openSftpAndList(profileId, "/")
         }
     }
 
     fun navigateTo(path: String) {
         val profileId = _activeProfileId.value ?: return
         _currentPath.value = path
-        when {
-            _isRcloneProfile.value -> listRcloneDirectory(path)
-            _isSmbProfile.value -> listSmbDirectory(path)
-            else -> listDirectory(profileId, path)
+        if (_isSmbProfile.value) {
+            listSmbDirectory(path)
+        } else {
+            listDirectory(profileId, path)
         }
     }
 
@@ -280,10 +252,10 @@ class SftpViewModel @Inject constructor(
 
     fun refresh() {
         val profileId = _activeProfileId.value ?: return
-        when {
-            _isRcloneProfile.value -> listRcloneDirectory(_currentPath.value)
-            _isSmbProfile.value -> listSmbDirectory(_currentPath.value)
-            else -> listDirectory(profileId, _currentPath.value)
+        if (_isSmbProfile.value) {
+            listSmbDirectory(_currentPath.value)
+        } else {
+            listDirectory(profileId, _currentPath.value)
         }
     }
 
@@ -297,18 +269,7 @@ class SftpViewModel @Inject constructor(
                     val outputStream: OutputStream = appContext.contentResolver.openOutputStream(destinationUri)
                         ?: throw IllegalStateException("Cannot open output stream")
                     outputStream.use { out ->
-                        if (_isRcloneProfile.value) {
-                            val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
-                            // Download to temp file, then copy to SAF output
-                            val tempFile = java.io.File(appContext.cacheDir, "rclone_dl_${entry.name}")
-                            try {
-                                rcloneClient.copyFile(remote, entry.path, "//${tempFile.parent}", tempFile.name)
-                                tempFile.inputStream().use { it.copyTo(out) }
-                                _transferProgress.value = TransferProgress(entry.name, entry.size, entry.size)
-                            } finally {
-                                tempFile.delete()
-                            }
-                        } else if (_isSmbProfile.value) {
+                        if (_isSmbProfile.value) {
                             val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
                             client.download(entry.path, out) { transferred, total ->
                                 _transferProgress.value = TransferProgress(entry.name, total, transferred)
@@ -368,18 +329,7 @@ class SftpViewModel @Inject constructor(
                     val inputStream = appContext.contentResolver.openInputStream(sourceUri)
                         ?: throw IllegalStateException("Cannot open input stream")
                     inputStream.use { input ->
-                        if (_isRcloneProfile.value) {
-                            val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
-                            // Copy SAF input to temp file, then upload via rclone
-                            val tempFile = java.io.File(appContext.cacheDir, "rclone_ul_$fileName")
-                            try {
-                                tempFile.outputStream().use { input.copyTo(it) }
-                                rcloneClient.copyFile("//${tempFile.parent}", tempFile.name, remote, destPath)
-                                _transferProgress.value = TransferProgress(fileName, fileSize, fileSize)
-                            } finally {
-                                tempFile.delete()
-                            }
-                        } else if (_isSmbProfile.value) {
+                        if (_isSmbProfile.value) {
                             val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
                             client.upload(input, destPath, fileSize) { transferred, total ->
                                 _transferProgress.value = TransferProgress(fileName, total, transferred)
@@ -429,14 +379,7 @@ class SftpViewModel @Inject constructor(
             try {
                 _loading.value = true
                 withContext(Dispatchers.IO) {
-                    if (_isRcloneProfile.value) {
-                        val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
-                        if (entry.isDirectory) {
-                            rcloneClient.deleteDir(remote, entry.path)
-                        } else {
-                            rcloneClient.deleteFile(remote, entry.path)
-                        }
-                    } else if (_isSmbProfile.value) {
+                    if (_isSmbProfile.value) {
                         val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
                         client.delete(entry.path, entry.isDirectory)
                     } else {
@@ -619,67 +562,6 @@ class SftpViewModel @Inject constructor(
                 size = entry.size,
                 modifiedTime = entry.modifiedTime,
                 permissions = entry.permissions,
-            )
-        }
-        _allEntries.value = sortEntries(results, _sortMode.value)
-        applyFilter()
-    }
-
-    // ── Rclone helpers ────────────────────────────────────────────────
-
-    private fun openRcloneAndList(profileId: String) {
-        viewModelScope.launch {
-            try {
-                _loading.value = true
-                withContext(Dispatchers.IO) {
-                    val remoteName = rcloneSessionManager.getRemoteNameForProfile(profileId)
-                        ?: throw IllegalStateException("Rclone session not connected")
-                    activeRcloneRemote = remoteName
-                    _currentPath.value = "/"
-                    loadRcloneEntries(remoteName, "")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Rclone open failed", e)
-                _error.value = "Cloud storage failed: ${e.message}"
-            } finally {
-                _loading.value = false
-            }
-        }
-    }
-
-    private fun listRcloneDirectory(path: String) {
-        viewModelScope.launch {
-            try {
-                _loading.value = true
-                withContext(Dispatchers.IO) {
-                    val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
-                    loadRcloneEntries(remote, path)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Rclone list directory failed", e)
-                _error.value = "Failed to list: ${e.message}"
-            } finally {
-                _loading.value = false
-            }
-        }
-    }
-
-    private fun loadRcloneEntries(remote: String, path: String) {
-        val rcloneEntries = rcloneClient.listDirectory(remote, path)
-        val results = rcloneEntries.map { entry ->
-            // Parse rclone ISO-8601 modTime to epoch seconds
-            val modTime = try {
-                java.time.Instant.parse(entry.modTime).epochSecond
-            } catch (_: Exception) {
-                0L
-            }
-            SftpEntry(
-                name = entry.name,
-                path = if (path.isEmpty() || path == "/") entry.name else "${path.trimEnd('/')}/${entry.name}",
-                isDirectory = entry.isDir,
-                size = entry.size,
-                modifiedTime = modTime,
-                permissions = if (entry.isDir) "drwxr-xr-x" else "-rw-r--r--",
             )
         }
         _allEntries.value = sortEntries(results, _sortMode.value)
