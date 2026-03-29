@@ -73,6 +73,7 @@ include(":core:smb")
 include(":core:rclone")
 include(":core:fido")
 include(":core:local")
+include(":core:wayland")
 
 include(":feature:settings")
 include(":feature:vnc")

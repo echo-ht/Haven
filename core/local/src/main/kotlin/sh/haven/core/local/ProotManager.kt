@@ -74,6 +74,7 @@ class ProotManager @Inject constructor(
         val startCommands: String,
         val sizeEstimate: String,
         val isWayland: Boolean = false,
+        val isNative: Boolean = false,
     ) {
         XFCE4(
             label = "Xfce4",
@@ -108,6 +109,15 @@ class ProotManager @Inject constructor(
                 "foot 2>&1 &",
             sizeEstimate = "~15MB",
             isWayland = true,
+        ),
+        WAYLAND_NATIVE(
+            label = "Native Wayland",
+            packages = "foot font-noto",
+            verifyBinary = "usr/bin/foot",
+            startCommands = "", // compositor runs natively via WaylandBridge, not in PRoot
+            sizeEstimate = "~5MB",
+            isWayland = true,
+            isNative = true,
         ),
     }
 
@@ -516,9 +526,15 @@ chmod +x /root/.vnc/xstartup""")
         vncProcess?.destroyForcibly()
         killOrphanedXvnc()
 
+        val de = installedDesktop ?: DesktopEnvironment.XFCE4
+
+        if (de.isNative) {
+            startNativeCompositor(de)
+            return
+        }
+
         val prootBin = prootBinary ?: return
         val loaderPath = File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath
-        val de = installedDesktop ?: DesktopEnvironment.XFCE4
 
         // Ensure /root exists on the host filesystem
         val rootHome = File(rootfsDir, "root")
@@ -592,9 +608,128 @@ chmod +x /root/.vnc/xstartup""")
     }
 
     fun stopVncServer() {
+        if (sh.haven.core.wayland.WaylandBridge.nativeIsRunning()) {
+            sh.haven.core.wayland.WaylandBridge.nativeStop()
+        }
         vncProcess?.destroyForcibly()
         vncProcess = null
         killOrphanedXvnc()
+    }
+
+    /**
+     * Start the native Wayland compositor (embedded in Haven's process).
+     * PRoot clients connect via a bind-mounted Wayland socket.
+     */
+    /** Recursively extract an assets directory to the filesystem. */
+    private fun extractAssetsDir(ctx: Context, assetPath: String, destDir: File) {
+        val assets = ctx.assets
+        val list = assets.list(assetPath) ?: return
+        if (list.isEmpty()) {
+            // It's a file
+            destDir.parentFile?.mkdirs()
+            assets.open(assetPath).use { input ->
+                destDir.outputStream().use { output -> input.copyTo(output) }
+            }
+        } else {
+            destDir.mkdirs()
+            for (child in list) {
+                extractAssetsDir(ctx, "$assetPath/$child", File(destDir, child))
+            }
+        }
+    }
+
+    private fun startNativeCompositor(de: DesktopEnvironment) {
+        val bridge = sh.haven.core.wayland.WaylandBridge
+
+        // Prepare XDG runtime dir (must be mode 0700, owned by app)
+        val xdgDir = File(context.cacheDir, "wayland-xdg").apply {
+            mkdirs()
+            setReadable(true, true)
+            setWritable(true, true)
+            setExecutable(true, true)
+        }
+        // Clean stale sockets
+        File(xdgDir, "wayland-0").delete()
+        File(xdgDir, "wayland-0.lock").delete()
+
+        // Extract XKB data from assets on first use
+        val xkbDir = File(context.filesDir, "xkb")
+        if (!File(xkbDir, "rules/evdev").exists()) {
+            Log.d(TAG, "Extracting XKB data...")
+            extractAssetsDir(context, "xkb", xkbDir)
+        }
+        // Fontconfig pointing to system fonts
+        val fontconfFile = File(context.cacheDir, "fonts.conf")
+        if (!fontconfFile.exists()) {
+            fontconfFile.writeText("""
+                <?xml version="1.0"?>
+                <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+                <fontconfig>
+                  <dir>/system/fonts</dir>
+                  <cachedir>${context.cacheDir.absolutePath}/fontconfig-cache</cachedir>
+                </fontconfig>
+            """.trimIndent())
+            File(context.cacheDir, "fontconfig-cache").mkdirs()
+        }
+
+        Log.d(TAG, "Starting native compositor: XDG_RUNTIME_DIR=${xdgDir.absolutePath}")
+        bridge.nativeStart(
+            xdgRuntimeDir = xdgDir.absolutePath,
+            xkbConfigRoot = xkbDir.absolutePath,
+            fontconfigFile = fontconfFile.absolutePath,
+        )
+
+        // Wait for socket to appear
+        val socket = File(xdgDir, "wayland-0")
+        var waited = 0
+        while (!socket.exists() && waited < 10) {
+            Thread.sleep(500)
+            waited++
+        }
+        if (socket.exists()) {
+            Log.d(TAG, "Native compositor started, socket: ${socket.absolutePath}")
+        } else {
+            Log.e(TAG, "Native compositor socket not created after ${waited * 500}ms")
+        }
+
+        // Start PRoot with Wayland clients, bind-mounting the native socket
+        val prootBin = prootBinary ?: return
+        val loaderPath = File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath
+        val rootHome = File(rootfsDir, "root").apply { mkdirs() }
+
+        val process = ProcessBuilder(
+            prootBin, "-0", "--link2symlink",
+            "-r", rootfsDir.absolutePath,
+            "-b", "/dev", "-b", "/proc", "-b", "/sys",
+            "-b", "${context.cacheDir.absolutePath}:/tmp",
+            "-b", "${xdgDir.absolutePath}:/tmp/xdg-runtime",
+            "-w", "/root",
+            "/bin/busybox", "sh", "-c",
+            "export HOME=/root; " +
+                "export XDG_RUNTIME_DIR=/tmp/xdg-runtime; " +
+                "export WAYLAND_DISPLAY=wayland-0; " +
+                "foot 2>&1 & " +
+                "wait",
+        ).apply {
+            environment().apply {
+                put("HOME", "/root")
+                put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+                put("PROOT_TMP_DIR", context.cacheDir.absolutePath)
+                put("PROOT_LOADER", loaderPath)
+            }
+            redirectErrorStream(true)
+        }.start()
+
+        vncProcess = process
+
+        Thread({
+            try {
+                process.inputStream.bufferedReader().forEachLine { line ->
+                    Log.d(TAG, "NativeWayland: $line")
+                }
+            } catch (_: Exception) {}
+            Log.d(TAG, "NativeWayland PRoot exited: ${process.waitFor()}")
+        }, "native-wayland-log").apply { isDaemon = true }.start()
     }
 
     /**
