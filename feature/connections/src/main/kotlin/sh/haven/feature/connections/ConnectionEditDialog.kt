@@ -1439,7 +1439,20 @@ fun ConnectionEditDialog(
                             host = "",
                             username = "",
                         )).copy(
-                            label = label.ifBlank { "$rcloneProvider: $rcloneRemoteName" },
+                            label = label.ifBlank {
+                                val providerLabel = when (rcloneProvider) {
+                                    "drive" -> "Google Drive"
+                                    "dropbox" -> "Dropbox"
+                                    "onedrive" -> "OneDrive"
+                                    "s3" -> "Amazon S3"
+                                    "b2" -> "Backblaze B2"
+                                    "mega" -> "MEGA"
+                                    "pcloud" -> "pCloud"
+                                    "box" -> "Box"
+                                    else -> rcloneProvider
+                                }
+                                providerLabel
+                            },
                             host = "",
                             port = 0,
                             username = "",

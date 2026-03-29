@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cable
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
@@ -350,7 +351,21 @@ fun SftpScreen(
                             Tab(
                                 selected = profile.id == activeProfileId,
                                 onClick = { viewModel.selectProfile(profile.id) },
-                                text = { Text(profile.label, maxLines = 1) },
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        if (profile.isRclone) {
+                                            Icon(
+                                                Icons.Filled.Cloud,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        }
+                                        Text(profile.label, maxLines = 1)
+                                    }
+                                },
                             )
                         }
                     }

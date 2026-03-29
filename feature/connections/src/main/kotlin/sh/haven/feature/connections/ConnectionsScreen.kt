@@ -1093,6 +1093,22 @@ private fun ConnectionTreeItem(
                         Text("PRoot Alpine Linux")
                     } else if (profile.isReticulum) {
                         Text("RNS: ${profile.destinationHash?.take(12) ?: ""}... via ${profile.reticulumHost}:${profile.reticulumPort}")
+                    } else if (profile.isRclone) {
+                        val providerLabel = when (profile.rcloneProvider) {
+                            "drive" -> "Google Drive"
+                            "dropbox" -> "Dropbox"
+                            "onedrive" -> "OneDrive"
+                            "s3" -> "Amazon S3"
+                            "b2" -> "Backblaze B2"
+                            "sftp" -> "SFTP (rclone)"
+                            "webdav" -> "WebDAV"
+                            "ftp" -> "FTP"
+                            "mega" -> "MEGA"
+                            "pcloud" -> "pCloud"
+                            "box" -> "Box"
+                            else -> profile.rcloneProvider ?: "Cloud"
+                        }
+                        Text("$providerLabel \u2022 ${profile.rcloneRemoteName ?: ""}")
                     } else {
                         val via = when {
                             jumpHostLabel != null && indent == 0 -> " via $jumpHostLabel"
