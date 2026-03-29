@@ -868,7 +868,9 @@ class ConnectionsViewModel @Inject constructor(
 
                 if (de.isNative) {
                     // Native Wayland — no VNC needed
+                    Log.d(TAG, "DE is native, waiting 2s for compositor...")
                     delay(2000)
+                    Log.d(TAG, "Setting _navigateToWayland=true")
                     _navigateToWayland.value = true
                     prootManager.resetDesktopState()
                     Log.d(TAG, "Navigating to native Wayland desktop")

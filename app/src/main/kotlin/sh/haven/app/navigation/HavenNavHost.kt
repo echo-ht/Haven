@@ -60,10 +60,14 @@ fun HavenNavHost(
     preferencesRepository: UserPreferencesRepository,
     connectionRepository: ConnectionRepository,
 ) {
+    // Native Wayland desktop
+    var pendingWaylandDesktop by rememberSaveable { mutableStateOf(false) }
+
     // Auto-hide tabs for protocols with no configured connections
     val connections by connectionRepository.observeAll()
         .collectAsState(initial = emptyList())
-    val hasDesktopConnections = connections.any { it.isVnc || it.isRdp || it.isLocal }
+    val waylandRunning = pendingWaylandDesktop || sh.haven.core.wayland.WaylandBridge.nativeIsRunning()
+    val hasDesktopConnections = waylandRunning || connections.any { it.isVnc || it.isRdp || it.isLocal }
     val screenOrderPref by preferencesRepository.screenOrder
         .collectAsState(initial = emptyList())
     val screens = remember(screenOrderPref, hasDesktopConnections) {
@@ -126,9 +130,6 @@ fun HavenNavHost(
 
     // Rclone auto-connect params
     var pendingRcloneProfileId by rememberSaveable { mutableStateOf<String?>(null) }
-
-    // Native Wayland desktop
-    var pendingWaylandDesktop by remember { mutableStateOf(false) }
 
     // RDP auto-connect params
     var pendingRdpHost by rememberSaveable { mutableStateOf<String?>(null) }
@@ -379,7 +380,7 @@ fun HavenNavHost(
                         }
                     }
                 }
-                Screen.Desktop -> if (pendingWaylandDesktop) {
+                Screen.Desktop -> if (waylandRunning || pendingWaylandDesktop) {
                     sh.haven.core.wayland.WaylandDesktopView(
                         modifier = Modifier.fillMaxSize(),
                     )
