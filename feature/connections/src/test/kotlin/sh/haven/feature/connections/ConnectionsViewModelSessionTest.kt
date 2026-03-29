@@ -114,6 +114,10 @@ class ConnectionsViewModelSessionTest {
             etSessionManager = etSessionManager,
             reticulumBridge = mockk(relaxed = true),
             smbSessionManager = smbSessionManager,
+            rcloneSessionManager = mockk(relaxed = true) {
+                every { sessions } returns kotlinx.coroutines.flow.MutableStateFlow(emptyMap())
+            },
+            rcloneClient = mockk(relaxed = true),
             fidoAuthenticator = mockk(relaxed = true),
             localSessionManager = localSessionManager,
             sessionManagerRegistry = sessionManagerRegistry,
