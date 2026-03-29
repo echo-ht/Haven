@@ -1012,9 +1012,7 @@ class TerminalViewModel @Inject constructor(
         sessionName: String? = null,
     ): String {
         if (!sessionName.isNullOrBlank()) return sessionName
-        val sameProfileCount = existingTabs.count { it.profileId == profileId }
-        return if (sameProfileCount == 0) baseLabel
-        else "$baseLabel (${sameProfileCount + 1})"
+        return baseLabel
     }
 
     fun selectTab(index: Int) {
@@ -1139,7 +1137,7 @@ class TerminalViewModel @Inject constructor(
         viewModelScope.launch {
             _newTabLoading.value = true
             try {
-                val label = activeTab.label.replace(Regex(" \\(\\d+\\)$"), "")
+                val label = activeTab.label
                 val sessionId = localSessionManager.registerSession(activeTab.profileId, label)
                 localSessionManager.connectSession(sessionId)
                 syncSessions()
@@ -1167,8 +1165,7 @@ class TerminalViewModel @Inject constructor(
 
         // Derive label from an existing tab or the profile's config host
         val existingTab = _tabs.value.firstOrNull { it.profileId == profileId }
-        val label = existingTab?.label?.replace(Regex(" \\(\\d+\\)$"), "")
-            ?: config.host
+        val label = existingTab?.label ?: config.host
 
         viewModelScope.launch {
             _newTabLoading.value = true
@@ -1239,8 +1236,7 @@ class TerminalViewModel @Inject constructor(
         val rnsSession = reticulumSessionManager.sessions.value.values
             .firstOrNull { it.profileId == profileId }
             ?: return
-        val label = activeTab.label.replace(Regex(" \\(\\d+\\)$"), "")
-
+        val label = activeTab.label
         viewModelScope.launch {
             _newTabLoading.value = true
             try {
