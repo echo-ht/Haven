@@ -539,7 +539,6 @@ fun TerminalScreen(
                         }
 
                         // Force terminal redraw on resume from background
-                        val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
                         androidx.lifecycle.compose.LifecycleResumeEffect(activeTab.emulator) {
                             activeTab.emulator?.setDefaultColors(
                                 colorScheme.foreground.toInt(),
