@@ -708,8 +708,11 @@ chmod +x /root/.vnc/xstartup""")
             "export HOME=/root; " +
                 "export XDG_RUNTIME_DIR=/tmp/xdg-runtime; " +
                 "export WAYLAND_DISPLAY=wayland-0; " +
-                "export WAYLAND_DEBUG=1; " +
-                "foot 2>&1 & " +
+                "unset FONTCONFIG_FILE; " +
+                "unset XKB_CONFIG_ROOT; " +
+                "export TERM=xterm-256color; " +
+                "export SHELL=/bin/sh; " +
+                "foot -e /bin/sh -l 2>&1 & " +
                 "wait",
         ).apply {
             environment().apply {
@@ -717,6 +720,8 @@ chmod +x /root/.vnc/xstartup""")
                 put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
                 put("PROOT_TMP_DIR", context.cacheDir.absolutePath)
                 put("PROOT_LOADER", loaderPath)
+                remove("FONTCONFIG_FILE")
+                remove("XKB_CONFIG_ROOT")
             }
             redirectErrorStream(true)
         }.start()

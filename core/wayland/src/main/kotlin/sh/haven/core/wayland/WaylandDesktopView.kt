@@ -26,8 +26,6 @@ fun WaylandDesktopView(modifier: Modifier = Modifier) {
         }
     }
 
-    android.util.Log.d("WaylandDesktopView", "Composable rendered, isRunning=${WaylandBridge.nativeIsRunning()}")
-
     AndroidView(
         factory = { context ->
             object : SurfaceView(context) {
@@ -46,17 +44,13 @@ fun WaylandDesktopView(modifier: Modifier = Modifier) {
                     })
 
                     setOnTouchListener { view, event ->
-                        // Request focus on first touch to bring up keyboard
                         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                            if (!hasFocus()) {
-                                requestFocus()
-                            }
+                            if (!hasFocus()) requestFocus()
                             val imm = context.getSystemService(
                                 android.content.Context.INPUT_METHOD_SERVICE
                             ) as android.view.inputmethod.InputMethodManager
                             imm.restartInput(this)
-                            imm.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_FORCED)
-                            android.util.Log.d("WaylandInput", "Touch DOWN, hasFocus=${hasFocus()}, isTextEditor=${onCheckIsTextEditor()}")
+                            imm.showSoftInput(this, 0)
                         }
                         val nx = event.x / view.width
                         val ny = event.y / view.height
@@ -79,15 +73,7 @@ fun WaylandDesktopView(modifier: Modifier = Modifier) {
                     val view = this
                     return object : BaseInputConnection(view, false) {
                         override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
-                            android.util.Log.d("WaylandInput", "commitText: '$text'")
-                            text?.forEach { ch ->
-                                val evdev = charToEvdev(ch)
-                                android.util.Log.d("WaylandInput", "char='$ch' evdev=$evdev")
-                                if (evdev >= 0) {
-                                    WaylandBridge.nativeSendKey(evdev, 1)
-                                    WaylandBridge.nativeSendKey(evdev, 0)
-                                }
-                            }
+                            text?.forEach { ch -> sendCharAsEvdev(ch) }
                             return true
                         }
 
@@ -132,15 +118,8 @@ fun WaylandDesktopView(modifier: Modifier = Modifier) {
                 }
 
                 override fun onKeyMultiple(keyCode: Int, repeatCount: Int, event: AndroidKeyEvent?): Boolean {
-                    // Soft keyboard sends characters via KEY_MULTIPLE
                     val chars = event?.characters ?: return super.onKeyMultiple(keyCode, repeatCount, event)
-                    for (ch in chars) {
-                        val evdev = charToEvdev(ch)
-                        if (evdev >= 0) {
-                            WaylandBridge.nativeSendKey(evdev, 1)
-                            WaylandBridge.nativeSendKey(evdev, 0)
-                        }
-                    }
+                    for (ch in chars) { sendCharAsEvdev(ch) }
                     return true
                 }
             }
@@ -235,22 +214,62 @@ private fun androidToEvdev(keyCode: Int): Int = when (keyCode) {
     else -> -1
 }
 
-/** Map a typed character to its evdev keycode. */
-private fun charToEvdev(ch: Char): Int {
-    val lower = ch.lowercaseChar()
-    return when (lower) {
-        'a' -> 30; 'b' -> 48; 'c' -> 46; 'd' -> 32; 'e' -> 18
-        'f' -> 33; 'g' -> 34; 'h' -> 35; 'i' -> 23; 'j' -> 36
-        'k' -> 37; 'l' -> 38; 'm' -> 50; 'n' -> 49; 'o' -> 24
-        'p' -> 25; 'q' -> 16; 'r' -> 19; 's' -> 31; 't' -> 20
-        'u' -> 22; 'v' -> 47; 'w' -> 17; 'x' -> 45; 'y' -> 21
-        'z' -> 44
-        '0' -> 11; '1' -> 2; '2' -> 3; '3' -> 4; '4' -> 5
-        '5' -> 6; '6' -> 7; '7' -> 8; '8' -> 9; '9' -> 10
-        ' ' -> 57; '\n' -> 28
-        '.' -> 52; ',' -> 51; '/' -> 53; '-' -> 12; '=' -> 13
-        ';' -> 39; '\'' -> 40; '`' -> 41; '[' -> 26; ']' -> 27
-        '\\' -> 43
-        else -> -1
-    }
+private const val KEY_LEFTSHIFT = 42
+
+/**
+ * Map a typed character to (evdev keycode, needsShift).
+ * Returns (-1, false) for unmapped characters.
+ */
+private fun charToEvdevWithShift(ch: Char): Pair<Int, Boolean> = when (ch) {
+    // Lowercase letters
+    'a' -> 30 to false; 'b' -> 48 to false; 'c' -> 46 to false
+    'd' -> 32 to false; 'e' -> 18 to false; 'f' -> 33 to false
+    'g' -> 34 to false; 'h' -> 35 to false; 'i' -> 23 to false
+    'j' -> 36 to false; 'k' -> 37 to false; 'l' -> 38 to false
+    'm' -> 50 to false; 'n' -> 49 to false; 'o' -> 24 to false
+    'p' -> 25 to false; 'q' -> 16 to false; 'r' -> 19 to false
+    's' -> 31 to false; 't' -> 20 to false; 'u' -> 22 to false
+    'v' -> 47 to false; 'w' -> 17 to false; 'x' -> 45 to false
+    'y' -> 21 to false; 'z' -> 44 to false
+    // Uppercase letters → same evdev code + Shift
+    'A' -> 30 to true; 'B' -> 48 to true; 'C' -> 46 to true
+    'D' -> 32 to true; 'E' -> 18 to true; 'F' -> 33 to true
+    'G' -> 34 to true; 'H' -> 35 to true; 'I' -> 23 to true
+    'J' -> 36 to true; 'K' -> 37 to true; 'L' -> 38 to true
+    'M' -> 50 to true; 'N' -> 49 to true; 'O' -> 24 to true
+    'P' -> 25 to true; 'Q' -> 16 to true; 'R' -> 19 to true
+    'S' -> 31 to true; 'T' -> 20 to true; 'U' -> 22 to true
+    'V' -> 47 to true; 'W' -> 17 to true; 'X' -> 45 to true
+    'Y' -> 21 to true; 'Z' -> 44 to true
+    // Digits
+    '0' -> 11 to false; '1' -> 2 to false; '2' -> 3 to false
+    '3' -> 4 to false; '4' -> 5 to false; '5' -> 6 to false
+    '6' -> 7 to false; '7' -> 8 to false; '8' -> 9 to false
+    '9' -> 10 to false
+    // Whitespace / control
+    ' ' -> 57 to false; '\n' -> 28 to false; '\t' -> 15 to false
+    // Unshifted punctuation
+    '.' -> 52 to false; ',' -> 51 to false; '/' -> 53 to false
+    '-' -> 12 to false; '=' -> 13 to false; ';' -> 39 to false
+    '\'' -> 40 to false; '`' -> 41 to false; '[' -> 26 to false
+    ']' -> 27 to false; '\\' -> 43 to false
+    // Shifted symbols
+    '!' -> 2 to true;  '@' -> 3 to true;  '#' -> 4 to true
+    '$' -> 5 to true;  '%' -> 6 to true;  '^' -> 7 to true
+    '&' -> 8 to true;  '*' -> 9 to true;  '(' -> 10 to true
+    ')' -> 11 to true; '_' -> 12 to true; '+' -> 13 to true
+    '{' -> 26 to true; '}' -> 27 to true; '|' -> 43 to true
+    ':' -> 39 to true; '"' -> 40 to true; '~' -> 41 to true
+    '<' -> 51 to true; '>' -> 52 to true; '?' -> 53 to true
+    else -> -1 to false
+}
+
+/** Send a character as evdev key event(s), wrapping with Shift when needed. */
+private fun sendCharAsEvdev(ch: Char) {
+    val (evdev, needsShift) = charToEvdevWithShift(ch)
+    if (evdev < 0) return
+    if (needsShift) WaylandBridge.nativeSendKey(KEY_LEFTSHIFT, 1)
+    WaylandBridge.nativeSendKey(evdev, 1)
+    WaylandBridge.nativeSendKey(evdev, 0)
+    if (needsShift) WaylandBridge.nativeSendKey(KEY_LEFTSHIFT, 0)
 }
