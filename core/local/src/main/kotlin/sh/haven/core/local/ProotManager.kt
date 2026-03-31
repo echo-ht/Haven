@@ -712,7 +712,7 @@ chmod +x /root/.vnc/xstartup""")
                 "unset XKB_CONFIG_ROOT; " +
                 "export TERM=xterm-256color; " +
                 "export SHELL=/bin/sh; " +
-                "foot -e /bin/sh -l 2>&1 & " +
+                "foot 2>&1 & " +
                 "wait",
         ).apply {
             environment().apply {

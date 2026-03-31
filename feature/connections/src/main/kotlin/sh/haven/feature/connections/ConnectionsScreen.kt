@@ -58,6 +58,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -1552,6 +1554,39 @@ private fun DesktopSetupDialog(
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                        }
+                        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+                        if (currentDe.isNative) {
+                            var shellCmd by rememberSaveable { mutableStateOf("/bin/sh") }
+                            var shellExpanded by remember { mutableStateOf(false) }
+                            val shellOptions = listOf("/bin/sh", "/bin/ash", "/bin/bash", "/bin/zsh", "/bin/fish")
+                            ExposedDropdownMenuBox(
+                                expanded = shellExpanded,
+                                onExpandedChange = { shellExpanded = it },
+                            ) {
+                                OutlinedTextField(
+                                    value = shellCmd,
+                                    onValueChange = { shellCmd = it },
+                                    label = { Text("Shell") },
+                                    singleLine = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = shellExpanded) },
+                                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = shellExpanded,
+                                    onDismissRequest = { shellExpanded = false },
+                                ) {
+                                    shellOptions.forEach { shell ->
+                                        DropdownMenuItem(
+                                            text = { Text(shell) },
+                                            onClick = {
+                                                shellCmd = shell
+                                                shellExpanded = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                     is sh.haven.core.local.ProotManager.DesktopSetupState.Installing -> {

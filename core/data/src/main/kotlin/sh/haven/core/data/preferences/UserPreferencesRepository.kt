@@ -40,6 +40,7 @@ class UserPreferencesRepository @Inject constructor(
     private val terminalRightClickKey = booleanPreferencesKey("terminal_right_click")
     private val reorderHintShownKey = booleanPreferencesKey("reorder_hint_shown")
     private val screenOrderKey = stringPreferencesKey("screen_order")
+    private val waylandShellCommandKey = stringPreferencesKey("wayland_shell_command")
 
     val biometricEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[biometricEnabledKey] ?: false
@@ -140,6 +141,17 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setScreenOrder(routes: List<String>) {
         dataStore.edit { prefs ->
             prefs[screenOrderKey] = routes.joinToString(",")
+        }
+    }
+
+    /** Shell command to run in the Wayland desktop (default: /bin/sh -l). */
+    val waylandShellCommand: Flow<String> = dataStore.data.map { prefs ->
+        prefs[waylandShellCommandKey] ?: "/bin/sh -l"
+    }
+
+    suspend fun setWaylandShellCommand(command: String) {
+        dataStore.edit { prefs ->
+            prefs[waylandShellCommandKey] = command
         }
     }
 
