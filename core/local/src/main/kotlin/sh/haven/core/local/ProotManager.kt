@@ -702,7 +702,7 @@ chmod +x /root/.vnc/xstartup""")
             "-r", rootfsDir.absolutePath,
             "-b", "/dev", "-b", "/proc", "-b", "/sys",
             "-b", "${context.cacheDir.absolutePath}:/tmp",
-            "-b", "/data/local/tmp/haven-wayland:/tmp/xdg-runtime",
+            "-b", "${xdgDir.absolutePath}:/tmp/xdg-runtime",
             "-w", "/root",
             "/bin/busybox", "sh", "-c",
             "export HOME=/root; " +
