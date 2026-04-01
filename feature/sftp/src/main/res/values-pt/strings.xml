@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Cancelar</string>
+    <string name="common_save">Salvar</string>
+    <string name="common_done">Concluído</string>
+    <string name="common_close">Fechar</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Excluir</string>
+    <string name="common_edit">Editar</string>
+    <string name="common_rename">Renomear</string>
+    <string name="common_create">Criar</string>
+    <string name="common_connect">Conectar</string>
+    <string name="common_disconnect">Desconectar</string>
+    <string name="common_copy">Copiar</string>
+    <string name="common_paste">Colar</string>
+    <string name="common_label">Rótulo</string>
+    <string name="common_password">Senha</string>
+    <string name="common_port">Porta</string>
+    <string name="common_host">Host</string>
+    <string name="common_username">Usuário</string>
+    <string name="common_install">Instalar</string>
+    <string name="common_reset">Redefinir</string>
+    <string name="common_allow">Permitir</string>
+    <string name="common_not_now">Agora não</string>
+    <string name="common_import">Importar</string>
+    <string name="common_add">Adicionar</string>
+    <string name="common_download">Baixar</string>
+    <string name="common_unlock">Desbloquear</string>
+
+    <!-- SftpScreen navigation -->
+    <string name="sftp_navigate_up">Navegar acima</string>
+    <string name="sftp_hide_hidden_files">Ocultar arquivos ocultos</string>
+    <string name="sftp_show_hidden_files">Mostrar arquivos ocultos</string>
+    <string name="sftp_sort">Ordenar</string>
+    <string name="sftp_refresh">Atualizar</string>
+
+    <!-- FAB actions -->
+    <string name="sftp_new_folder">Nova pasta</string>
+    <string name="sftp_upload_folder">Enviar pasta</string>
+    <string name="sftp_upload_file">Enviar arquivo</string>
+    <string name="sftp_paste">Colar</string>
+    <string name="sftp_fab_close">Fechar</string>
+    <string name="sftp_fab_actions">Ações</string>
+
+    <!-- Clipboard banner -->
+    <string name="sftp_items_cut">%d item recortado</string>
+    <string name="sftp_items_cut_plural">%d itens recortados</string>
+    <string name="sftp_items_copied">%d item copiado</string>
+    <string name="sftp_items_copied_plural">%d itens copiados</string>
+
+    <!-- Empty states -->
+    <string name="sftp_empty_directory">Diretório vazio</string>
+    <string name="sftp_parent_directory">Diretório pai</string>
+    <string name="sftp_navigate_up_icon">Acima</string>
+
+    <!-- Snackbar messages -->
+    <string name="sftp_downloaded">%s baixado</string>
+    <string name="sftp_open">Abrir</string>
+    <string name="sftp_no_app_to_open">Nenhum app encontrado para abrir este arquivo</string>
+    <string name="sftp_path_copied">Caminho copiado</string>
+
+    <!-- FileListItem -->
+    <string name="sftp_directory">Diretório</string>
+    <string name="sftp_directory_icon">Diretório</string>
+    <string name="sftp_file_icon">Arquivo</string>
+    <string name="sftp_download">Baixar</string>
+    <string name="sftp_cut">Recortar</string>
+    <string name="sftp_copy_path">Copiar caminho</string>
+
+    <!-- SortDropdown -->
+    <string name="sftp_sort_name_asc">Nome A-Z</string>
+    <string name="sftp_sort_name_desc">Nome Z-A</string>
+    <string name="sftp_sort_size_asc">Tamanho (menor)</string>
+    <string name="sftp_sort_size_desc">Tamanho (maior)</string>
+    <string name="sftp_sort_date_asc">Data (mais antiga)</string>
+    <string name="sftp_sort_date_desc">Data (mais recente)</string>
+
+    <!-- EmptyState -->
+    <string name="sftp_file_browser_title">Navegador SFTP</string>
+    <string name="sftp_connect_to_browse">Conecte-se a um servidor para navegar arquivos</string>
+
+    <!-- New Folder dialog -->
+    <string name="sftp_new_folder_title">Nova pasta</string>
+    <string name="sftp_folder_name">Nome da pasta</string>
+    <string name="sftp_create">Criar</string>
+
+    <!-- Upload conflict dialog -->
+    <string name="sftp_file_already_exists">Arquivo já existe</string>
+    <string name="sftp_file_exists_message">\"%s\" já existe neste local.</string>
+    <string name="sftp_replace">Substituir</string>
+    <string name="sftp_replace_all">Substituir tudo</string>
+    <string name="sftp_skip">Pular</string>
+    <string name="sftp_skip_all">Pular tudo</string>
+</resources>

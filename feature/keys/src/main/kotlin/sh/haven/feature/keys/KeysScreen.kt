@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -128,7 +129,7 @@ fun KeysScreen(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Icon(Icons.Filled.Add, contentDescription = "Add key")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.keys_add_key))
                 }
             }
         },
@@ -148,13 +149,13 @@ fun KeysScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "No SSH keys",
+                    stringResource(R.string.keys_no_ssh_keys),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 16.dp),
                 )
                 Text(
-                    "Tap + to generate or import a key",
+                    stringResource(R.string.keys_tap_to_add),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -215,7 +216,7 @@ fun KeysScreen(
                             onDismissRequest = { contextMenuKeyId = null },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Copy public key") },
+                                text = { Text(stringResource(R.string.keys_copy_public_key)) },
                                 onClick = {
                                     copyPublicKey(context, sshKey)
                                     contextMenuKeyId = null
@@ -226,7 +227,7 @@ fun KeysScreen(
                             )
                             if (!sshKey.keyType.startsWith("sk-")) {
                                 DropdownMenuItem(
-                                    text = { Text("Export private key") },
+                                    text = { Text(stringResource(R.string.keys_export_private_key)) },
                                     onClick = {
                                         contextMenuKeyId = null
                                         viewModel.requestExport(sshKey.id)
@@ -238,7 +239,7 @@ fun KeysScreen(
                             }
                             DropdownMenuItem(
                                 text = {
-                                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                                 },
                                 onClick = {
                                     viewModel.deleteKey(sshKey.id)
@@ -274,9 +275,9 @@ fun KeysScreen(
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val text = clipboard.primaryClip?.getItemAt(0)?.text?.toString()
                 if (text.isNullOrBlank()) {
-                    viewModel.showError("Clipboard is empty")
+                    viewModel.showError(context.getString(R.string.keys_clipboard_empty))
                 } else if (!text.startsWith("-----") && !text.startsWith("ssh-")) {
-                    viewModel.showError("Clipboard doesn't contain a text SSH key. Binary keys (e.g. Dropbear) must be imported from file.")
+                    viewModel.showError(context.getString(R.string.keys_clipboard_not_text_key))
                 } else {
                     viewModel.startImport(text.toByteArray())
                 }
@@ -321,29 +322,29 @@ private fun AddKeyChooser(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add SSH Key") },
+        title = { Text(stringResource(R.string.keys_add_ssh_key)) },
         text = {
             Column {
                 ListItem(
                     modifier = Modifier.clickable { onGenerate() },
-                    headlineContent = { Text("Generate new key") },
-                    supportingContent = { Text("Ed25519, RSA, or ECDSA") },
+                    headlineContent = { Text(stringResource(R.string.keys_generate_new_key)) },
+                    supportingContent = { Text(stringResource(R.string.keys_generate_key_types)) },
                     leadingContent = {
                         Icon(Icons.Filled.Add, contentDescription = null)
                     },
                 )
                 ListItem(
                     modifier = Modifier.clickable { onImport() },
-                    headlineContent = { Text("Import from file") },
-                    supportingContent = { Text("PEM, OpenSSH, or Dropbear format") },
+                    headlineContent = { Text(stringResource(R.string.keys_import_from_file)) },
+                    supportingContent = { Text(stringResource(R.string.keys_import_file_formats)) },
                     leadingContent = {
                         Icon(Icons.Filled.FileUpload, contentDescription = null)
                     },
                 )
                 ListItem(
                     modifier = Modifier.clickable { onPaste() },
-                    headlineContent = { Text("Paste from clipboard") },
-                    supportingContent = { Text("Text keys only (PEM/OpenSSH). Use file import for binary Dropbear keys.") },
+                    headlineContent = { Text(stringResource(R.string.keys_paste_from_clipboard)) },
+                    supportingContent = { Text(stringResource(R.string.keys_paste_clipboard_hint)) },
                     leadingContent = {
                         Icon(Icons.Filled.ContentPaste, contentDescription = null)
                     },
@@ -353,7 +354,7 @@ private fun AddKeyChooser(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -371,14 +372,14 @@ private fun GenerateKeyDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Generate SSH Key") },
+        title = { Text(stringResource(R.string.keys_generate_ssh_key)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
-                    label = { Text("Label") },
-                    placeholder = { Text("e.g. my-server") },
+                    label = { Text(stringResource(R.string.common_label)) },
+                    placeholder = { Text(stringResource(R.string.keys_label_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -388,7 +389,7 @@ private fun GenerateKeyDialog(
                         value = selectedType.displayName,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Key type") },
+                        label = { Text(stringResource(R.string.keys_key_type)) },
                         modifier = Modifier
                             .fillMaxWidth(),
                     )
@@ -419,12 +420,12 @@ private fun GenerateKeyDialog(
             TextButton(
                 onClick = { onGenerate(label.ifBlank { selectedType.displayName }, selectedType) },
             ) {
-                Text("Generate")
+                Text(stringResource(R.string.keys_generate))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -439,17 +440,17 @@ private fun PassphraseDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Encrypted Key") },
+        title = { Text(stringResource(R.string.keys_encrypted_key)) },
         text = {
             Column {
                 Text(
-                    "This key is protected with a passphrase.",
+                    stringResource(R.string.keys_passphrase_prompt),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 OutlinedTextField(
                     value = passphrase,
                     onValueChange = { passphrase = it },
-                    label = { Text("Passphrase") },
+                    label = { Text(stringResource(R.string.keys_passphrase)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier
@@ -463,12 +464,12 @@ private fun PassphraseDialog(
                 onClick = { onConfirm(passphrase) },
                 enabled = passphrase.isNotEmpty(),
             ) {
-                Text("Unlock")
+                Text(stringResource(R.string.keys_unlock))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -485,14 +486,14 @@ private fun ImportLabelDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Import SSH Key") },
+        title = { Text(stringResource(R.string.keys_import_ssh_key)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
-                    label = { Text("Label") },
-                    placeholder = { Text("e.g. my-server") },
+                    label = { Text(stringResource(R.string.common_label)) },
+                    placeholder = { Text(stringResource(R.string.keys_label_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -513,12 +514,12 @@ private fun ImportLabelDialog(
             TextButton(
                 onClick = { onConfirm(label.ifBlank { keyType }) },
             ) {
-                Text("Import")
+                Text(stringResource(R.string.keys_import))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -526,7 +527,9 @@ private fun ImportLabelDialog(
 
 private fun copyPublicKey(context: Context, sshKey: SshKey) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("SSH Public Key", sshKey.publicKeyOpenSsh))
+    clipboard.setPrimaryClip(ClipData.newPlainText(
+        context.getString(R.string.keys_ssh_public_key_clip_label), sshKey.publicKeyOpenSsh,
+    ))
 }
 
 private fun formatDate(timestamp: Long): String {

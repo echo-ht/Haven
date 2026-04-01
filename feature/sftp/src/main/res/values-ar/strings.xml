@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">إلغاء</string>
+    <string name="common_save">حفظ</string>
+    <string name="common_done">تم</string>
+    <string name="common_close">إغلاق</string>
+    <string name="common_ok">موافق</string>
+    <string name="common_delete">حذف</string>
+    <string name="common_edit">تعديل</string>
+    <string name="common_rename">إعادة تسمية</string>
+    <string name="common_create">إنشاء</string>
+    <string name="common_connect">اتصال</string>
+    <string name="common_disconnect">قطع الاتصال</string>
+    <string name="common_copy">نسخ</string>
+    <string name="common_paste">لصق</string>
+    <string name="common_label">التسمية</string>
+    <string name="common_password">كلمة المرور</string>
+    <string name="common_port">المنفذ</string>
+    <string name="common_host">المضيف</string>
+    <string name="common_username">اسم المستخدم</string>
+    <string name="common_install">تثبيت</string>
+    <string name="common_reset">إعادة تعيين</string>
+    <string name="common_allow">سماح</string>
+    <string name="common_not_now">ليس الآن</string>
+    <string name="common_import">استيراد</string>
+    <string name="common_add">إضافة</string>
+    <string name="common_download">تنزيل</string>
+    <string name="common_unlock">فتح القفل</string>
+
+    <!-- SftpScreen navigation -->
+    <string name="sftp_navigate_up">الانتقال للأعلى</string>
+    <string name="sftp_hide_hidden_files">إخفاء الملفات المخفية</string>
+    <string name="sftp_show_hidden_files">إظهار الملفات المخفية</string>
+    <string name="sftp_sort">ترتيب</string>
+    <string name="sftp_refresh">تحديث</string>
+
+    <!-- FAB actions -->
+    <string name="sftp_new_folder">مجلد جديد</string>
+    <string name="sftp_upload_folder">رفع مجلد</string>
+    <string name="sftp_upload_file">رفع ملف</string>
+    <string name="sftp_paste">لصق</string>
+    <string name="sftp_fab_close">إغلاق</string>
+    <string name="sftp_fab_actions">الإجراءات</string>
+
+    <!-- Clipboard banner -->
+    <string name="sftp_items_cut">تم قص %d عنصر</string>
+    <string name="sftp_items_cut_plural">تم قص %d عناصر</string>
+    <string name="sftp_items_copied">تم نسخ %d عنصر</string>
+    <string name="sftp_items_copied_plural">تم نسخ %d عناصر</string>
+
+    <!-- Empty states -->
+    <string name="sftp_empty_directory">مجلد فارغ</string>
+    <string name="sftp_parent_directory">المجلد الأصل</string>
+    <string name="sftp_navigate_up_icon">أعلى</string>
+
+    <!-- Snackbar messages -->
+    <string name="sftp_downloaded">تم تنزيل %s</string>
+    <string name="sftp_open">فتح</string>
+    <string name="sftp_no_app_to_open">لا يوجد تطبيق لفتح هذا الملف</string>
+    <string name="sftp_path_copied">تم نسخ المسار</string>
+
+    <!-- FileListItem -->
+    <string name="sftp_directory">مجلد</string>
+    <string name="sftp_directory_icon">مجلد</string>
+    <string name="sftp_file_icon">ملف</string>
+    <string name="sftp_download">تنزيل</string>
+    <string name="sftp_cut">قص</string>
+    <string name="sftp_copy_path">نسخ المسار</string>
+
+    <!-- SortDropdown -->
+    <string name="sftp_sort_name_asc">الاسم أ-ي</string>
+    <string name="sftp_sort_name_desc">الاسم ي-أ</string>
+    <string name="sftp_sort_size_asc">الحجم (الأصغر)</string>
+    <string name="sftp_sort_size_desc">الحجم (الأكبر)</string>
+    <string name="sftp_sort_date_asc">التاريخ (الأقدم)</string>
+    <string name="sftp_sort_date_desc">التاريخ (الأحدث)</string>
+
+    <!-- EmptyState -->
+    <string name="sftp_file_browser_title">مستعرض ملفات SFTP</string>
+    <string name="sftp_connect_to_browse">اتصل بخادم لتصفح الملفات</string>
+
+    <!-- New Folder dialog -->
+    <string name="sftp_new_folder_title">مجلد جديد</string>
+    <string name="sftp_folder_name">اسم المجلد</string>
+    <string name="sftp_create">إنشاء</string>
+
+    <!-- Upload conflict dialog -->
+    <string name="sftp_file_already_exists">الملف موجود بالفعل</string>
+    <string name="sftp_file_exists_message">\"%s\" موجود بالفعل في هذا الموقع.</string>
+    <string name="sftp_replace">استبدال</string>
+    <string name="sftp_replace_all">استبدال الكل</string>
+    <string name="sftp_skip">تخطي</string>
+    <string name="sftp_skip_all">تخطي الكل</string>
+</resources>

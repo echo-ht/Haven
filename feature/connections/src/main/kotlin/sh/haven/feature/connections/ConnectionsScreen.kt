@@ -105,6 +105,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -251,9 +252,10 @@ fun ConnectionsScreen(
         }
     }
 
+    val keyDeployedMessage = stringResource(R.string.connections_key_deployed)
     LaunchedEffect(deploySuccess) {
         if (deploySuccess) {
-            snackbarHostState.showSnackbar("SSH key deployed successfully")
+            snackbarHostState.showSnackbar(keyDeployedMessage)
             viewModel.dismissDeploySuccess()
         }
     }
@@ -297,12 +299,9 @@ fun ConnectionsScreen(
                 showBatteryDialog = false
                 viewModel.dismissBatteryPrompt()
             },
-            title = { Text("Keep connections alive?") },
+            title = { Text(stringResource(R.string.connections_battery_title)) },
             text = {
-                Text(
-                    "Android may close background SSH connections to save battery. " +
-                        "Disabling battery optimization for Haven prevents this."
-                )
+                Text(stringResource(R.string.connections_battery_message))
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -314,7 +313,7 @@ fun ConnectionsScreen(
                     )
                     context.startActivity(intent)
                 }) {
-                    Text("Allow")
+                    Text(stringResource(R.string.common_allow))
                 }
             },
             dismissButton = {
@@ -322,7 +321,7 @@ fun ConnectionsScreen(
                     showBatteryDialog = false
                     viewModel.dismissBatteryPrompt()
                 }) {
-                    Text("Not now")
+                    Text(stringResource(R.string.common_not_now))
                 }
             },
         )
@@ -362,6 +361,7 @@ fun ConnectionsScreen(
     }
 
     if (showVmSetup) {
+        val linuxVmLabel = stringResource(R.string.connections_linux_vm)
         LinuxVmSetupDialog(
             vmStatus = localVmStatus,
             onConnectSsh = { port ->
@@ -370,7 +370,7 @@ fun ConnectionsScreen(
                     it.host in listOf("localhost", "127.0.0.1") && it.port == port && it.username == "droid"
                 }
                 val profile = existing ?: ConnectionProfile(
-                    label = "Linux VM",
+                    label = linuxVmLabel,
                     host = "localhost",
                     port = port,
                     username = "droid",
@@ -384,7 +384,7 @@ fun ConnectionsScreen(
                     it.host == ip && it.port == port && it.username == "droid"
                 }
                 val profile = existing ?: ConnectionProfile(
-                    label = "Linux VM",
+                    label = linuxVmLabel,
                     host = ip,
                     port = port,
                     username = "droid",
@@ -400,7 +400,7 @@ fun ConnectionsScreen(
                 }
                 val profile = (existing?.copy(vncPort = port, vncSshForward = false))
                     ?: ConnectionProfile(
-                        label = "Linux VM",
+                        label = linuxVmLabel,
                         host = "localhost",
                         port = sshPort,
                         username = "droid",
@@ -418,7 +418,7 @@ fun ConnectionsScreen(
                 val sshPort = localVmStatus.directSshPort ?: 22
                 val profile = (existing?.copy(vncPort = port, vncSshForward = false))
                     ?: ConnectionProfile(
-                        label = "Linux VM",
+                        label = linuxVmLabel,
                         host = ip,
                         port = sshPort,
                         username = "droid",
@@ -549,32 +549,25 @@ fun ConnectionsScreen(
         val uriHandler = LocalUriHandler.current
         AlertDialog(
             onDismissRequest = { viewModel.dismissMoshSetupGuide() },
-            title = { Text("Mosh not found on server") },
+            title = { Text(stringResource(R.string.connections_mosh_not_found_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.connections_mosh_not_found_message))
+                    Text(stringResource(R.string.connections_mosh_install_prompt))
                     Text(
-                        "The remote host doesn't have mosh-server installed. " +
-                            "Mosh (Mobile Shell) keeps your session alive across " +
-                            "network changes and high-latency connections."
-                    )
-                    Text("Install it on the server:")
-                    Text(
-                        "  Ubuntu/Debian:  sudo apt install mosh\n" +
-                            "  Fedora/RHEL:    sudo dnf install mosh\n" +
-                            "  Arch:           sudo pacman -S mosh\n" +
-                            "  macOS:          brew install mosh",
+                        stringResource(R.string.connections_mosh_install_commands),
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Text("UDP port 60001 must be open on the server firewall.")
+                    Text(stringResource(R.string.connections_mosh_firewall_note))
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     uriHandler.openUri("https://github.com/mobile-shell/mosh")
-                }) { Text("Mosh on GitHub") }
+                }) { Text(stringResource(R.string.connections_mosh_github)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissMoshSetupGuide() }) { Text("OK") }
+                TextButton(onClick = { viewModel.dismissMoshSetupGuide() }) { Text(stringResource(R.string.common_ok)) }
             },
         )
     }
@@ -583,26 +576,20 @@ fun ConnectionsScreen(
         val uriHandler = LocalUriHandler.current
         AlertDialog(
             onDismissRequest = { viewModel.dismissMoshClientMissing() },
-            title = { Text("Mosh client not built") },
+            title = { Text(stringResource(R.string.connections_mosh_client_missing_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "The mosh-client binary is not included in this build. " +
-                            "It needs to be cross-compiled for Android using the NDK."
-                    )
-                    Text(
-                        "Run tools/build-mosh.sh with Android NDK r27+ to build " +
-                            "the mosh-client binary, then rebuild the app.",
-                    )
+                    Text(stringResource(R.string.connections_mosh_client_missing_message))
+                    Text(stringResource(R.string.connections_mosh_client_build_instructions))
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     uriHandler.openUri("https://github.com/mobile-shell/mosh")
-                }) { Text("Mosh on GitHub") }
+                }) { Text(stringResource(R.string.connections_mosh_github)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissMoshClientMissing() }) { Text("OK") }
+                TextButton(onClick = { viewModel.dismissMoshClientMissing() }) { Text(stringResource(R.string.common_ok)) }
             },
         )
     }
@@ -638,10 +625,10 @@ fun ConnectionsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Connections") },
+                title = { Text(stringResource(R.string.connections_title)) },
                 actions = {
                     IconButton(onClick = { showNewGroupDialog = true }) {
-                        Icon(Icons.Filled.CreateNewFolder, contentDescription = "New Group")
+                        Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(R.string.connections_new_group_action))
                     }
                 },
             )
@@ -649,7 +636,7 @@ fun ConnectionsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add connection")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.connections_add))
             }
         },
     ) { innerPadding ->
@@ -659,10 +646,11 @@ fun ConnectionsScreen(
                 .padding(innerPadding),
         ) {
             // Quick connect bar
+            val quickConnectError = stringResource(R.string.connections_quick_connect_error)
             OutlinedTextField(
                 value = quickConnectText,
                 onValueChange = { quickConnectText = it },
-                placeholder = { Text("user@host or host:port") },
+                placeholder = { Text(stringResource(R.string.connections_quick_connect_placeholder)) },
                 singleLine = true,
                 trailingIcon = {
                     IconButton(
@@ -671,11 +659,12 @@ fun ConnectionsScreen(
                                 quickConnectText, viewModel, sshKeys,
                                 { connectingProfile = it },
                                 { quickConnectText = "" },
+                                quickConnectError,
                             )
                         },
                         enabled = quickConnectText.isNotBlank(),
                     ) {
-                        Icon(Icons.Filled.Cable, contentDescription = "Connect")
+                        Icon(Icons.Filled.Cable, contentDescription = stringResource(R.string.connections_quick_connect_button))
                     }
                 },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
@@ -685,6 +674,7 @@ fun ConnectionsScreen(
                             quickConnectText, viewModel, sshKeys,
                             { connectingProfile = it },
                             { quickConnectText = "" },
+                            quickConnectError,
                         )
                     },
                 ),
@@ -698,13 +688,13 @@ fun ConnectionsScreen(
                 OutlinedTextField(
                     value = filterText,
                     onValueChange = { filterText = it },
-                    placeholder = { Text("Filter connections...") },
+                    placeholder = { Text(stringResource(R.string.connections_filter_placeholder)) },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = {
                         if (filterText.isNotEmpty()) {
                             IconButton(onClick = { filterText = "" }) {
-                                Icon(Icons.Filled.Clear, contentDescription = "Clear filter")
+                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.connections_filter_clear))
                             }
                         }
                     },
@@ -988,10 +978,11 @@ private fun quickConnectAction(
     sshKeys: List<sh.haven.core.data.db.entities.SshKey>,
     showPasswordDialog: (ConnectionProfile) -> Unit,
     clearInput: () -> Unit,
+    errorMessage: String,
 ) {
     val profile = viewModel.parseQuickConnect(input)
     if (profile == null) {
-        viewModel.showError("Use format: user@host or user@host:port")
+        viewModel.showError(errorMessage)
         return
     }
     viewModel.saveConnection(profile)
@@ -1095,16 +1086,16 @@ private fun ConnectionTreeItem(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete connection?") },
-            text = { Text("Delete \"${profile.label}\"? This cannot be undone.") },
+            title = { Text(stringResource(R.string.connections_delete_title)) },
+            text = { Text(stringResource(R.string.connections_delete_message, profile.label)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
                     onDelete()
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -1118,7 +1109,7 @@ private fun ConnectionTreeItem(
                 val currentOnDragEnd by rememberUpdatedState(onDragEnd)
                 Icon(
                     Icons.Filled.DragHandle,
-                    contentDescription = "Reorder",
+                    contentDescription = stringResource(R.string.connections_reorder),
                     tint = MaterialTheme.colorScheme.outline,
                     modifier = Modifier
                         .size(32.dp)
@@ -1165,7 +1156,7 @@ private fun ConnectionTreeItem(
                 headlineContent = { Text(profile.label) },
                 supportingContent = {
                     if (profile.isLocal) {
-                        Text("PRoot Alpine Linux")
+                        Text(stringResource(R.string.connections_proot_label))
                     } else if (profile.isReticulum) {
                         Text("RNS: ${profile.destinationHash?.take(12) ?: ""}... via ${profile.reticulumHost}:${profile.reticulumPort}")
                     } else if (profile.isRclone) {
@@ -1202,20 +1193,20 @@ private fun ConnectionTreeItem(
                                 PROFILE_COLORS[profile.colorTag - 1] else Color(0xFF4CAF50)
                             Icon(
                                 Icons.Filled.Circle,
-                                contentDescription = "Connected",
+                                contentDescription = stringResource(R.string.connections_status_connected),
                                 tint = connectedColor,
                                 modifier = Modifier.size(12.dp),
                             )
                         }
                         profileStatus == ProfileStatus.ERROR -> Icon(
                             Icons.Filled.Circle,
-                            contentDescription = "Error",
+                            contentDescription = stringResource(R.string.connections_status_error),
                             tint = Color(0xFFF44336),
                             modifier = Modifier.size(12.dp),
                         )
                         else -> Icon(
                             Icons.Filled.Circle,
-                            contentDescription = "Disconnected",
+                            contentDescription = stringResource(R.string.connections_status_disconnected),
                             tint = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.size(12.dp),
                         )
@@ -1228,7 +1219,7 @@ private fun ConnectionTreeItem(
                         IconButton(onClick = if (isDesktopInstalled) onLaunchDesktop else onSetupDesktop) {
                             Icon(
                                 Icons.Filled.DesktopWindows,
-                                contentDescription = if (isDesktopInstalled) "Launch Desktop" else "Setup Desktop",
+                                contentDescription = stringResource(if (isDesktopInstalled) R.string.connections_launch_desktop else R.string.connections_setup_desktop),
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -1248,59 +1239,59 @@ private fun ConnectionTreeItem(
             onDismissRequest = { showMenu = false },
         ) {
             DropdownMenuItem(
-                text = { Text("Rename") },
+                text = { Text(stringResource(R.string.common_rename)) },
                 leadingIcon = { Icon(Icons.Filled.DriveFileRenameOutline, null) },
                 onClick = { showMenu = false; showRenameDialog = true },
             )
             DropdownMenuItem(
-                text = { Text("Edit") },
+                text = { Text(stringResource(R.string.common_edit)) },
                 leadingIcon = { Icon(Icons.Filled.Edit, null) },
                 onClick = { showMenu = false; onEdit() },
             )
             if (profile.isSsh) {
                 DropdownMenuItem(
-                    text = { Text("Port Forwards") },
+                    text = { Text(stringResource(R.string.connections_menu_port_forwards)) },
                     leadingIcon = { Icon(Icons.Filled.SyncAlt, null) },
                     onClick = { showMenu = false; onPortForwards() },
                 )
             }
             if (profile.isSsh && profileStatus != ProfileStatus.CONNECTED) {
                 DropdownMenuItem(
-                    text = { Text("Connect with password") },
+                    text = { Text(stringResource(R.string.connections_menu_connect_with_password)) },
                     leadingIcon = { Icon(Icons.Filled.Password, null) },
                     onClick = { showMenu = false; onConnectWithPassword() },
                 )
             }
             if (profile.isSsh && profileStatus == ProfileStatus.CONNECTED) {
                 DropdownMenuItem(
-                    text = { Text("Sessions") },
+                    text = { Text(stringResource(R.string.connections_menu_sessions)) },
                     leadingIcon = { Icon(Icons.Filled.Add, null) },
                     onClick = { showMenu = false; onNewSession() },
                 )
             }
             if (profileStatus == ProfileStatus.CONNECTED) {
                 DropdownMenuItem(
-                    text = { Text("Disconnect") },
+                    text = { Text(stringResource(R.string.connections_menu_disconnect)) },
                     leadingIcon = { Icon(Icons.Filled.LinkOff, null) },
                     onClick = { showMenu = false; onDisconnect() },
                 )
             }
             if (profile.isSsh && hasKeys) {
                 DropdownMenuItem(
-                    text = { Text("Deploy SSH Key") },
+                    text = { Text(stringResource(R.string.connections_menu_deploy_ssh_key)) },
                     leadingIcon = { Icon(Icons.Filled.VpnKey, null) },
                     onClick = { showMenu = false; onDeployKey() },
                 )
             }
             if (profile.isLocal) {
                 DropdownMenuItem(
-                    text = { Text("Setup Desktop") },
+                    text = { Text(stringResource(R.string.connections_setup_desktop)) },
                     leadingIcon = { Icon(Icons.Filled.Laptop, null) },
                     onClick = { showMenu = false; onSetupDesktop() },
                 )
             }
             DropdownMenuItem(
-                text = { Text("Delete") },
+                text = { Text(stringResource(R.string.common_delete)) },
                 leadingIcon = { Icon(Icons.Filled.Delete, null) },
                 onClick = { showMenu = false; showDeleteConfirm = true },
             )
@@ -1322,13 +1313,13 @@ private fun EmptyState() {
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            "No connections yet",
+            stringResource(R.string.connections_empty_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 16.dp),
         )
         Text(
-            "Tap + to add a server, or type user@host above",
+            stringResource(R.string.connections_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -1365,7 +1356,7 @@ private fun SessionPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("$managerLabel sessions") },
+        title = { Text(stringResource(R.string.connections_sessions_title, managerLabel)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 // Restore previous sessions button (if any match)
@@ -1373,7 +1364,7 @@ private fun SessionPickerDialog(
                     ListItem(
                         headlineContent = {
                             Text(
-                                "Restore ${previousSessionNames.size} previous sessions",
+                                stringResource(R.string.connections_restore_previous_sessions, previousSessionNames.size),
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         },
@@ -1410,7 +1401,7 @@ private fun SessionPickerDialog(
                                     IconButton(onClick = { renamingSession = name }) {
                                         Icon(
                                             Icons.Filled.DriveFileRenameOutline,
-                                            contentDescription = "Rename session",
+                                            contentDescription = stringResource(R.string.connections_rename_session),
                                         )
                                     }
                                 }
@@ -1418,7 +1409,7 @@ private fun SessionPickerDialog(
                                     IconButton(onClick = { onKill(name) }) {
                                         Icon(
                                             Icons.Filled.Delete,
-                                            contentDescription = "Kill session",
+                                            contentDescription = stringResource(R.string.connections_kill_session),
                                             tint = MaterialTheme.colorScheme.error,
                                         )
                                     }
@@ -1432,7 +1423,7 @@ private fun SessionPickerDialog(
                 ListItem(
                     headlineContent = {
                         Text(
-                            "New session",
+                            stringResource(R.string.connections_new_session),
                             color = MaterialTheme.colorScheme.primary,
                         )
                     },
@@ -1449,7 +1440,7 @@ private fun SessionPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -1465,12 +1456,12 @@ private fun RenameDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename Connection") },
+        title = { Text(stringResource(R.string.connections_rename_title)) },
         text = {
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it },
-                label = { Text("Label") },
+                label = { Text(stringResource(R.string.common_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -1480,12 +1471,12 @@ private fun RenameDialog(
                 onClick = { onRename(label) },
                 enabled = label.isNotBlank(),
             ) {
-                Text("Rename")
+                Text(stringResource(R.string.common_rename))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -1518,7 +1509,7 @@ private fun LinuxVmCard(
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Linux VM", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.connections_linux_vm), style = MaterialTheme.typography.titleSmall)
                 if (hasServices) {
                     val services = buildList {
                         vmStatus.sshPort?.let { add("SSH :$it") }
@@ -1544,7 +1535,7 @@ private fun LinuxVmCard(
                     }
                 } else {
                     Text(
-                        "Tap to set up",
+                        stringResource(R.string.connections_vm_tap_to_setup),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1553,7 +1544,7 @@ private fun LinuxVmCard(
             if (hasServices) {
                 Icon(
                     Icons.Filled.Circle,
-                    contentDescription = "Active",
+                    contentDescription = stringResource(R.string.connections_vm_status_active),
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier.size(10.dp),
                 )
@@ -1561,7 +1552,7 @@ private fun LinuxVmCard(
             IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Filled.Refresh,
-                    contentDescription = "Refresh VM status",
+                    contentDescription = stringResource(R.string.connections_vm_refresh),
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -1584,7 +1575,7 @@ private fun DesktopSetupDialog(
 
     AlertDialog(
         onDismissRequest = { if (!isInstalling) onDismiss() },
-        title = { Text("Setup Desktop") },
+        title = { Text(stringResource(R.string.connections_desktop_setup_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (desktopState) {
@@ -1592,9 +1583,9 @@ private fun DesktopSetupDialog(
                         val currentDe = deOptions[selectedDe]
                         Text(
                             when {
-                                currentDe.isWayland -> "Install a Wayland compositor in the PRoot environment. Experimental — uses software rendering."
-                                currentDe == sh.haven.core.local.ProotManager.DesktopEnvironment.OPENBOX -> "Install a desktop environment and VNC server in the PRoot environment. Openbox is minimal — right-click the desktop for the app menu."
-                                else -> "Install a desktop environment and VNC server in the PRoot environment."
+                                currentDe.isWayland -> stringResource(R.string.connections_desktop_wayland_description)
+                                currentDe == sh.haven.core.local.ProotManager.DesktopEnvironment.OPENBOX -> stringResource(R.string.connections_desktop_openbox_description)
+                                else -> stringResource(R.string.connections_desktop_vnc_description)
                             },
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -1613,7 +1604,7 @@ private fun DesktopSetupDialog(
                             OutlinedTextField(
                                 value = password,
                                 onValueChange = { password = it },
-                                label = { Text("VNC Password") },
+                                label = { Text(stringResource(R.string.connections_desktop_vnc_password)) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -1629,7 +1620,7 @@ private fun DesktopSetupDialog(
                                 OutlinedTextField(
                                     value = shellCmd,
                                     onValueChange = { shellCmd = it },
-                                    label = { Text("Shell") },
+                                    label = { Text(stringResource(R.string.connections_desktop_shell)) },
                                     singleLine = true,
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = shellExpanded) },
                                     modifier = Modifier.fillMaxWidth().menuAnchor(),
@@ -1664,11 +1655,11 @@ private fun DesktopSetupDialog(
                         }
                     }
                     is sh.haven.core.local.ProotManager.DesktopSetupState.Complete -> {
-                        Text("Desktop installed. Connecting to VNC...")
+                        Text(stringResource(R.string.connections_desktop_installed))
                     }
                     is sh.haven.core.local.ProotManager.DesktopSetupState.Error -> {
                         Text(
-                            "Setup failed: ${desktopState.message}",
+                            stringResource(R.string.connections_desktop_setup_failed, desktopState.message),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -1683,12 +1674,12 @@ private fun DesktopSetupDialog(
                         if (deOptions[selectedDe].isNative) onShellSelected(shellCmd)
                         onStart(password, deOptions[selectedDe])
                     },
-                ) { Text("Install") }
+                ) { Text(stringResource(R.string.common_install)) }
             }
         },
         dismissButton = {
             if (!isInstalling) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
             }
         },
     )
@@ -1702,12 +1693,12 @@ private fun NewGroupDialog(
     var label by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Group") },
+        title = { Text(stringResource(R.string.connections_new_group_title)) },
         text = {
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it },
-                label = { Text("Group name") },
+                label = { Text(stringResource(R.string.connections_group_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -1716,10 +1707,10 @@ private fun NewGroupDialog(
             TextButton(
                 onClick = { onCreate(label) },
                 enabled = label.isNotBlank(),
-            ) { Text("Create") }
+            ) { Text(stringResource(R.string.common_create)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         },
     )
 }
@@ -1792,7 +1783,7 @@ private fun ConnectionGroupHeader(
                         IconButton(onClick = onLaunchGroup) {
                             Icon(
                                 Icons.Filled.PlayArrow,
-                                contentDescription = "Launch group",
+                                contentDescription = stringResource(R.string.connections_launch_group),
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -1800,7 +1791,7 @@ private fun ConnectionGroupHeader(
                     IconButton(onClick = onToggleCollapsed) {
                         Icon(
                             if (group.collapsed) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess,
-                            contentDescription = if (group.collapsed) "Expand" else "Collapse",
+                            contentDescription = stringResource(if (group.collapsed) R.string.connections_expand else R.string.connections_collapse),
                         )
                     }
                 }
@@ -1815,17 +1806,17 @@ private fun ConnectionGroupHeader(
             onDismissRequest = { showMenu = false },
         ) {
             DropdownMenuItem(
-                text = { Text("Launch All") },
+                text = { Text(stringResource(R.string.connections_menu_launch_all)) },
                 leadingIcon = { Icon(Icons.Filled.PlayArrow, null) },
                 onClick = { showMenu = false; onLaunchGroup() },
             )
             DropdownMenuItem(
-                text = { Text("Rename") },
+                text = { Text(stringResource(R.string.common_rename)) },
                 leadingIcon = { Icon(Icons.Filled.DriveFileRenameOutline, null) },
                 onClick = { showMenu = false; showRenameDialog = true },
             )
             DropdownMenuItem(
-                text = { Text("Delete Group") },
+                text = { Text(stringResource(R.string.connections_menu_delete_group)) },
                 leadingIcon = { Icon(Icons.Filled.Delete, null) },
                 onClick = { showMenu = false; onDelete() },
             )

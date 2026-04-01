@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Abbrechen</string>
+    <string name="common_save">Speichern</string>
+    <string name="common_done">Fertig</string>
+    <string name="common_close">Schließen</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Löschen</string>
+    <string name="common_edit">Bearbeiten</string>
+    <string name="common_rename">Umbenennen</string>
+    <string name="common_create">Erstellen</string>
+    <string name="common_connect">Verbinden</string>
+    <string name="common_disconnect">Trennen</string>
+    <string name="common_copy">Kopieren</string>
+    <string name="common_paste">Einfügen</string>
+    <string name="common_label">Bezeichnung</string>
+    <string name="common_password">Passwort</string>
+    <string name="common_port">Port</string>
+    <string name="common_host">Host</string>
+    <string name="common_username">Benutzername</string>
+    <string name="common_install">Installieren</string>
+    <string name="common_reset">Zurücksetzen</string>
+    <string name="common_allow">Erlauben</string>
+    <string name="common_not_now">Nicht jetzt</string>
+    <string name="common_import">Importieren</string>
+    <string name="common_add">Hinzufügen</string>
+    <string name="common_download">Herunterladen</string>
+    <string name="common_unlock">Entsperren</string>
+
+    <!-- SftpScreen navigation -->
+    <string name="sftp_navigate_up">Nach oben</string>
+    <string name="sftp_hide_hidden_files">Versteckte Dateien ausblenden</string>
+    <string name="sftp_show_hidden_files">Versteckte Dateien anzeigen</string>
+    <string name="sftp_sort">Sortieren</string>
+    <string name="sftp_refresh">Aktualisieren</string>
+
+    <!-- FAB actions -->
+    <string name="sftp_new_folder">Neuer Ordner</string>
+    <string name="sftp_upload_folder">Ordner hochladen</string>
+    <string name="sftp_upload_file">Datei hochladen</string>
+    <string name="sftp_paste">Einfügen</string>
+    <string name="sftp_fab_close">Schließen</string>
+    <string name="sftp_fab_actions">Aktionen</string>
+
+    <!-- Clipboard banner -->
+    <string name="sftp_items_cut">%d Element ausgeschnitten</string>
+    <string name="sftp_items_cut_plural">%d Elemente ausgeschnitten</string>
+    <string name="sftp_items_copied">%d Element kopiert</string>
+    <string name="sftp_items_copied_plural">%d Elemente kopiert</string>
+
+    <!-- Empty states -->
+    <string name="sftp_empty_directory">Leeres Verzeichnis</string>
+    <string name="sftp_parent_directory">Übergeordnetes Verzeichnis</string>
+    <string name="sftp_navigate_up_icon">Hoch</string>
+
+    <!-- Snackbar messages -->
+    <string name="sftp_downloaded">%s heruntergeladen</string>
+    <string name="sftp_open">Öffnen</string>
+    <string name="sftp_no_app_to_open">Keine App zum Öffnen dieser Datei</string>
+    <string name="sftp_path_copied">Pfad kopiert</string>
+
+    <!-- FileListItem -->
+    <string name="sftp_directory">Verzeichnis</string>
+    <string name="sftp_directory_icon">Verzeichnis</string>
+    <string name="sftp_file_icon">Datei</string>
+    <string name="sftp_download">Herunterladen</string>
+    <string name="sftp_cut">Ausschneiden</string>
+    <string name="sftp_copy_path">Pfad kopieren</string>
+
+    <!-- SortDropdown -->
+    <string name="sftp_sort_name_asc">Name A-Z</string>
+    <string name="sftp_sort_name_desc">Name Z-A</string>
+    <string name="sftp_sort_size_asc">Größe (kleinste)</string>
+    <string name="sftp_sort_size_desc">Größe (größte)</string>
+    <string name="sftp_sort_date_asc">Datum (älteste)</string>
+    <string name="sftp_sort_date_desc">Datum (neueste)</string>
+
+    <!-- EmptyState -->
+    <string name="sftp_file_browser_title">SFTP-Dateibrowser</string>
+    <string name="sftp_connect_to_browse">Mit Server verbinden um Dateien zu durchsuchen</string>
+
+    <!-- New Folder dialog -->
+    <string name="sftp_new_folder_title">Neuer Ordner</string>
+    <string name="sftp_folder_name">Ordnername</string>
+    <string name="sftp_create">Erstellen</string>
+
+    <!-- Upload conflict dialog -->
+    <string name="sftp_file_already_exists">Datei existiert bereits</string>
+    <string name="sftp_file_exists_message">\"%s\" existiert bereits an diesem Ort.</string>
+    <string name="sftp_replace">Ersetzen</string>
+    <string name="sftp_replace_all">Alle ersetzen</string>
+    <string name="sftp_skip">Überspringen</string>
+    <string name="sftp_skip_all">Alle überspringen</string>
+</resources>

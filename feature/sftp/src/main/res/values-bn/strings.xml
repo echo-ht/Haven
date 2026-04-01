@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">বাতিল</string>
+    <string name="common_save">সংরক্ষণ</string>
+    <string name="common_done">সম্পন্ন</string>
+    <string name="common_close">বন্ধ</string>
+    <string name="common_ok">ঠিক আছে</string>
+    <string name="common_delete">মুছুন</string>
+    <string name="common_edit">সম্পাদনা</string>
+    <string name="common_rename">নাম পরিবর্তন</string>
+    <string name="common_create">তৈরি</string>
+    <string name="common_connect">সংযোগ</string>
+    <string name="common_disconnect">সংযোগ বিচ্ছিন্ন</string>
+    <string name="common_copy">কপি</string>
+    <string name="common_paste">পেস্ট</string>
+    <string name="common_label">লেবেল</string>
+    <string name="common_password">পাসওয়ার্ড</string>
+    <string name="common_port">পোর্ট</string>
+    <string name="common_host">হোস্ট</string>
+    <string name="common_username">ব্যবহারকারীর নাম</string>
+    <string name="common_install">ইনস্টল</string>
+    <string name="common_reset">রিসেট</string>
+    <string name="common_allow">অনুমতি</string>
+    <string name="common_not_now">এখন নয়</string>
+    <string name="common_import">ইমপোর্ট</string>
+    <string name="common_add">যোগ</string>
+    <string name="common_download">ডাউনলোড</string>
+    <string name="common_unlock">আনলক</string>
+
+    <!-- SftpScreen navigation -->
+    <string name="sftp_navigate_up">উপরে যান</string>
+    <string name="sftp_hide_hidden_files">লুকানো ফাইল আড়াল</string>
+    <string name="sftp_show_hidden_files">লুকানো ফাইল দেখান</string>
+    <string name="sftp_sort">সাজান</string>
+    <string name="sftp_refresh">রিফ্রেশ</string>
+
+    <!-- FAB actions -->
+    <string name="sftp_new_folder">নতুন ফোল্ডার</string>
+    <string name="sftp_upload_folder">ফোল্ডার আপলোড</string>
+    <string name="sftp_upload_file">ফাইল আপলোড</string>
+    <string name="sftp_paste">পেস্ট</string>
+    <string name="sftp_fab_close">বন্ধ</string>
+    <string name="sftp_fab_actions">কার্যকলাপ</string>
+
+    <!-- Clipboard banner -->
+    <string name="sftp_items_cut">%d আইটেম কাটা হয়েছে</string>
+    <string name="sftp_items_cut_plural">%d আইটেম কাটা হয়েছে</string>
+    <string name="sftp_items_copied">%d আইটেম কপি হয়েছে</string>
+    <string name="sftp_items_copied_plural">%d আইটেম কপি হয়েছে</string>
+
+    <!-- Empty states -->
+    <string name="sftp_empty_directory">খালি ডিরেক্টরি</string>
+    <string name="sftp_parent_directory">প্যারেন্ট ডিরেক্টরি</string>
+    <string name="sftp_navigate_up_icon">উপরে</string>
+
+    <!-- Snackbar messages -->
+    <string name="sftp_downloaded">%s ডাউনলোড হয়েছে</string>
+    <string name="sftp_open">খুলুন</string>
+    <string name="sftp_no_app_to_open">এই ফাইল খোলার জন্য কোনো অ্যাপ পাওয়া যায়নি</string>
+    <string name="sftp_path_copied">পাথ কপি হয়েছে</string>
+
+    <!-- FileListItem -->
+    <string name="sftp_directory">ডিরেক্টরি</string>
+    <string name="sftp_directory_icon">ডিরেক্টরি</string>
+    <string name="sftp_file_icon">ফাইল</string>
+    <string name="sftp_download">ডাউনলোড</string>
+    <string name="sftp_cut">কাটুন</string>
+    <string name="sftp_copy_path">পাথ কপি</string>
+
+    <!-- SortDropdown -->
+    <string name="sftp_sort_name_asc">নাম A-Z</string>
+    <string name="sftp_sort_name_desc">নাম Z-A</string>
+    <string name="sftp_sort_size_asc">আকার (ছোট)</string>
+    <string name="sftp_sort_size_desc">আকার (বড়)</string>
+    <string name="sftp_sort_date_asc">তারিখ (পুরনো)</string>
+    <string name="sftp_sort_date_desc">তারিখ (নতুন)</string>
+
+    <!-- EmptyState -->
+    <string name="sftp_file_browser_title">SFTP ফাইল ব্রাউজার</string>
+    <string name="sftp_connect_to_browse">ফাইল ব্রাউজ করতে একটি সার্ভারে সংযোগ করুন</string>
+
+    <!-- New Folder dialog -->
+    <string name="sftp_new_folder_title">নতুন ফোল্ডার</string>
+    <string name="sftp_folder_name">ফোল্ডারের নাম</string>
+    <string name="sftp_create">তৈরি</string>
+
+    <!-- Upload conflict dialog -->
+    <string name="sftp_file_already_exists">ফাইল আগে থেকে আছে</string>
+    <string name="sftp_file_exists_message">এই অবস্থানে \"%s\" আগে থেকে আছে।</string>
+    <string name="sftp_replace">প্রতিস্থাপন</string>
+    <string name="sftp_replace_all">সব প্রতিস্থাপন</string>
+    <string name="sftp_skip">বাদ দিন</string>
+    <string name="sftp_skip_all">সব বাদ দিন</string>
+</resources>

@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Cancel</string>
+    <string name="common_save">Save</string>
+    <string name="common_done">Done</string>
+    <string name="common_close">Close</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_rename">Rename</string>
+    <string name="common_create">Create</string>
+    <string name="common_connect">Connect</string>
+    <string name="common_disconnect">Disconnect</string>
+    <string name="common_copy">Copy</string>
+    <string name="common_paste">Paste</string>
+    <string name="common_label">Label</string>
+    <string name="common_password">Password</string>
+    <string name="common_port">Port</string>
+    <string name="common_host">Host</string>
+    <string name="common_username">Username</string>
+    <string name="common_install">Install</string>
+    <string name="common_reset">Reset</string>
+    <string name="common_allow">Allow</string>
+    <string name="common_not_now">Not now</string>
+    <string name="common_import">Import</string>
+    <string name="common_add">Add</string>
+    <string name="common_download">Download</string>
+    <string name="common_unlock">Unlock</string>
+
+    <!-- Top-level screen -->
+    <string name="settings_title">Settings</string>
+
+    <!-- Security section -->
+    <string name="settings_biometric_title">Biometric unlock</string>
+    <string name="settings_biometric_subtitle">Require biometrics to open Haven</string>
+    <string name="settings_lock_timeout_title">Lock timeout</string>
+    <string name="settings_prevent_screenshots_title">Prevent screenshots</string>
+    <string name="settings_prevent_screenshots_subtitle">Block screen capture and task switcher preview</string>
+
+    <!-- Logging section -->
+    <string name="settings_connection_logging_title">Connection logging</string>
+    <string name="settings_connection_logging_subtitle">Record connection events (connect, disconnect, errors). Stored locally, protected by device encryption</string>
+    <string name="settings_view_connection_log_title">View connection log</string>
+    <string name="settings_view_connection_log_subtitle">Connection history and events</string>
+    <string name="settings_verbose_logging_title">Verbose connection logging</string>
+    <string name="settings_verbose_logging_subtitle">Capture protocol details for SSH, Mosh, and ET connections. May include hostnames and usernames</string>
+
+    <!-- Terminal section -->
+    <string name="settings_session_persistence_title">Session persistence</string>
+    <string name="settings_session_persistence_none">None</string>
+    <string name="settings_font_size_title">Terminal font size</string>
+    <string name="settings_font_size_subtitle">%1$dsp</string>
+    <string name="settings_color_scheme_title">Terminal color scheme</string>
+    <string name="settings_toolbar_title">Keyboard toolbar</string>
+    <string name="settings_toolbar_subtitle">Configure toolbar keys and layout</string>
+    <string name="settings_search_button_title">Search button</string>
+    <string name="settings_search_button_subtitle">Show search icon in tab bar — sends your session manager\'s native search keys (tmux/zellij/screen) or shell Ctrl+R</string>
+    <string name="settings_copy_output_title">Copy last output</string>
+    <string name="settings_copy_output_subtitle">Show copy icon in tab bar — copies the last command\'s output. Requires shell integration (tap for setup)</string>
+    <string name="settings_mouse_input_title">Mouse input in TUI apps</string>
+    <string name="settings_mouse_input_subtitle">Forward taps as clicks and long-press as right-click when apps like htop, mc, or vim enable mouse tracking</string>
+    <string name="settings_right_click_title">Long-press sends right-click</string>
+    <string name="settings_right_click_subtitle">Send right-click to terminal instead of starting text selection. Useful for tmux context menus</string>
+
+    <!-- Appearance section -->
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_screen_order_title">Screen order</string>
+    <string name="settings_screen_order_subtitle">Reorder bottom navigation tabs</string>
+
+    <!-- Wayland section -->
+    <string name="settings_wayland_shell_title">Wayland desktop shell</string>
+    <string name="settings_shizuku_title">Termux Wayland access (Shizuku)</string>
+    <string name="settings_shizuku_enabled">Enabled — socket linked to /data/local/tmp/haven-wayland/</string>
+    <string name="settings_shizuku_available">Shizuku installed — tap to grant permission</string>
+    <string name="settings_shizuku_not_installed">Install Shizuku for cross-app socket access</string>
+
+    <!-- Backup section -->
+    <string name="settings_export_backup_title">Export backup</string>
+    <string name="settings_export_backup_subtitle">Keys, connections, and settings</string>
+    <string name="settings_restore_backup_title">Restore backup</string>
+    <string name="settings_restore_backup_subtitle">Import from a backup file</string>
+    <string name="settings_backup_working">Working…</string>
+
+    <!-- About section -->
+    <string name="settings_about_title">About Haven</string>
+    <string name="settings_support_title">Support Haven</string>
+    <string name="settings_support_subtitle">Buy the developer a coffee</string>
+    <string name="settings_version_unknown">unknown</string>
+
+    <!-- Wayland shell dialog -->
+    <string name="settings_wayland_dialog_title">Wayland Desktop Shell</string>
+    <string name="settings_wayland_dialog_description">Shell command to run inside the Wayland desktop foot terminal. Install additional shells with apk (e.g. apk add bash).</string>
+    <string name="settings_wayland_shell_command_label">Shell command</string>
+
+    <!-- Lock timeout dialog -->
+    <string name="settings_lock_timeout_dialog_title">Lock timeout</string>
+
+    <!-- OSC 133 shell integration dialog -->
+    <string name="settings_osc133_dialog_title">Shell integration setup</string>
+    <string name="settings_osc133_description">Copy last output requires your shell to emit OSC 133 markers. Add one of these snippets to your shell config:</string>
+    <string name="settings_osc133_bash">Bash</string>
+    <string name="settings_osc133_zsh">Zsh</string>
+    <string name="settings_osc133_copied_bash">Copied bash snippet</string>
+    <string name="settings_osc133_copied_zsh">Copied zsh snippet</string>
+    <string name="settings_osc133_footer">Tap a snippet to copy it. Many tools (iTerm2, VS Code, WezTerm) include these markers by default.</string>
+    <string name="settings_osc133_learn_more">Learn more</string>
+
+    <!-- Backup password dialog -->
+    <string name="settings_backup_export_dialog_title">Export Backup</string>
+    <string name="settings_backup_restore_dialog_title">Restore Backup</string>
+    <string name="settings_backup_password_min_length">At least 6 characters</string>
+    <string name="settings_backup_passwords_mismatch">Passwords don\'t match</string>
+    <string name="settings_backup_export_description">Encrypt your backup with a password. This protects your SSH keys and connection data.</string>
+    <string name="settings_backup_restore_description">Enter the password used when the backup was created.</string>
+    <string name="settings_backup_password_label">Password</string>
+    <string name="settings_backup_confirm_password_label">Confirm password</string>
+    <string name="settings_backup_export_button">Export</string>
+    <string name="settings_backup_restore_button">Restore</string>
+
+    <!-- About dialog -->
+    <string name="settings_about_dialog_title">About Haven</string>
+    <string name="settings_about_app_name">Haven</string>
+    <string name="settings_about_description">Open source SSH, VNC, RDP &amp; cloud storage client for Android</string>
+    <string name="settings_about_version">Version %1$s (build %2$d)</string>
+    <string name="settings_about_android">Android %1$s (API %2$d)</string>
+    <string name="settings_about_libraries_title">Open Source Libraries</string>
+
+    <!-- Screen order dialog -->
+    <string name="settings_screen_order_dialog_title">Screen order</string>
+    <string name="settings_screen_order_drag_description">Drag to reorder</string>
+
+    <!-- Theme dialog -->
+    <string name="settings_theme_dialog_title">Theme</string>
+
+    <!-- Color scheme dialog -->
+    <string name="settings_color_scheme_dialog_title">Terminal color scheme</string>
+
+    <!-- Session manager dialog -->
+    <string name="settings_session_dialog_title">Session persistence</string>
+    <string name="settings_session_no_scrollback">No touch scrollback</string>
+    <string name="settings_session_custom_command_label">Custom command</string>
+    <string name="settings_session_custom_command_hint">Use {name} for session name. Leave blank for default.</string>
+    <string name="settings_session_save_command">Save command</string>
+
+    <!-- Font size dialog -->
+    <string name="settings_font_size_dialog_title">Terminal font size</string>
+    <string name="settings_font_size_sample">Sample text</string>
+    <string name="settings_font_size_value">%1$dsp</string>
+
+    <!-- Toolbar config dialog -->
+    <string name="settings_toolbar_dialog_title">Keyboard toolbar</string>
+    <string name="settings_toolbar_assign_hint">Assign each key to Row 1, Row 2, or Off</string>
+    <string name="settings_toolbar_arrow_keys">Arrow keys layout</string>
+    <string name="settings_toolbar_function_keys">Function keys</string>
+    <string name="settings_toolbar_symbols">Symbols</string>
+    <string name="settings_toolbar_custom_keys">Custom keys</string>
+    <string name="settings_toolbar_add_custom_key">Add custom key</string>
+    <string name="settings_toolbar_edit_json">Edit JSON</string>
+    <string name="settings_toolbar_row1">R1</string>
+    <string name="settings_toolbar_row2">R2</string>
+    <string name="settings_toolbar_off">Off</string>
+    <string name="settings_toolbar_paste_clipboard">Paste clipboard</string>
+
+    <!-- Custom key dialog -->
+    <string name="settings_custom_key_edit_title">Edit custom key</string>
+    <string name="settings_custom_key_add_title">Add custom key</string>
+    <string name="settings_custom_key_presets">Presets</string>
+    <string name="settings_custom_key_label">Label</string>
+    <string name="settings_custom_key_label_placeholder">e.g. ^C, Paste</string>
+    <string name="settings_custom_key_sequence_label">Sequence</string>
+    <string name="settings_custom_key_sequence_placeholder">e.g. \\u0003</string>
+    <string name="settings_custom_key_escape_hint">Use \\u001b for Escape, \\u0003 for Ctrl+C, \\n for Enter</string>
+
+    <!-- JSON editor dialog -->
+    <string name="settings_json_editor_title">Edit toolbar JSON</string>
+    <string name="settings_json_editor_format_hint">String = built-in key ID, Object = custom key {\"label\": \"…\", \"send\": \"…\"}</string>
+    <string name="settings_json_editor_builtin_ids">Built-in IDs: keyboard, esc, tab, shift, ctrl, alt, arrow_left, arrow_up, arrow_down, arrow_right, home, end, pgup, pgdn, sym_pipe, sym_tilde, sym_slash, sym_dash, sym_underscore, sym_equals, sym_plus, sym_backslash, sym_squote, sym_dquote, sym_semicolon, sym_colon, sym_bang, sym_question, sym_at, sym_hash, sym_dollar, sym_percent, sym_caret, sym_amp, sym_star, sym_lparen, sym_rparen, sym_lbracket, sym_rbracket, sym_lbrace, sym_rbrace, sym_lt, sym_gt, sym_backtick</string>
+
+    <!-- Common strings -->
+    <string name="common_support">Support</string>
+    <string name="common_github">GitHub</string>
+    <string name="common_simple">Simple</string>
+</resources>

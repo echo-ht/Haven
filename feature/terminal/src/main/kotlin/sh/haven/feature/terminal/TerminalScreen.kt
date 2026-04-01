@@ -68,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import sh.haven.core.ui.KeyEventInterceptor
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -303,7 +304,7 @@ fun TerminalScreen(
                                     if (reconnecting) {
                                         Icon(
                                             Icons.Filled.Autorenew,
-                                            contentDescription = "Reconnecting",
+                                            contentDescription = stringResource(R.string.terminal_reconnecting),
                                             modifier = Modifier.size(14.dp),
                                             tint = MaterialTheme.colorScheme.error,
                                         )
@@ -336,7 +337,7 @@ fun TerminalScreen(
                                     ) {
                                         Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text("Sessions")
+                                        Text(stringResource(R.string.terminal_sessions))
                                     }
                                     Row {
                                         IconButton(
@@ -344,14 +345,14 @@ fun TerminalScreen(
                                             enabled = index > 0,
                                             modifier = Modifier.size(36.dp),
                                         ) {
-                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Move left", modifier = Modifier.size(18.dp))
+                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.terminal_move_left), modifier = Modifier.size(18.dp))
                                         }
                                         IconButton(
                                             onClick = { viewModel.moveTab(index, 1); showTabMenu = false },
                                             enabled = index < tabs.size - 1,
                                             modifier = Modifier.size(36.dp),
                                         ) {
-                                            Icon(Icons.AutoMirrored.Filled.ArrowForward, "Move right", modifier = Modifier.size(18.dp))
+                                            Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.terminal_move_right), modifier = Modifier.size(18.dp))
                                         }
                                     }
                                     TextButton(
@@ -363,7 +364,7 @@ fun TerminalScreen(
                                             contentColor = MaterialTheme.colorScheme.error,
                                         ),
                                     ) {
-                                        Text("Close")
+                                        Text(stringResource(R.string.terminal_close))
                                         Spacer(Modifier.width(4.dp))
                                         Icon(Icons.Filled.Close, null, modifier = Modifier.size(18.dp))
                                     }
@@ -379,16 +380,16 @@ fun TerminalScreen(
                                 if (output != null) {
                                     val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     clip.setPrimaryClip(ClipData.newPlainText("command output", output))
-                                    android.widget.Toast.makeText(context, "Copied output (${output.length} chars)", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.terminal_copied_output, output.length), android.widget.Toast.LENGTH_SHORT).show()
                                 } else {
-                                    android.widget.Toast.makeText(context, "No command output found (needs shell integration)", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.terminal_no_command_output), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             },
                             modifier = Modifier.size(36.dp),
                         ) {
                             Icon(
                                 Icons.Filled.ContentCopy,
-                                contentDescription = "Copy last output",
+                                contentDescription = stringResource(R.string.terminal_copy_last_output),
                                 modifier = Modifier.size(18.dp),
                             )
                         }
@@ -400,7 +401,7 @@ fun TerminalScreen(
                         ) {
                             Icon(
                                 Icons.Filled.Search,
-                                contentDescription = "Search",
+                                contentDescription = stringResource(R.string.terminal_search),
                                 modifier = Modifier.size(18.dp),
                             )
                         }
@@ -658,7 +659,7 @@ private fun EmptyTerminalState(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "Connect to a server to start a session.",
+            text = stringResource(R.string.terminal_connect_prompt),
             fontFamily = FontFamily.Monospace,
             fontSize = fontSize.sp,
             color = foregroundColor,
@@ -694,7 +695,7 @@ private fun NewTabSessionPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("$managerLabel sessions") },
+        title = { Text(stringResource(R.string.terminal_sessions_title, managerLabel)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 if (error != null) {
@@ -713,7 +714,7 @@ private fun NewTabSessionPickerDialog(
                                     IconButton(onClick = { renamingSession = name }) {
                                         Icon(
                                             Icons.Filled.DriveFileRenameOutline,
-                                            contentDescription = "Rename session",
+                                            contentDescription = stringResource(R.string.terminal_rename_session),
                                         )
                                     }
                                 }
@@ -721,7 +722,7 @@ private fun NewTabSessionPickerDialog(
                                     IconButton(onClick = { onKill(name) }) {
                                         Icon(
                                             Icons.Filled.Delete,
-                                            contentDescription = "Kill session",
+                                            contentDescription = stringResource(R.string.terminal_kill_session),
                                             tint = MaterialTheme.colorScheme.error,
                                         )
                                     }
@@ -735,7 +736,7 @@ private fun NewTabSessionPickerDialog(
                 ListItem(
                     headlineContent = {
                         Text(
-                            "New session",
+                            stringResource(R.string.terminal_new_session),
                             color = MaterialTheme.colorScheme.primary,
                         )
                     },
@@ -752,7 +753,7 @@ private fun NewTabSessionPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -909,15 +910,15 @@ private fun VncSettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("VNC Desktop") },
+        title = { Text(stringResource(R.string.terminal_vnc_desktop)) },
         text = {
             Column {
-                Text("Connect to $host", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.terminal_connect_to_host, host), style = MaterialTheme.typography.bodyMedium)
                 androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
                 OutlinedTextField(
                     value = port,
                     onValueChange = { port = it },
-                    label = { Text("Port") },
+                    label = { Text(stringResource(R.string.terminal_port)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -925,7 +926,7 @@ private fun VncSettingsDialog(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.terminal_password)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -935,14 +936,14 @@ private fun VncSettingsDialog(
                         checked = sshForward,
                         onCheckedChange = { sshForward = it },
                     )
-                    Text("Tunnel through SSH")
+                    Text(stringResource(R.string.terminal_tunnel_through_ssh))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.material3.Checkbox(
                         checked = save,
                         onCheckedChange = { save = it },
                     )
-                    Text("Save for this connection")
+                    Text(stringResource(R.string.terminal_save_for_connection))
                 }
             }
         },
@@ -953,12 +954,12 @@ private fun VncSettingsDialog(
                     onConnect(p, password.ifEmpty { null }, sshForward, save)
                 },
             ) {
-                Text("Connect")
+                Text(stringResource(R.string.terminal_connect))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -974,12 +975,12 @@ private fun RenameSessionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename Session") },
+        title = { Text(stringResource(R.string.terminal_rename_session_title)) },
         text = {
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.terminal_name)) },
                 singleLine = true,
             )
         },
@@ -988,12 +989,12 @@ private fun RenameSessionDialog(
                 onClick = { onRename(label) },
                 enabled = label.isNotBlank() && label != currentLabel,
             ) {
-                Text("Rename")
+                Text(stringResource(R.string.terminal_rename))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )

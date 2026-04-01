@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">रद्द करें</string>
+    <string name="common_save">सहेजें</string>
+    <string name="common_done">हो गया</string>
+    <string name="common_close">बंद करें</string>
+    <string name="common_ok">ठीक है</string>
+    <string name="common_delete">हटाएँ</string>
+    <string name="common_edit">संपादित करें</string>
+    <string name="common_rename">नाम बदलें</string>
+    <string name="common_create">बनाएँ</string>
+    <string name="common_connect">कनेक्ट करें</string>
+    <string name="common_disconnect">डिस्कनेक्ट करें</string>
+    <string name="common_copy">कॉपी करें</string>
+    <string name="common_paste">पेस्ट करें</string>
+    <string name="common_label">लेबल</string>
+    <string name="common_password">पासवर्ड</string>
+    <string name="common_port">पोर्ट</string>
+    <string name="common_host">होस्ट</string>
+    <string name="common_username">उपयोगकर्ता नाम</string>
+    <string name="common_install">इंस्टॉल करें</string>
+    <string name="common_reset">रीसेट करें</string>
+    <string name="common_allow">अनुमति दें</string>
+    <string name="common_not_now">अभी नहीं</string>
+    <string name="common_import">आयात करें</string>
+    <string name="common_add">जोड़ें</string>
+    <string name="common_download">डाउनलोड करें</string>
+    <string name="common_unlock">अनलॉक करें</string>
+
+    <!-- SftpScreen navigation -->
+    <string name="sftp_navigate_up">ऊपर जाएँ</string>
+    <string name="sftp_hide_hidden_files">छिपी फ़ाइलें छुपाएँ</string>
+    <string name="sftp_show_hidden_files">छिपी फ़ाइलें दिखाएँ</string>
+    <string name="sftp_sort">क्रमबद्ध करें</string>
+    <string name="sftp_refresh">रिफ़्रेश करें</string>
+
+    <!-- FAB actions -->
+    <string name="sftp_new_folder">नया फ़ोल्डर</string>
+    <string name="sftp_upload_folder">फ़ोल्डर अपलोड करें</string>
+    <string name="sftp_upload_file">फ़ाइल अपलोड करें</string>
+    <string name="sftp_paste">पेस्ट करें</string>
+    <string name="sftp_fab_close">बंद करें</string>
+    <string name="sftp_fab_actions">कार्रवाइयाँ</string>
+
+    <!-- Clipboard banner -->
+    <string name="sftp_items_cut">%d आइटम कट किया</string>
+    <string name="sftp_items_cut_plural">%d आइटम कट किए</string>
+    <string name="sftp_items_copied">%d आइटम कॉपी किया</string>
+    <string name="sftp_items_copied_plural">%d आइटम कॉपी किए</string>
+
+    <!-- Empty states -->
+    <string name="sftp_empty_directory">खाली निर्देशिका</string>
+    <string name="sftp_parent_directory">मूल निर्देशिका</string>
+    <string name="sftp_navigate_up_icon">ऊपर</string>
+
+    <!-- Snackbar messages -->
+    <string name="sftp_downloaded">%s डाउनलोड हुआ</string>
+    <string name="sftp_open">खोलें</string>
+    <string name="sftp_no_app_to_open">इस फ़ाइल को खोलने के लिए कोई ऐप नहीं मिला</string>
+    <string name="sftp_path_copied">पथ कॉपी हुआ</string>
+
+    <!-- FileListItem -->
+    <string name="sftp_directory">निर्देशिका</string>
+    <string name="sftp_directory_icon">निर्देशिका</string>
+    <string name="sftp_file_icon">फ़ाइल</string>
+    <string name="sftp_download">डाउनलोड करें</string>
+    <string name="sftp_cut">कट करें</string>
+    <string name="sftp_copy_path">पथ कॉपी करें</string>
+
+    <!-- SortDropdown -->
+    <string name="sftp_sort_name_asc">नाम A-Z</string>
+    <string name="sftp_sort_name_desc">नाम Z-A</string>
+    <string name="sftp_sort_size_asc">आकार (सबसे छोटा)</string>
+    <string name="sftp_sort_size_desc">आकार (सबसे बड़ा)</string>
+    <string name="sftp_sort_date_asc">तिथि (सबसे पुरानी)</string>
+    <string name="sftp_sort_date_desc">तिथि (सबसे नई)</string>
+
+    <!-- EmptyState -->
+    <string name="sftp_file_browser_title">SFTP फ़ाइल ब्राउज़र</string>
+    <string name="sftp_connect_to_browse">फ़ाइलें ब्राउज़ करने के लिए सर्वर से कनेक्ट करें</string>
+
+    <!-- New Folder dialog -->
+    <string name="sftp_new_folder_title">नया फ़ोल्डर</string>
+    <string name="sftp_folder_name">फ़ोल्डर का नाम</string>
+    <string name="sftp_create">बनाएँ</string>
+
+    <!-- Upload conflict dialog -->
+    <string name="sftp_file_already_exists">फ़ाइल पहले से मौजूद है</string>
+    <string name="sftp_file_exists_message">इस स्थान पर \"%s\" पहले से मौजूद है।</string>
+    <string name="sftp_replace">बदलें</string>
+    <string name="sftp_replace_all">सभी बदलें</string>
+    <string name="sftp_skip">छोड़ें</string>
+    <string name="sftp_skip_all">सभी छोड़ें</string>
+</resources>

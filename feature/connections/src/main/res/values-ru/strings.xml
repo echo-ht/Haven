@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Отмена</string>
+    <string name="common_save">Сохранить</string>
+    <string name="common_done">Готово</string>
+    <string name="common_close">Закрыть</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Удалить</string>
+    <string name="common_edit">Изменить</string>
+    <string name="common_rename">Переименовать</string>
+    <string name="common_create">Создать</string>
+    <string name="common_connect">Подключить</string>
+    <string name="common_disconnect">Отключить</string>
+    <string name="common_copy">Копировать</string>
+    <string name="common_paste">Вставить</string>
+    <string name="common_label">Метка</string>
+    <string name="common_password">Пароль</string>
+    <string name="common_port">Порт</string>
+    <string name="common_host">Хост</string>
+    <string name="common_username">Имя пользователя</string>
+    <string name="common_install">Установить</string>
+    <string name="common_reset">Сбросить</string>
+    <string name="common_allow">Разрешить</string>
+    <string name="common_not_now">Не сейчас</string>
+    <string name="common_import">Импорт</string>
+    <string name="common_add">Добавить</string>
+    <string name="common_download">Скачать</string>
+    <string name="common_unlock">Разблокировать</string>
+
+    <!-- Common strings (shared across features) -->
+
+    <!-- Connections screen -->
+    <string name="connections_title">Подключения</string>
+    <string name="connections_add">Добавить подключение</string>
+    <string name="connections_quick_connect_placeholder">user@host или host:port</string>
+    <string name="connections_quick_connect_button">Подключить</string>
+    <string name="connections_quick_connect_error">Формат: user@host или user@host:port</string>
+    <string name="connections_filter_placeholder">Фильтр подключений\u2026</string>
+    <string name="connections_filter_clear">Очистить фильтр</string>
+    <string name="connections_reorder">Изменить порядок</string>
+
+    <!-- Empty state -->
+    <string name="connections_empty_title">Нет подключений</string>
+    <string name="connections_empty_subtitle">Нажмите + чтобы добавить сервер или введите user@host выше</string>
+
+    <!-- Connection status -->
+    <string name="connections_status_connected">Подключено</string>
+    <string name="connections_status_error">Ошибка</string>
+    <string name="connections_status_disconnected">Отключено</string>
+
+    <!-- Connection tree item -->
+    <string name="connections_proot_label">PRoot Alpine Linux</string>
+    <string name="connections_launch_desktop">Запустить рабочий стол</string>
+    <string name="connections_setup_desktop">Настроить рабочий стол</string>
+
+    <!-- Connection context menu -->
+    <string name="connections_menu_port_forwards">Проброс портов</string>
+    <string name="connections_menu_connect_with_password">Подключить с паролем</string>
+    <string name="connections_menu_sessions">Сессии</string>
+    <string name="connections_menu_disconnect">Отключить</string>
+    <string name="connections_menu_deploy_ssh_key">Установить SSH-ключ</string>
+
+    <!-- Delete confirmation dialog -->
+    <string name="connections_delete_title">Удалить подключение?</string>
+    <string name="connections_delete_message">Удалить \"%1$s\"? Это нельзя отменить.</string>
+
+    <!-- Deploy key snackbar -->
+    <string name="connections_key_deployed">SSH-ключ успешно установлен</string>
+
+    <!-- Battery optimization dialog -->
+    <string name="connections_battery_title">Поддерживать соединения?</string>
+    <string name="connections_battery_message">Android может закрывать фоновые SSH-подключения для экономии батареи. Отключение оптимизации батареи для Haven предотвращает это.</string>
+
+    <!-- Mosh setup guide dialog -->
+    <string name="connections_mosh_not_found_title">Mosh не найден на сервере</string>
+    <string name="connections_mosh_not_found_message">На удалённом хосте не установлен mosh-server. Mosh (Mobile Shell) сохраняет сессию при смене сети и высокой задержке.</string>
+    <string name="connections_mosh_install_prompt">Установите на сервере:</string>
+    <string name="connections_mosh_install_commands">\u0020 Ubuntu/Debian:  sudo apt install mosh\n\u0020 Fedora/RHEL:    sudo dnf install mosh\n\u0020 Arch:           sudo pacman -S mosh\n\u0020 macOS:          brew install mosh</string>
+    <string name="connections_mosh_firewall_note">UDP-порт 60001 должен быть открыт в файрволе сервера.</string>
+    <string name="connections_mosh_github">Mosh на GitHub</string>
+
+    <!-- Mosh client missing dialog -->
+    <string name="connections_mosh_client_missing_title">Клиент Mosh не собран</string>
+    <string name="connections_mosh_client_missing_message">Бинарный файл mosh-client не включён в эту сборку. Его нужно кросс-компилировать для Android с помощью NDK.</string>
+    <string name="connections_mosh_client_build_instructions">Запустите tools/build-mosh.sh с Android NDK r27+ для сборки mosh-client, затем пересоберите приложение.</string>
+
+    <!-- Session picker dialog -->
+    <string name="connections_sessions_title">Сессии %1$s</string>
+    <string name="connections_restore_previous_sessions">Восстановить %1$d предыдущих сессий</string>
+    <string name="connections_rename_session">Переименовать сессию</string>
+    <string name="connections_kill_session">Завершить сессию</string>
+    <string name="connections_new_session">Новая сессия</string>
+
+    <!-- Rename dialog -->
+    <string name="connections_rename_title">Переименовать подключение</string>
+
+    <!-- Linux VM card -->
+    <string name="connections_linux_vm">Linux VM</string>
+    <string name="connections_vm_tap_to_setup">Нажмите для настройки</string>
+    <string name="connections_vm_status_active">Активна</string>
+    <string name="connections_vm_refresh">Обновить статус VM</string>
+
+    <!-- Desktop setup dialog -->
+    <string name="connections_desktop_setup_title">Настройка рабочего стола</string>
+    <string name="connections_desktop_wayland_description">Установить Wayland-композитор в среде PRoot. Экспериментально — используется программный рендеринг.</string>
+    <string name="connections_desktop_openbox_description">Установить рабочий стол и VNC-сервер в среде PRoot. Openbox минималистичен — меню приложений по правому клику.</string>
+    <string name="connections_desktop_vnc_description">Установить рабочий стол и VNC-сервер в среде PRoot.</string>
+    <string name="connections_desktop_vnc_password">Пароль VNC</string>
+    <string name="connections_desktop_shell">Оболочка</string>
+    <string name="connections_desktop_installed">Рабочий стол установлен. Подключение к VNC\u2026</string>
+    <string name="connections_desktop_setup_failed">Ошибка настройки: %1$s</string>
+
+    <!-- New group dialog -->
+    <string name="connections_new_group_title">Новая группа</string>
+    <string name="connections_group_name">Имя группы</string>
+
+    <!-- Group header -->
+    <string name="connections_launch_group">Запустить группу</string>
+    <string name="connections_expand">Развернуть</string>
+    <string name="connections_collapse">Свернуть</string>
+    <string name="connections_menu_launch_all">Запустить все</string>
+    <string name="connections_menu_delete_group">Удалить группу</string>
+    <string name="connections_new_group_action">Новая группа</string>
+</resources>

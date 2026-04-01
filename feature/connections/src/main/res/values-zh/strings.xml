@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">取消</string>
+    <string name="common_save">保存</string>
+    <string name="common_done">完成</string>
+    <string name="common_close">关闭</string>
+    <string name="common_ok">确定</string>
+    <string name="common_delete">删除</string>
+    <string name="common_edit">编辑</string>
+    <string name="common_rename">重命名</string>
+    <string name="common_create">创建</string>
+    <string name="common_connect">连接</string>
+    <string name="common_disconnect">断开</string>
+    <string name="common_copy">复制</string>
+    <string name="common_paste">粘贴</string>
+    <string name="common_label">标签</string>
+    <string name="common_password">密码</string>
+    <string name="common_port">端口</string>
+    <string name="common_host">主机</string>
+    <string name="common_username">用户名</string>
+    <string name="common_install">安装</string>
+    <string name="common_reset">重置</string>
+    <string name="common_allow">允许</string>
+    <string name="common_not_now">暂不</string>
+    <string name="common_import">导入</string>
+    <string name="common_add">添加</string>
+    <string name="common_download">下载</string>
+    <string name="common_unlock">解锁</string>
+
+    <!-- Common strings (shared across features) -->
+
+    <!-- Connections screen -->
+    <string name="connections_title">连接</string>
+    <string name="connections_add">添加连接</string>
+    <string name="connections_quick_connect_placeholder">user@host 或 host:port</string>
+    <string name="connections_quick_connect_button">连接</string>
+    <string name="connections_quick_connect_error">请使用格式：user@host 或 user@host:port</string>
+    <string name="connections_filter_placeholder">筛选连接\u2026</string>
+    <string name="connections_filter_clear">清除筛选</string>
+    <string name="connections_reorder">排序</string>
+
+    <!-- Empty state -->
+    <string name="connections_empty_title">暂无连接</string>
+    <string name="connections_empty_subtitle">点击 + 添加服务器，或在上方输入 user@host</string>
+
+    <!-- Connection status -->
+    <string name="connections_status_connected">已连接</string>
+    <string name="connections_status_error">错误</string>
+    <string name="connections_status_disconnected">已断开</string>
+
+    <!-- Connection tree item -->
+    <string name="connections_proot_label">PRoot Alpine Linux</string>
+    <string name="connections_launch_desktop">启动桌面</string>
+    <string name="connections_setup_desktop">设置桌面</string>
+
+    <!-- Connection context menu -->
+    <string name="connections_menu_port_forwards">端口转发</string>
+    <string name="connections_menu_connect_with_password">使用密码连接</string>
+    <string name="connections_menu_sessions">会话</string>
+    <string name="connections_menu_disconnect">断开连接</string>
+    <string name="connections_menu_deploy_ssh_key">部署 SSH 密钥</string>
+
+    <!-- Delete confirmation dialog -->
+    <string name="connections_delete_title">删除连接？</string>
+    <string name="connections_delete_message">删除"%1$s"？此操作无法撤消。</string>
+
+    <!-- Deploy key snackbar -->
+    <string name="connections_key_deployed">SSH 密钥部署成功</string>
+
+    <!-- Battery optimization dialog -->
+    <string name="connections_battery_title">保持连接？</string>
+    <string name="connections_battery_message">Android 可能会为省电而关闭后台 SSH 连接。为 Haven 禁用电池优化可以防止此情况。</string>
+
+    <!-- Mosh setup guide dialog -->
+    <string name="connections_mosh_not_found_title">服务器上未找到 Mosh</string>
+    <string name="connections_mosh_not_found_message">远程主机未安装 mosh-server。Mosh（移动 Shell）可在网络切换和高延迟连接时保持会话。</string>
+    <string name="connections_mosh_install_prompt">在服务器上安装：</string>
+    <string name="connections_mosh_install_commands">\u0020 Ubuntu/Debian:  sudo apt install mosh\n\u0020 Fedora/RHEL:    sudo dnf install mosh\n\u0020 Arch:           sudo pacman -S mosh\n\u0020 macOS:          brew install mosh</string>
+    <string name="connections_mosh_firewall_note">服务器防火墙须开放 UDP 端口 60001。</string>
+    <string name="connections_mosh_github">Mosh on GitHub</string>
+
+    <!-- Mosh client missing dialog -->
+    <string name="connections_mosh_client_missing_title">Mosh 客户端未构建</string>
+    <string name="connections_mosh_client_missing_message">此版本未包含 mosh-client 二进制文件。需要使用 NDK 为 Android 交叉编译。</string>
+    <string name="connections_mosh_client_build_instructions">使用 Android NDK r27+ 运行 tools/build-mosh.sh 构建 mosh-client 二进制文件，然后重新构建应用。</string>
+
+    <!-- Session picker dialog -->
+    <string name="connections_sessions_title">%1$s 会话</string>
+    <string name="connections_restore_previous_sessions">恢复 %1$d 个之前的会话</string>
+    <string name="connections_rename_session">重命名会话</string>
+    <string name="connections_kill_session">终止会话</string>
+    <string name="connections_new_session">新建会话</string>
+
+    <!-- Rename dialog -->
+    <string name="connections_rename_title">重命名连接</string>
+
+    <!-- Linux VM card -->
+    <string name="connections_linux_vm">Linux 虚拟机</string>
+    <string name="connections_vm_tap_to_setup">点击以设置</string>
+    <string name="connections_vm_status_active">活动中</string>
+    <string name="connections_vm_refresh">刷新虚拟机状态</string>
+
+    <!-- Desktop setup dialog -->
+    <string name="connections_desktop_setup_title">设置桌面</string>
+    <string name="connections_desktop_wayland_description">在 PRoot 环境中安装 Wayland 合成器。实验性功能——使用软件渲染。</string>
+    <string name="connections_desktop_openbox_description">在 PRoot 环境中安装桌面环境和 VNC 服务器。Openbox 是最小化的——右键点击桌面打开应用菜单。</string>
+    <string name="connections_desktop_vnc_description">在 PRoot 环境中安装桌面环境和 VNC 服务器。</string>
+    <string name="connections_desktop_vnc_password">VNC 密码</string>
+    <string name="connections_desktop_shell">Shell</string>
+    <string name="connections_desktop_installed">桌面已安装。正在连接 VNC\u2026</string>
+    <string name="connections_desktop_setup_failed">设置失败：%1$s</string>
+
+    <!-- New group dialog -->
+    <string name="connections_new_group_title">新建分组</string>
+    <string name="connections_group_name">分组名称</string>
+
+    <!-- Group header -->
+    <string name="connections_launch_group">启动分组</string>
+    <string name="connections_expand">展开</string>
+    <string name="connections_collapse">折叠</string>
+    <string name="connections_menu_launch_all">全部启动</string>
+    <string name="connections_menu_delete_group">删除分组</string>
+    <string name="connections_new_group_action">新建分组</string>
+</resources>

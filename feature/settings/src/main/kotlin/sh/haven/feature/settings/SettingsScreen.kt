@@ -99,6 +99,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -195,21 +196,21 @@ fun SettingsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(title = { Text("Settings") })
+        TopAppBar(title = { Text(stringResource(R.string.settings_title)) })
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
 
         if (viewModel.biometricAvailable) {
             SettingsToggleItem(
                 icon = Icons.Filled.Fingerprint,
-                title = "Biometric unlock",
-                subtitle = "Require biometrics to open Haven",
+                title = stringResource(R.string.settings_biometric_title),
+                subtitle = stringResource(R.string.settings_biometric_subtitle),
                 checked = biometricEnabled,
                 onCheckedChange = viewModel::setBiometricEnabled,
             )
             if (biometricEnabled) {
                 SettingsItem(
                     icon = Icons.Filled.Timer,
-                    title = "Lock timeout",
+                    title = stringResource(R.string.settings_lock_timeout_title),
                     subtitle = lockTimeout.label,
                     onClick = { showLockTimeoutDialog = true },
                 )
@@ -217,38 +218,38 @@ fun SettingsScreen(
         }
         SettingsToggleItem(
             icon = Icons.Filled.ScreenLockPortrait,
-            title = "Prevent screenshots",
-            subtitle = "Block screen capture and task switcher preview",
+            title = stringResource(R.string.settings_prevent_screenshots_title),
+            subtitle = stringResource(R.string.settings_prevent_screenshots_subtitle),
             checked = screenSecurity,
             onCheckedChange = viewModel::setScreenSecurity,
         )
         SettingsToggleItem(
             icon = Icons.Filled.History,
-            title = "Connection logging",
-            subtitle = "Record connection events (connect, disconnect, errors). Stored locally, protected by device encryption",
+            title = stringResource(R.string.settings_connection_logging_title),
+            subtitle = stringResource(R.string.settings_connection_logging_subtitle),
             checked = connectionLoggingEnabled,
             onCheckedChange = viewModel::setConnectionLoggingEnabled,
         )
         if (connectionLoggingEnabled) {
             SettingsItem(
                 icon = Icons.Filled.ListAlt,
-                title = "View connection log",
-                subtitle = "Connection history and events",
+                title = stringResource(R.string.settings_view_connection_log_title),
+                subtitle = stringResource(R.string.settings_view_connection_log_subtitle),
                 onClick = { showAuditLog = true },
             )
             SettingsToggleItem(
                 icon = Icons.Filled.BugReport,
-                title = "Verbose connection logging",
-                subtitle = "Capture protocol details for SSH, Mosh, and ET connections. May include hostnames and usernames",
+                title = stringResource(R.string.settings_verbose_logging_title),
+                subtitle = stringResource(R.string.settings_verbose_logging_subtitle),
                 checked = verboseLoggingEnabled,
                 onCheckedChange = viewModel::setVerboseLoggingEnabled,
             )
         }
         SettingsItem(
             icon = Icons.Filled.Terminal,
-            title = "Session persistence",
+            title = stringResource(R.string.settings_session_persistence_title),
             subtitle = if (sessionManager == UserPreferencesRepository.SessionManager.NONE) {
-                "None"
+                stringResource(R.string.settings_session_persistence_none)
             } else {
                 sessionManager.label
             },
@@ -256,33 +257,33 @@ fun SettingsScreen(
         )
         SettingsItem(
             icon = Icons.Filled.TextFields,
-            title = "Terminal font size",
-            subtitle = "${fontSize}sp",
+            title = stringResource(R.string.settings_font_size_title),
+            subtitle = stringResource(R.string.settings_font_size_subtitle, fontSize),
             onClick = { showFontSizeDialog = true },
         )
         SettingsItem(
             icon = Icons.Filled.Palette,
-            title = "Terminal color scheme",
+            title = stringResource(R.string.settings_color_scheme_title),
             subtitle = colorScheme.label,
             onClick = { showColorSchemeDialog = true },
         )
         SettingsItem(
             icon = Icons.Filled.KeyboardAlt,
-            title = "Keyboard toolbar",
-            subtitle = "Configure toolbar keys and layout",
+            title = stringResource(R.string.settings_toolbar_title),
+            subtitle = stringResource(R.string.settings_toolbar_subtitle),
             onClick = { showToolbarConfigDialog = true },
         )
         SettingsToggleItem(
             icon = Icons.Filled.Search,
-            title = "Search button",
-            subtitle = "Show search icon in tab bar — sends your session manager's native search keys (tmux/zellij/screen) or shell Ctrl+R",
+            title = stringResource(R.string.settings_search_button_title),
+            subtitle = stringResource(R.string.settings_search_button_subtitle),
             checked = showSearchButton,
             onCheckedChange = viewModel::setShowSearchButton,
         )
         SettingsToggleItem(
             icon = Icons.Filled.ContentCopy,
-            title = "Copy last output",
-            subtitle = "Show copy icon in tab bar — copies the last command's output. Requires shell integration (tap for setup)",
+            title = stringResource(R.string.settings_copy_output_title),
+            subtitle = stringResource(R.string.settings_copy_output_subtitle),
             checked = showCopyOutputButton,
             onCheckedChange = { enabled ->
                 viewModel.setShowCopyOutputButton(enabled)
@@ -291,28 +292,28 @@ fun SettingsScreen(
         )
         SettingsToggleItem(
             icon = Icons.Filled.Terminal,
-            title = "Mouse input in TUI apps",
-            subtitle = "Forward taps as clicks and long-press as right-click when apps like htop, mc, or vim enable mouse tracking",
+            title = stringResource(R.string.settings_mouse_input_title),
+            subtitle = stringResource(R.string.settings_mouse_input_subtitle),
             checked = mouseInputEnabled,
             onCheckedChange = viewModel::setMouseInputEnabled,
         )
         SettingsToggleItem(
             icon = Icons.Filled.Terminal,
-            title = "Long-press sends right-click",
-            subtitle = "Send right-click to terminal instead of starting text selection. Useful for tmux context menus",
+            title = stringResource(R.string.settings_right_click_title),
+            subtitle = stringResource(R.string.settings_right_click_subtitle),
             checked = terminalRightClick,
             onCheckedChange = viewModel::setTerminalRightClick,
         )
         SettingsItem(
             icon = Icons.Filled.ColorLens,
-            title = "Theme",
+            title = stringResource(R.string.settings_theme_title),
             subtitle = theme.label,
             onClick = { showThemeDialog = true },
         )
         SettingsItem(
             icon = Icons.Filled.Reorder,
-            title = "Screen order",
-            subtitle = "Reorder bottom navigation tabs",
+            title = stringResource(R.string.settings_screen_order_title),
+            subtitle = stringResource(R.string.settings_screen_order_subtitle),
             onClick = { showScreenOrderDialog = true },
         )
 
@@ -320,7 +321,7 @@ fun SettingsScreen(
 
         SettingsItem(
             icon = Icons.Filled.DesktopWindows,
-            title = "Wayland desktop shell",
+            title = stringResource(R.string.settings_wayland_shell_title),
             subtitle = waylandShellCommand,
             onClick = { showWaylandShellDialog = true },
         )
@@ -329,11 +330,11 @@ fun SettingsScreen(
             val shizukuGranted = shizukuAvailable && sh.haven.core.local.WaylandSocketHelper.hasShizukuPermission()
             SettingsItem(
                 icon = Icons.Filled.DesktopWindows,
-                title = "Termux Wayland access (Shizuku)",
+                title = stringResource(R.string.settings_shizuku_title),
                 subtitle = when {
-                    shizukuGranted -> "Enabled — socket linked to /data/local/tmp/haven-wayland/"
-                    shizukuAvailable -> "Shizuku installed — tap to grant permission"
-                    else -> "Install Shizuku for cross-app socket access"
+                    shizukuGranted -> stringResource(R.string.settings_shizuku_enabled)
+                    shizukuAvailable -> stringResource(R.string.settings_shizuku_available)
+                    else -> stringResource(R.string.settings_shizuku_not_installed)
                 },
                 onClick = {
                     if (shizukuAvailable && !shizukuGranted) {
@@ -347,16 +348,16 @@ fun SettingsScreen(
 
         SettingsItem(
             icon = Icons.Filled.CloudUpload,
-            title = "Export backup",
-            subtitle = "Keys, connections, and settings",
+            title = stringResource(R.string.settings_export_backup_title),
+            subtitle = stringResource(R.string.settings_export_backup_subtitle),
             onClick = {
                 showBackupPasswordDialog = BackupAction.Export
             },
         )
         SettingsItem(
             icon = Icons.Filled.CloudDownload,
-            title = "Restore backup",
-            subtitle = "Import from a backup file",
+            title = stringResource(R.string.settings_restore_backup_title),
+            subtitle = stringResource(R.string.settings_restore_backup_subtitle),
             onClick = {
                 importLauncher.launch(arrayOf("*/*"))
             },
@@ -364,7 +365,7 @@ fun SettingsScreen(
 
         if (backupStatus is SettingsViewModel.BackupStatus.InProgress) {
             ListItem(
-                headlineContent = { Text("Working...") },
+                headlineContent = { Text(stringResource(R.string.settings_backup_working)) },
                 leadingContent = {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 },
@@ -376,14 +377,14 @@ fun SettingsScreen(
 
         SettingsItem(
             icon = Icons.Filled.Info,
-            title = "About Haven",
+            title = stringResource(R.string.settings_about_title),
             subtitle = "v${packageInfo.versionName}",
             onClick = { showAboutDialog = true },
         )
         SettingsItem(
             icon = Icons.Filled.Favorite,
-            title = "Support Haven",
-            subtitle = "Buy the developer a coffee",
+            title = stringResource(R.string.settings_support_title),
+            subtitle = stringResource(R.string.settings_support_subtitle),
             onClick = {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(KOFI_URL)))
             },
@@ -394,7 +395,7 @@ fun SettingsScreen(
 
     if (showAboutDialog) {
         AboutDialog(
-            versionName = packageInfo.versionName ?: "unknown",
+            versionName = packageInfo.versionName ?: stringResource(R.string.settings_version_unknown),
             versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 packageInfo.longVersionCode
             } else {
@@ -438,18 +439,17 @@ fun SettingsScreen(
         val shellOptions = listOf("/bin/sh -l", "/bin/ash -l", "/bin/bash -l", "/bin/zsh", "/bin/fish")
         AlertDialog(
             onDismissRequest = { showWaylandShellDialog = false },
-            title = { Text("Wayland Desktop Shell") },
+            title = { Text(stringResource(R.string.settings_wayland_dialog_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Shell command to run inside the Wayland desktop foot terminal. " +
-                            "Install additional shells with apk (e.g. apk add bash).",
+                        stringResource(R.string.settings_wayland_dialog_description),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(
                         value = shellCmd,
                         onValueChange = { v -> shellCmd = v },
-                        label = { Text("Shell command") },
+                        label = { Text(stringResource(R.string.settings_wayland_shell_command_label)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -466,10 +466,10 @@ fun SettingsScreen(
                 TextButton(onClick = {
                     viewModel.setWaylandShellCommand(shellCmd)
                     showWaylandShellDialog = false
-                }) { Text("Save") }
+                }) { Text(stringResource(R.string.common_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { showWaylandShellDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showWaylandShellDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -488,7 +488,7 @@ fun SettingsScreen(
     if (showLockTimeoutDialog) {
         AlertDialog(
             onDismissRequest = { showLockTimeoutDialog = false },
-            title = { Text("Lock timeout") },
+            title = { Text(stringResource(R.string.settings_lock_timeout_dialog_title)) },
             text = {
                 Column {
                     UserPreferencesRepository.LockTimeout.entries.forEach { timeout ->
@@ -511,7 +511,7 @@ fun SettingsScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showLockTimeoutDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             },
         )
@@ -589,16 +589,15 @@ precmd()  { print -Pn '\e]133;D;%?\a\e]133;A\a' }
 preexec() { print -Pn '\e]133;B\a\e]133;C\a' }"""
         AlertDialog(
             onDismissRequest = { showOsc133SetupDialog = false },
-            title = { Text("Shell integration setup") },
+            title = { Text(stringResource(R.string.settings_osc133_dialog_title)) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(
-                        "Copy last output requires your shell to emit OSC 133 markers. " +
-                        "Add one of these snippets to your shell config:",
+                        stringResource(R.string.settings_osc133_description),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Bash", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.settings_osc133_bash), style = MaterialTheme.typography.titleSmall)
                     Text(
                         bashSnippet,
                         style = MaterialTheme.typography.bodySmall,
@@ -609,11 +608,11 @@ preexec() { print -Pn '\e]133;B\a\e]133;C\a' }"""
                             .padding(8.dp)
                             .clickable {
                                 clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText("bash", bashSnippet))
-                                android.widget.Toast.makeText(context, "Copied bash snippet", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(R.string.settings_osc133_copied_bash), android.widget.Toast.LENGTH_SHORT).show()
                             },
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Zsh", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.settings_osc133_zsh), style = MaterialTheme.typography.titleSmall)
                     Text(
                         zshSnippet,
                         style = MaterialTheme.typography.bodySmall,
@@ -624,12 +623,12 @@ preexec() { print -Pn '\e]133;B\a\e]133;C\a' }"""
                             .padding(8.dp)
                             .clickable {
                                 clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText("zsh", zshSnippet))
-                                android.widget.Toast.makeText(context, "Copied zsh snippet", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(R.string.settings_osc133_copied_zsh), android.widget.Toast.LENGTH_SHORT).show()
                             },
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Tap a snippet to copy it. Many tools (iTerm2, VS Code, WezTerm) include these markers by default.",
+                        stringResource(R.string.settings_osc133_footer),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -639,10 +638,10 @@ preexec() { print -Pn '\e]133;B\a\e]133;C\a' }"""
                 TextButton(onClick = {
                     context.startActivity(Intent(Intent.ACTION_VIEW,
                         Uri.parse("https://gitlab.freedesktop.org/Per_Bothner/specifications/blob/master/proposals/semantic-prompts.md")))
-                }) { Text("Learn more") }
+                }) { Text(stringResource(R.string.settings_osc133_learn_more)) }
             },
             dismissButton = {
-                TextButton(onClick = { showOsc133SetupDialog = false }) { Text("Done") }
+                TextButton(onClick = { showOsc133SetupDialog = false }) { Text(stringResource(R.string.common_done)) }
             },
         )
     }
@@ -661,10 +660,10 @@ private fun BackupPasswordDialog(
 ) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    val title = if (isExport) "Export Backup" else "Restore Backup"
-    val passwordError = if (isExport && password.length in 1..5) "At least 6 characters" else null
+    val title = stringResource(if (isExport) R.string.settings_backup_export_dialog_title else R.string.settings_backup_restore_dialog_title)
+    val passwordError = if (isExport && password.length in 1..5) stringResource(R.string.settings_backup_password_min_length) else null
     val confirmError = if (isExport && confirmPassword.isNotEmpty() && confirmPassword != password) {
-        "Passwords don't match"
+        stringResource(R.string.settings_backup_passwords_mismatch)
     } else null
     val canConfirm = if (isExport) {
         password.length >= 6 && password == confirmPassword
@@ -678,11 +677,7 @@ private fun BackupPasswordDialog(
         text = {
             Column {
                 Text(
-                    text = if (isExport) {
-                        "Encrypt your backup with a password. This protects your SSH keys and connection data."
-                    } else {
-                        "Enter the password used when the backup was created."
-                    },
+                    text = stringResource(if (isExport) R.string.settings_backup_export_description else R.string.settings_backup_restore_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -690,7 +685,7 @@ private fun BackupPasswordDialog(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.settings_backup_password_label)) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     isError = passwordError != null,
@@ -702,7 +697,7 @@ private fun BackupPasswordDialog(
                     OutlinedTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = { Text("Confirm password") },
+                        label = { Text(stringResource(R.string.settings_backup_confirm_password_label)) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         isError = confirmError != null,
@@ -714,11 +709,11 @@ private fun BackupPasswordDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(password) }, enabled = canConfirm) {
-                Text(if (isExport) "Export" else "Restore")
+                Text(stringResource(if (isExport) R.string.settings_backup_export_button else R.string.settings_backup_restore_button))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         },
     )
 }
@@ -736,31 +731,31 @@ private fun AboutDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("About Haven") },
+        title = { Text(stringResource(R.string.settings_about_dialog_title)) },
         text = {
             Column {
                 Text(
-                    text = "Haven",
+                    text = stringResource(R.string.settings_about_app_name),
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Open source SSH, VNC, RDP & cloud storage client for Android",
+                    text = stringResource(R.string.settings_about_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Version $versionName (build $versionCode)",
+                    text = stringResource(R.string.settings_about_version, versionName, versionCode),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Text(
-                    text = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                    text = stringResource(R.string.settings_about_android, Build.VERSION.RELEASE, Build.VERSION.SDK_INT),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Open Source Libraries",
+                    text = stringResource(R.string.settings_about_libraries_title),
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -784,16 +779,16 @@ private fun AboutDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.common_close))
             }
         },
         dismissButton = {
             Row {
                 TextButton(onClick = onOpenKofi) {
-                    Text("Support")
+                    Text(stringResource(R.string.common_support))
                 }
                 TextButton(onClick = onOpenGitHub) {
-                    Text("GitHub")
+                    Text(stringResource(R.string.common_github))
                 }
             }
         },
@@ -825,7 +820,7 @@ private fun ScreenOrderDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Screen order") },
+        title = { Text(stringResource(R.string.settings_screen_order_dialog_title)) },
         text = {
             Column {
                 order.forEachIndexed { index, screen ->
@@ -842,7 +837,7 @@ private fun ScreenOrderDialog(
                         trailingContent = {
                             Icon(
                                 Icons.Filled.DragHandle,
-                                contentDescription = "Drag to reorder",
+                                contentDescription = stringResource(R.string.settings_screen_order_drag_description),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         },
@@ -924,12 +919,12 @@ private fun ScreenOrderDialog(
         },
         confirmButton = {
             TextButton(onClick = { onSave(order.toList()) }) {
-                Text("Save")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -943,7 +938,7 @@ private fun ThemeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Theme") },
+        title = { Text(stringResource(R.string.settings_theme_dialog_title)) },
         text = {
             Column {
                 UserPreferencesRepository.ThemeMode.entries.forEach { mode ->
@@ -964,7 +959,7 @@ private fun ThemeDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -978,7 +973,7 @@ private fun ColorSchemeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Terminal color scheme") },
+        title = { Text(stringResource(R.string.settings_color_scheme_dialog_title)) },
         text = {
             Column {
                 UserPreferencesRepository.TerminalColorScheme.entries.forEach { scheme ->
@@ -1022,7 +1017,7 @@ private fun ColorSchemeDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -1040,7 +1035,7 @@ private fun SessionManagerDialog(
     var overrideText by remember(commandOverride) { mutableStateOf(commandOverride ?: "") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Session persistence") },
+        title = { Text(stringResource(R.string.settings_session_dialog_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 UserPreferencesRepository.SessionManager.entries.forEach { manager ->
@@ -1062,7 +1057,7 @@ private fun SessionManagerDialog(
                             }
                         },
                         supportingContent = if (!manager.supportsScrollback) {
-                            { Text("No touch scrollback") }
+                            { Text(stringResource(R.string.settings_session_no_scrollback)) }
                         } else null,
                         leadingContent = {
                             RadioButton(
@@ -1082,10 +1077,10 @@ private fun SessionManagerDialog(
                     OutlinedTextField(
                         value = overrideText,
                         onValueChange = { overrideText = it },
-                        label = { Text("Custom command") },
+                        label = { Text(stringResource(R.string.settings_session_custom_command_label)) },
                         placeholder = { Text(defaultCommand, maxLines = 1) },
                         supportingText = {
-                            Text("Use {name} for session name. Leave blank for default.")
+                            Text(stringResource(R.string.settings_session_custom_command_hint))
                         },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -1096,7 +1091,7 @@ private fun SessionManagerDialog(
                                 onCommandOverrideChange(overrideText.ifBlank { null })
                             },
                         ) {
-                            Text("Save command")
+                            Text(stringResource(R.string.settings_session_save_command))
                         }
                     }
                 }
@@ -1104,7 +1099,7 @@ private fun SessionManagerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.common_close))
             }
         },
     )
@@ -1121,20 +1116,20 @@ private fun FontSizeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Terminal font size") },
+        title = { Text(stringResource(R.string.settings_font_size_dialog_title)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "Sample text",
+                    text = stringResource(R.string.settings_font_size_sample),
                     fontFamily = FontFamily.Monospace,
                     fontSize = displaySize.sp,
                     modifier = Modifier.padding(vertical = 16.dp),
                 )
                 Text(
-                    text = "${displaySize}sp",
+                    text = stringResource(R.string.settings_font_size_value, displaySize),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Slider(
@@ -1150,12 +1145,12 @@ private fun FontSizeDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(displaySize) }) {
-                Text("OK")
+                Text(stringResource(R.string.common_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -1308,18 +1303,18 @@ private fun ToolbarSimpleEditor(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Keyboard toolbar") },
+        title = { Text(stringResource(R.string.settings_toolbar_dialog_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    text = "Assign each key to Row 1, Row 2, or Off",
+                    text = stringResource(R.string.settings_toolbar_assign_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
 
                 Text(
-                    "Arrow keys layout",
+                    stringResource(R.string.settings_toolbar_arrow_keys),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -1336,7 +1331,7 @@ private fun ToolbarSimpleEditor(
                 }
 
                 Text(
-                    "Function keys",
+                    stringResource(R.string.settings_toolbar_function_keys),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -1352,7 +1347,7 @@ private fun ToolbarSimpleEditor(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    "Symbols",
+                    stringResource(R.string.settings_toolbar_symbols),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -1368,7 +1363,7 @@ private fun ToolbarSimpleEditor(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    "Custom keys",
+                    stringResource(R.string.settings_toolbar_custom_keys),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -1394,7 +1389,7 @@ private fun ToolbarSimpleEditor(
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add custom key")
+                    Text(stringResource(R.string.settings_toolbar_add_custom_key))
                 }
             }
         },
@@ -1414,7 +1409,7 @@ private fun ToolbarSimpleEditor(
                     .map { ToolbarItem.BuiltIn(it) } + customRow2
                 onSave(ToolbarLayout(listOf(newRow1, newRow2)))
             }) {
-                Text("Save")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
@@ -1429,13 +1424,13 @@ private fun ToolbarSimpleEditor(
                     }
                     customKeys.clear()
                 }) {
-                    Text("Reset")
+                    Text(stringResource(R.string.common_reset))
                 }
                 TextButton(onClick = onAdvancedMode) {
-                    Text("Edit JSON")
+                    Text(stringResource(R.string.settings_toolbar_edit_json))
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         },
@@ -1461,7 +1456,7 @@ private fun CustomKeyRow(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = displaySendSequence(state.item.send),
+                text = displaySendSequence(state.item.send, stringResource(R.string.settings_toolbar_paste_clipboard)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1473,9 +1468,9 @@ private fun CustomKeyRow(
                 label = {
                     Text(
                         when (option) {
-                            KeyAssignment.ROW1 -> "R1"
-                            KeyAssignment.ROW2 -> "R2"
-                            KeyAssignment.OFF -> "Off"
+                            KeyAssignment.ROW1 -> stringResource(R.string.settings_toolbar_row1)
+                            KeyAssignment.ROW2 -> stringResource(R.string.settings_toolbar_row2)
+                            KeyAssignment.OFF -> stringResource(R.string.settings_toolbar_off)
                         },
                         fontSize = 11.sp,
                     )
@@ -1484,17 +1479,17 @@ private fun CustomKeyRow(
             )
         }
         IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.common_edit), modifier = Modifier.size(16.dp))
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.common_delete), modifier = Modifier.size(16.dp))
         }
     }
 }
 
 /** Show a human-readable representation of a send sequence. */
-private fun displaySendSequence(send: String): String {
-    if (send == "PASTE") return "Paste clipboard"
+private fun displaySendSequence(send: String, pasteLabel: String = "Paste clipboard"): String {
+    if (send == "PASTE") return pasteLabel
     return send.map { ch ->
         when {
             ch.code < 0x20 -> "\\u${ch.code.toString(16).padStart(4, '0')}"
@@ -1511,12 +1506,13 @@ private fun CustomKeyDialog(
     onSave: (ToolbarItem.Custom) -> Unit,
 ) {
     var label by remember { mutableStateOf(initial?.label ?: "") }
-    var sendText by remember { mutableStateOf(initial?.let { displaySendSequence(it.send) } ?: "") }
+    val pasteLabel = stringResource(R.string.settings_toolbar_paste_clipboard)
+    var sendText by remember { mutableStateOf(initial?.let { displaySendSequence(it.send, pasteLabel) } ?: "") }
     var presetExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initial != null) "Edit custom key" else "Add custom key") },
+        title = { Text(stringResource(if (initial != null) R.string.settings_custom_key_edit_title else R.string.settings_custom_key_add_title)) },
         text = {
             Column {
                 // Preset dropdown
@@ -1525,7 +1521,7 @@ private fun CustomKeyDialog(
                     onExpandedChange = { presetExpanded = it },
                 ) {
                     OutlinedTextField(
-                        value = "Presets",
+                        value = stringResource(R.string.settings_custom_key_presets),
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = presetExpanded) },
@@ -1543,7 +1539,7 @@ private fun CustomKeyDialog(
                                 text = { Text(preset.description) },
                                 onClick = {
                                     label = preset.label
-                                    sendText = displaySendSequence(preset.send)
+                                    sendText = displaySendSequence(preset.send, pasteLabel)
                                     presetExpanded = false
                                 },
                             )
@@ -1556,8 +1552,8 @@ private fun CustomKeyDialog(
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
-                    label = { Text("Label") },
-                    placeholder = { Text("e.g. ^C, Paste") },
+                    label = { Text(stringResource(R.string.settings_custom_key_label)) },
+                    placeholder = { Text(stringResource(R.string.settings_custom_key_label_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1567,15 +1563,15 @@ private fun CustomKeyDialog(
                 OutlinedTextField(
                     value = sendText,
                     onValueChange = { sendText = it },
-                    label = { Text("Sequence") },
-                    placeholder = { Text("e.g. \\u0003") },
+                    label = { Text(stringResource(R.string.settings_custom_key_sequence_label)) },
+                    placeholder = { Text(stringResource(R.string.settings_custom_key_sequence_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 )
 
                 Text(
-                    text = "Use \\u001b for Escape, \\u0003 for Ctrl+C, \\n for Enter",
+                    text = stringResource(R.string.settings_custom_key_escape_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -1590,12 +1586,12 @@ private fun CustomKeyDialog(
                 },
                 enabled = label.isNotBlank() && sendText.isNotBlank(),
             ) {
-                Text("Save")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -1650,11 +1646,11 @@ private fun ToolbarJsonEditor(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit toolbar JSON") },
+        title = { Text(stringResource(R.string.settings_json_editor_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    text = "String = built-in key ID, Object = custom key {\"label\": \"...\", \"send\": \"...\"}",
+                    text = stringResource(R.string.settings_json_editor_format_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
@@ -1680,7 +1676,7 @@ private fun ToolbarJsonEditor(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Built-in IDs: keyboard, esc, tab, shift, ctrl, alt, arrow_left, arrow_up, arrow_down, arrow_right, home, end, pgup, pgdn, sym_pipe, sym_tilde, sym_slash, sym_dash, sym_underscore, sym_equals, sym_plus, sym_backslash, sym_squote, sym_dquote, sym_semicolon, sym_colon, sym_bang, sym_question, sym_at, sym_hash, sym_dollar, sym_percent, sym_caret, sym_amp, sym_star, sym_lparen, sym_rparen, sym_lbracket, sym_rbracket, sym_lbrace, sym_rbrace, sym_lt, sym_gt, sym_backtick",
+                    text = stringResource(R.string.settings_json_editor_builtin_ids),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 9.sp,
@@ -1696,7 +1692,7 @@ private fun ToolbarJsonEditor(
                     onSave(text)
                 }
             }) {
-                Text("Save")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
@@ -1705,13 +1701,13 @@ private fun ToolbarJsonEditor(
                     text = ToolbarLayout.DEFAULT.toJson()
                     error = null
                 }) {
-                    Text("Reset")
+                    Text(stringResource(R.string.common_reset))
                 }
                 TextButton(onClick = onSimpleMode) {
-                    Text("Simple")
+                    Text(stringResource(R.string.common_simple))
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         },
@@ -1742,9 +1738,9 @@ private fun ToolbarKeyRow(
                 label = {
                     Text(
                         when (option) {
-                            KeyAssignment.ROW1 -> "R1"
-                            KeyAssignment.ROW2 -> "R2"
-                            KeyAssignment.OFF -> "Off"
+                            KeyAssignment.ROW1 -> stringResource(R.string.settings_toolbar_row1)
+                            KeyAssignment.ROW2 -> stringResource(R.string.settings_toolbar_row2)
+                            KeyAssignment.OFF -> stringResource(R.string.settings_toolbar_off)
                         },
                         fontSize = 11.sp,
                     )

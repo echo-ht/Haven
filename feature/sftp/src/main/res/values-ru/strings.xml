@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Отмена</string>
+    <string name="common_save">Сохранить</string>
+    <string name="common_done">Готово</string>
+    <string name="common_close">Закрыть</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Удалить</string>
+    <string name="common_edit">Изменить</string>
+    <string name="common_rename">Переименовать</string>
+    <string name="common_create">Создать</string>
+    <string name="common_connect">Подключить</string>
+    <string name="common_disconnect">Отключить</string>
+    <string name="common_copy">Копировать</string>
+    <string name="common_paste">Вставить</string>
+    <string name="common_label">Метка</string>
+    <string name="common_password">Пароль</string>
+    <string name="common_port">Порт</string>
+    <string name="common_host">Хост</string>
+    <string name="common_username">Имя пользователя</string>
+    <string name="common_install">Установить</string>
+    <string name="common_reset">Сбросить</string>
+    <string name="common_allow">Разрешить</string>
+    <string name="common_not_now">Не сейчас</string>
+    <string name="common_import">Импорт</string>
+    <string name="common_add">Добавить</string>
+    <string name="common_download">Скачать</string>
+    <string name="common_unlock">Разблокировать</string>
+
+    <!-- SftpScreen navigation -->
+    <string name="sftp_navigate_up">Наверх</string>
+    <string name="sftp_hide_hidden_files">Скрыть скрытые файлы</string>
+    <string name="sftp_show_hidden_files">Показать скрытые файлы</string>
+    <string name="sftp_sort">Сортировка</string>
+    <string name="sftp_refresh">Обновить</string>
+
+    <!-- FAB actions -->
+    <string name="sftp_new_folder">Новая папка</string>
+    <string name="sftp_upload_folder">Загрузить папку</string>
+    <string name="sftp_upload_file">Загрузить файл</string>
+    <string name="sftp_paste">Вставить</string>
+    <string name="sftp_fab_close">Закрыть</string>
+    <string name="sftp_fab_actions">Действия</string>
+
+    <!-- Clipboard banner -->
+    <string name="sftp_items_cut">%d элемент вырезан</string>
+    <string name="sftp_items_cut_plural">%d элементов вырезано</string>
+    <string name="sftp_items_copied">%d элемент скопирован</string>
+    <string name="sftp_items_copied_plural">%d элементов скопировано</string>
+
+    <!-- Empty states -->
+    <string name="sftp_empty_directory">Пустая директория</string>
+    <string name="sftp_parent_directory">Родительская директория</string>
+    <string name="sftp_navigate_up_icon">Вверх</string>
+
+    <!-- Snackbar messages -->
+    <string name="sftp_downloaded">Скачан %s</string>
+    <string name="sftp_open">Открыть</string>
+    <string name="sftp_no_app_to_open">Нет приложения для открытия этого файла</string>
+    <string name="sftp_path_copied">Путь скопирован</string>
+
+    <!-- FileListItem -->
+    <string name="sftp_directory">Директория</string>
+    <string name="sftp_directory_icon">Директория</string>
+    <string name="sftp_file_icon">Файл</string>
+    <string name="sftp_download">Скачать</string>
+    <string name="sftp_cut">Вырезать</string>
+    <string name="sftp_copy_path">Копировать путь</string>
+
+    <!-- SortDropdown -->
+    <string name="sftp_sort_name_asc">Имя А-Я</string>
+    <string name="sftp_sort_name_desc">Имя Я-А</string>
+    <string name="sftp_sort_size_asc">Размер (по возрастанию)</string>
+    <string name="sftp_sort_size_desc">Размер (по убыванию)</string>
+    <string name="sftp_sort_date_asc">Дата (старые)</string>
+    <string name="sftp_sort_date_desc">Дата (новые)</string>
+
+    <!-- EmptyState -->
+    <string name="sftp_file_browser_title">Файловый менеджер SFTP</string>
+    <string name="sftp_connect_to_browse">Подключитесь к серверу для просмотра файлов</string>
+
+    <!-- New Folder dialog -->
+    <string name="sftp_new_folder_title">Новая папка</string>
+    <string name="sftp_folder_name">Имя папки</string>
+    <string name="sftp_create">Создать</string>
+
+    <!-- Upload conflict dialog -->
+    <string name="sftp_file_already_exists">Файл уже существует</string>
+    <string name="sftp_file_exists_message">\"%s\" уже существует в этом расположении.</string>
+    <string name="sftp_replace">Заменить</string>
+    <string name="sftp_replace_all">Заменить все</string>
+    <string name="sftp_skip">Пропустить</string>
+    <string name="sftp_skip_all">Пропустить все</string>
+</resources>

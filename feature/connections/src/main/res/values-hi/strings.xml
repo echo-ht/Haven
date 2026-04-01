@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">रद्द करें</string>
+    <string name="common_save">सहेजें</string>
+    <string name="common_done">हो गया</string>
+    <string name="common_close">बंद करें</string>
+    <string name="common_ok">ठीक है</string>
+    <string name="common_delete">हटाएँ</string>
+    <string name="common_edit">संपादित करें</string>
+    <string name="common_rename">नाम बदलें</string>
+    <string name="common_create">बनाएँ</string>
+    <string name="common_connect">कनेक्ट करें</string>
+    <string name="common_disconnect">डिस्कनेक्ट करें</string>
+    <string name="common_copy">कॉपी करें</string>
+    <string name="common_paste">पेस्ट करें</string>
+    <string name="common_label">लेबल</string>
+    <string name="common_password">पासवर्ड</string>
+    <string name="common_port">पोर्ट</string>
+    <string name="common_host">होस्ट</string>
+    <string name="common_username">उपयोगकर्ता नाम</string>
+    <string name="common_install">इंस्टॉल करें</string>
+    <string name="common_reset">रीसेट करें</string>
+    <string name="common_allow">अनुमति दें</string>
+    <string name="common_not_now">अभी नहीं</string>
+    <string name="common_import">आयात करें</string>
+    <string name="common_add">जोड़ें</string>
+    <string name="common_download">डाउनलोड करें</string>
+    <string name="common_unlock">अनलॉक करें</string>
+
+    <!-- Common strings (shared across features) -->
+
+    <!-- Connections screen -->
+    <string name="connections_title">कनेक्शन</string>
+    <string name="connections_add">कनेक्शन जोड़ें</string>
+    <string name="connections_quick_connect_placeholder">user@host या host:port</string>
+    <string name="connections_quick_connect_button">कनेक्ट करें</string>
+    <string name="connections_quick_connect_error">प्रारूप का उपयोग करें: user@host या user@host:port</string>
+    <string name="connections_filter_placeholder">कनेक्शन फ़िल्टर करें\u2026</string>
+    <string name="connections_filter_clear">फ़िल्टर साफ़ करें</string>
+    <string name="connections_reorder">क्रम बदलें</string>
+
+    <!-- Empty state -->
+    <string name="connections_empty_title">कोई कनेक्शन नहीं</string>
+    <string name="connections_empty_subtitle">सर्वर जोड़ने के लिए + दबाएँ, या ऊपर user@host टाइप करें</string>
+
+    <!-- Connection status -->
+    <string name="connections_status_connected">कनेक्टेड</string>
+    <string name="connections_status_error">त्रुटि</string>
+    <string name="connections_status_disconnected">डिस्कनेक्टेड</string>
+
+    <!-- Connection tree item -->
+    <string name="connections_proot_label">PRoot Alpine Linux</string>
+    <string name="connections_launch_desktop">डेस्कटॉप शुरू करें</string>
+    <string name="connections_setup_desktop">डेस्कटॉप सेटअप करें</string>
+
+    <!-- Connection context menu -->
+    <string name="connections_menu_port_forwards">पोर्ट फ़ॉरवर्ड</string>
+    <string name="connections_menu_connect_with_password">पासवर्ड से कनेक्ट करें</string>
+    <string name="connections_menu_sessions">सत्र</string>
+    <string name="connections_menu_disconnect">डिस्कनेक्ट करें</string>
+    <string name="connections_menu_deploy_ssh_key">SSH कुंजी डिप्लॉय करें</string>
+
+    <!-- Delete confirmation dialog -->
+    <string name="connections_delete_title">कनेक्शन हटाएँ?</string>
+    <string name="connections_delete_message">\"%1$s\" हटाएँ? यह पूर्ववत नहीं किया जा सकता।</string>
+
+    <!-- Deploy key snackbar -->
+    <string name="connections_key_deployed">SSH कुंजी सफलतापूर्वक डिप्लॉय हुई</string>
+
+    <!-- Battery optimization dialog -->
+    <string name="connections_battery_title">कनेक्शन सक्रिय रखें?</string>
+    <string name="connections_battery_message">Android बैटरी बचाने के लिए बैकग्राउंड SSH कनेक्शन बंद कर सकता है। Haven के लिए बैटरी ऑप्टिमाइज़ेशन अक्षम करने से यह रुक जाएगा।</string>
+
+    <!-- Mosh setup guide dialog -->
+    <string name="connections_mosh_not_found_title">सर्वर पर Mosh नहीं मिला</string>
+    <string name="connections_mosh_not_found_message">रिमोट होस्ट पर mosh-server इंस्टॉल नहीं है। Mosh (Mobile Shell) नेटवर्क बदलने और उच्च विलंबता कनेक्शन पर आपका सत्र सक्रिय रखता है।</string>
+    <string name="connections_mosh_install_prompt">सर्वर पर इंस्टॉल करें:</string>
+    <string name="connections_mosh_install_commands">\u0020 Ubuntu/Debian:  sudo apt install mosh\n\u0020 Fedora/RHEL:    sudo dnf install mosh\n\u0020 Arch:           sudo pacman -S mosh\n\u0020 macOS:          brew install mosh</string>
+    <string name="connections_mosh_firewall_note">सर्वर फ़ायरवॉल पर UDP पोर्ट 60001 खुला होना चाहिए।</string>
+    <string name="connections_mosh_github">Mosh on GitHub</string>
+
+    <!-- Mosh client missing dialog -->
+    <string name="connections_mosh_client_missing_title">Mosh क्लाइंट बिल्ड नहीं हुआ</string>
+    <string name="connections_mosh_client_missing_message">इस बिल्ड में mosh-client बाइनरी शामिल नहीं है। इसे NDK का उपयोग करके Android के लिए क्रॉस-कंपाइल करना होगा।</string>
+    <string name="connections_mosh_client_build_instructions">mosh-client बाइनरी बनाने के लिए Android NDK r27+ के साथ tools/build-mosh.sh चलाएँ, फिर ऐप को दोबारा बिल्ड करें।</string>
+
+    <!-- Session picker dialog -->
+    <string name="connections_sessions_title">%1$s सत्र</string>
+    <string name="connections_restore_previous_sessions">%1$d पिछले सत्र पुनर्स्थापित करें</string>
+    <string name="connections_rename_session">सत्र का नाम बदलें</string>
+    <string name="connections_kill_session">सत्र समाप्त करें</string>
+    <string name="connections_new_session">नया सत्र</string>
+
+    <!-- Rename dialog -->
+    <string name="connections_rename_title">कनेक्शन का नाम बदलें</string>
+
+    <!-- Linux VM card -->
+    <string name="connections_linux_vm">Linux VM</string>
+    <string name="connections_vm_tap_to_setup">सेटअप करने के लिए टैप करें</string>
+    <string name="connections_vm_status_active">सक्रिय</string>
+    <string name="connections_vm_refresh">VM स्थिति रिफ़्रेश करें</string>
+
+    <!-- Desktop setup dialog -->
+    <string name="connections_desktop_setup_title">डेस्कटॉप सेटअप</string>
+    <string name="connections_desktop_wayland_description">PRoot वातावरण में Wayland कंपोज़िटर इंस्टॉल करें। प्रयोगात्मक — सॉफ़्टवेयर रेंडरिंग का उपयोग करता है।</string>
+    <string name="connections_desktop_openbox_description">PRoot वातावरण में डेस्कटॉप और VNC सर्वर इंस्टॉल करें। Openbox न्यूनतम है — ऐप मेन्यू के लिए डेस्कटॉप पर राइट-क्लिक करें।</string>
+    <string name="connections_desktop_vnc_description">PRoot वातावरण में डेस्कटॉप और VNC सर्वर इंस्टॉल करें।</string>
+    <string name="connections_desktop_vnc_password">VNC पासवर्ड</string>
+    <string name="connections_desktop_shell">Shell</string>
+    <string name="connections_desktop_installed">डेस्कटॉप इंस्टॉल हुआ। VNC से कनेक्ट हो रहा है\u2026</string>
+    <string name="connections_desktop_setup_failed">सेटअप विफल: %1$s</string>
+
+    <!-- New group dialog -->
+    <string name="connections_new_group_title">नया समूह</string>
+    <string name="connections_group_name">समूह का नाम</string>
+
+    <!-- Group header -->
+    <string name="connections_launch_group">समूह शुरू करें</string>
+    <string name="connections_expand">विस्तार करें</string>
+    <string name="connections_collapse">संक्षिप्त करें</string>
+    <string name="connections_menu_launch_all">सभी शुरू करें</string>
+    <string name="connections_menu_delete_group">समूह हटाएँ</string>
+    <string name="connections_new_group_action">नया समूह</string>
+</resources>

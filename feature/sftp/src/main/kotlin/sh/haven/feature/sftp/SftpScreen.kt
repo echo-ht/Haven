@@ -73,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -127,9 +128,11 @@ fun SftpScreen(
     LaunchedEffect(lastDownload) {
         val dl = lastDownload ?: return@LaunchedEffect
         viewModel.dismissMessage() // clear the plain message so it doesn't double-show
+        val downloadedMessage = context.getString(R.string.sftp_downloaded, dl.fileName)
+        val openLabel = context.getString(R.string.sftp_open)
         val result = snackbarHostState.showSnackbar(
-            message = "Downloaded ${dl.fileName}",
-            actionLabel = "Open",
+            message = downloadedMessage,
+            actionLabel = openLabel,
             duration = androidx.compose.material3.SnackbarDuration.Long,
         )
         if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
@@ -141,7 +144,7 @@ fun SftpScreen(
                 }
                 context.startActivity(intent)
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar("No app found to open this file")
+                snackbarHostState.showSnackbar(context.getString(R.string.sftp_no_app_to_open))
             }
         }
         viewModel.clearLastDownload()
@@ -212,7 +215,7 @@ fun SftpScreen(
                 navigationIcon = {
                     if (currentPath != "/" && activeProfileId != null) {
                         IconButton(onClick = { viewModel.navigateUp() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Navigate up")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.sftp_navigate_up))
                         }
                     }
                 },
@@ -221,12 +224,12 @@ fun SftpScreen(
                         IconButton(onClick = { viewModel.toggleShowHidden() }) {
                             Icon(
                                 if (showHidden) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                contentDescription = if (showHidden) "Hide hidden files" else "Show hidden files",
+                                contentDescription = if (showHidden) stringResource(R.string.sftp_hide_hidden_files) else stringResource(R.string.sftp_show_hidden_files),
                             )
                         }
                         Box {
                             IconButton(onClick = { showSortMenu = true }) {
-                                Icon(Icons.AutoMirrored.Filled.Sort, "Sort")
+                                Icon(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.sftp_sort))
                             }
                             SortDropdown(
                                 expanded = showSortMenu,
@@ -239,7 +242,7 @@ fun SftpScreen(
                             )
                         }
                         IconButton(onClick = { viewModel.refresh() }) {
-                            Icon(Icons.Filled.Refresh, "Refresh")
+                            Icon(Icons.Filled.Refresh, stringResource(R.string.sftp_refresh))
                         }
                     }
                 },
@@ -260,7 +263,7 @@ fun SftpScreen(
                                 fabExpanded = false
                                 showNewFolderDialog = true
                             }) {
-                                Icon(Icons.Filled.CreateNewFolder, "New folder")
+                                Icon(Icons.Filled.CreateNewFolder, stringResource(R.string.sftp_new_folder))
                             }
                             SmallFloatingActionButton(onClick = {
                                 fabExpanded = false
@@ -272,7 +275,7 @@ fun SftpScreen(
                                 ) {
                                     Icon(
                                         Icons.Filled.Folder,
-                                        "Upload folder",
+                                        stringResource(R.string.sftp_upload_folder),
                                         modifier = Modifier.size(24.dp),
                                     )
                                     Icon(
@@ -289,19 +292,19 @@ fun SftpScreen(
                                 fabExpanded = false
                                 uploadLauncher.launch(arrayOf("*/*"))
                             }) {
-                                Icon(Icons.Filled.Upload, "Upload file")
+                                Icon(Icons.Filled.Upload, stringResource(R.string.sftp_upload_file))
                             }
                         }
                     }
                     if (fileClipboard != null) {
                         FloatingActionButton(onClick = { viewModel.pasteFromClipboard() }) {
-                            Icon(Icons.Filled.ContentPaste, "Paste")
+                            Icon(Icons.Filled.ContentPaste, stringResource(R.string.sftp_paste))
                         }
                     } else {
                         FloatingActionButton(onClick = { fabExpanded = !fabExpanded }) {
                             Icon(
                                 if (fabExpanded) Icons.Filled.CreateNewFolder else Icons.Filled.Upload,
-                                if (fabExpanded) "Close" else "Actions",
+                                if (fabExpanded) stringResource(R.string.sftp_fab_close) else stringResource(R.string.sftp_fab_actions),
                             )
                         }
                     }
@@ -407,12 +410,22 @@ fun SftpScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "${cb.entries.size} item${if (cb.entries.size > 1) "s" else ""} ${if (cb.isCut) "cut" else "copied"}",
+                                if (cb.isCut) {
+                                    stringResource(
+                                        if (cb.entries.size > 1) R.string.sftp_items_cut_plural else R.string.sftp_items_cut,
+                                        cb.entries.size,
+                                    )
+                                } else {
+                                    stringResource(
+                                        if (cb.entries.size > 1) R.string.sftp_items_copied_plural else R.string.sftp_items_copied,
+                                        cb.entries.size,
+                                    )
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.weight(1f),
                             )
                             TextButton(onClick = { viewModel.clearClipboard() }) {
-                                Text("Cancel")
+                                Text(stringResource(R.string.common_cancel))
                             }
                         }
                     }
@@ -425,7 +438,7 @@ fun SftpScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Empty directory",
+                            stringResource(R.string.sftp_empty_directory),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -437,11 +450,11 @@ fun SftpScreen(
                             item(key = "__parent__") {
                                 ListItem(
                                     headlineContent = { Text("..") },
-                                    supportingContent = { Text("Parent directory") },
+                                    supportingContent = { Text(stringResource(R.string.sftp_parent_directory)) },
                                     leadingContent = {
                                         Icon(
                                             Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Up",
+                                            contentDescription = stringResource(R.string.sftp_navigate_up_icon),
                                             tint = MaterialTheme.colorScheme.primary,
                                         )
                                     },
@@ -464,8 +477,9 @@ fun SftpScreen(
                                 onDelete = { viewModel.deleteEntry(entry) },
                                 onCopyPath = {
                                     clipboardManager.setText(AnnotatedString(entry.path))
+                                    val pathCopiedMsg = context.getString(R.string.sftp_path_copied)
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Path copied")
+                                        snackbarHostState.showSnackbar(pathCopiedMsg)
                                     }
                                 },
                                 onCopy = { viewModel.copyToClipboard(listOf(entry), isCut = false) },
@@ -483,12 +497,12 @@ fun SftpScreen(
         var folderName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showNewFolderDialog = false },
-            title = { Text("New Folder") },
+            title = { Text(stringResource(R.string.sftp_new_folder_title)) },
             text = {
                 OutlinedTextField(
                     value = folderName,
                     onValueChange = { folderName = it },
-                    label = { Text("Folder name") },
+                    label = { Text(stringResource(R.string.sftp_folder_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -500,10 +514,10 @@ fun SftpScreen(
                         viewModel.createDirectory(folderName)
                     },
                     enabled = folderName.isNotBlank(),
-                ) { Text("Create") }
+                ) { Text(stringResource(R.string.sftp_create)) }
             },
             dismissButton = {
-                TextButton(onClick = { showNewFolderDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showNewFolderDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -512,25 +526,25 @@ fun SftpScreen(
     uploadConflict?.let { conflict ->
         AlertDialog(
             onDismissRequest = { viewModel.resolveConflict(SftpViewModel.ConflictChoice.SKIP) },
-            title = { Text("File Already Exists") },
-            text = { Text("\"${conflict.fileName}\" already exists in this location.") },
+            title = { Text(stringResource(R.string.sftp_file_already_exists)) },
+            text = { Text(stringResource(R.string.sftp_file_exists_message, conflict.fileName)) },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = { viewModel.resolveConflict(SftpViewModel.ConflictChoice.REPLACE) }) {
-                        Text("Replace")
+                        Text(stringResource(R.string.sftp_replace))
                     }
                     TextButton(onClick = { viewModel.resolveConflict(SftpViewModel.ConflictChoice.REPLACE_ALL) }) {
-                        Text("Replace All")
+                        Text(stringResource(R.string.sftp_replace_all))
                     }
                 }
             },
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = { viewModel.resolveConflict(SftpViewModel.ConflictChoice.SKIP) }) {
-                        Text("Skip")
+                        Text(stringResource(R.string.sftp_skip))
                     }
                     TextButton(onClick = { viewModel.resolveConflict(SftpViewModel.ConflictChoice.SKIP_ALL) }) {
-                        Text("Skip All")
+                        Text(stringResource(R.string.sftp_skip_all))
                     }
                 }
             },
@@ -558,14 +572,14 @@ private fun FileListItem(
         ListItem(
             headlineContent = { Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
-                val sizeText = if (entry.isDirectory) "Directory" else Formatter.formatFileSize(context, entry.size)
+                val sizeText = if (entry.isDirectory) context.getString(R.string.sftp_directory) else Formatter.formatFileSize(context, entry.size)
                 val dateText = dateFormat.format(Date(entry.modifiedTime * 1000))
                 Text("$sizeText  $dateText")
             },
             leadingContent = {
                 Icon(
                     if (entry.isDirectory) Icons.Filled.Folder else Icons.Filled.Description,
-                    contentDescription = if (entry.isDirectory) "Directory" else "File",
+                    contentDescription = stringResource(if (entry.isDirectory) R.string.sftp_directory_icon else R.string.sftp_file_icon),
                     tint = if (entry.isDirectory) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -585,28 +599,28 @@ private fun FileListItem(
         ) {
             if (!entry.isDirectory) {
                 DropdownMenuItem(
-                    text = { Text("Download") },
+                    text = { Text(stringResource(R.string.sftp_download)) },
                     leadingIcon = { Icon(Icons.Filled.Download, null) },
                     onClick = { showMenu = false; onDownload() },
                 )
             }
             DropdownMenuItem(
-                text = { Text("Copy") },
+                text = { Text(stringResource(R.string.common_copy)) },
                 leadingIcon = { Icon(Icons.Filled.FileCopy, null) },
                 onClick = { showMenu = false; onCopy() },
             )
             DropdownMenuItem(
-                text = { Text("Cut") },
+                text = { Text(stringResource(R.string.sftp_cut)) },
                 leadingIcon = { Icon(Icons.Filled.ContentCut, null) },
                 onClick = { showMenu = false; onCut() },
             )
             DropdownMenuItem(
-                text = { Text("Copy path") },
+                text = { Text(stringResource(R.string.sftp_copy_path)) },
                 leadingIcon = { Icon(Icons.Filled.ContentCopy, null) },
                 onClick = { showMenu = false; onCopyPath() },
             )
             DropdownMenuItem(
-                text = { Text("Delete") },
+                text = { Text(stringResource(R.string.common_delete)) },
                 leadingIcon = { Icon(Icons.Filled.Delete, null) },
                 onClick = { showMenu = false; onDelete() },
             )
@@ -624,12 +638,12 @@ private fun SortDropdown(
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         SortMode.entries.forEach { mode ->
             val label = when (mode) {
-                SortMode.NAME_ASC -> "Name A-Z"
-                SortMode.NAME_DESC -> "Name Z-A"
-                SortMode.SIZE_ASC -> "Size (smallest)"
-                SortMode.SIZE_DESC -> "Size (largest)"
-                SortMode.DATE_ASC -> "Date (oldest)"
-                SortMode.DATE_DESC -> "Date (newest)"
+                SortMode.NAME_ASC -> stringResource(R.string.sftp_sort_name_asc)
+                SortMode.NAME_DESC -> stringResource(R.string.sftp_sort_name_desc)
+                SortMode.SIZE_ASC -> stringResource(R.string.sftp_sort_size_asc)
+                SortMode.SIZE_DESC -> stringResource(R.string.sftp_sort_size_desc)
+                SortMode.DATE_ASC -> stringResource(R.string.sftp_sort_date_asc)
+                SortMode.DATE_DESC -> stringResource(R.string.sftp_sort_date_desc)
             }
             DropdownMenuItem(
                 text = { Text(label) },
@@ -659,13 +673,13 @@ private fun EmptyState() {
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            "SFTP File Browser",
+            stringResource(R.string.sftp_file_browser_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 16.dp),
         )
         Text(
-            "Connect to a server to browse files",
+            stringResource(R.string.sftp_connect_to_browse),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),

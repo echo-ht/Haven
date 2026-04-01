@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Cancelar</string>
+    <string name="common_save">Salvar</string>
+    <string name="common_done">Concluído</string>
+    <string name="common_close">Fechar</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Excluir</string>
+    <string name="common_edit">Editar</string>
+    <string name="common_rename">Renomear</string>
+    <string name="common_create">Criar</string>
+    <string name="common_connect">Conectar</string>
+    <string name="common_disconnect">Desconectar</string>
+    <string name="common_copy">Copiar</string>
+    <string name="common_paste">Colar</string>
+    <string name="common_label">Rótulo</string>
+    <string name="common_password">Senha</string>
+    <string name="common_port">Porta</string>
+    <string name="common_host">Host</string>
+    <string name="common_username">Usuário</string>
+    <string name="common_install">Instalar</string>
+    <string name="common_reset">Redefinir</string>
+    <string name="common_allow">Permitir</string>
+    <string name="common_not_now">Agora não</string>
+    <string name="common_import">Importar</string>
+    <string name="common_add">Adicionar</string>
+    <string name="common_download">Baixar</string>
+    <string name="common_unlock">Desbloquear</string>
+
+    <!-- KeysScreen -->
+    <string name="keys_add_key">Adicionar chave</string>
+    <string name="keys_no_ssh_keys">Nenhuma chave SSH</string>
+    <string name="keys_tap_to_add">Toque + para gerar ou importar uma chave</string>
+    <string name="keys_copy_public_key">Copiar chave pública</string>
+    <string name="keys_export_private_key">Exportar chave privada</string>
+
+    <!-- AddKeyChooser -->
+    <string name="keys_add_ssh_key">Adicionar chave SSH</string>
+    <string name="keys_generate_new_key">Gerar nova chave</string>
+    <string name="keys_generate_key_types">Ed25519, RSA ou ECDSA</string>
+    <string name="keys_import_from_file">Importar de arquivo</string>
+    <string name="keys_import_file_formats">Formato PEM, OpenSSH ou Dropbear</string>
+    <string name="keys_paste_from_clipboard">Colar da área de transferência</string>
+    <string name="keys_paste_clipboard_hint">Apenas chaves em texto (PEM/OpenSSH). Use importar arquivo para chaves binárias Dropbear.</string>
+    <string name="keys_clipboard_empty">Área de transferência vazia</string>
+    <string name="keys_clipboard_not_text_key">A área de transferência não contém uma chave SSH em texto. Chaves binárias (ex. Dropbear) devem ser importadas de arquivo.</string>
+
+    <!-- GenerateKeyDialog -->
+    <string name="keys_generate_ssh_key">Gerar chave SSH</string>
+    <string name="keys_label_placeholder">ex. meu-servidor</string>
+    <string name="keys_key_type">Tipo de chave</string>
+    <string name="keys_generate">Gerar</string>
+
+    <!-- PassphraseDialog -->
+    <string name="keys_encrypted_key">Chave criptografada</string>
+    <string name="keys_passphrase_prompt">Esta chave é protegida por uma frase secreta.</string>
+    <string name="keys_passphrase">Frase secreta</string>
+    <string name="keys_unlock">Desbloquear</string>
+
+    <!-- ImportLabelDialog -->
+    <string name="keys_import_ssh_key">Importar chave SSH</string>
+    <string name="keys_import">Importar</string>
+
+    <!-- copyPublicKey -->
+    <string name="keys_ssh_public_key_clip_label">Chave pública SSH</string>
+</resources>

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Annuler</string>
+    <string name="common_save">Enregistrer</string>
+    <string name="common_done">Terminé</string>
+    <string name="common_close">Fermer</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Supprimer</string>
+    <string name="common_edit">Modifier</string>
+    <string name="common_rename">Renommer</string>
+    <string name="common_create">Créer</string>
+    <string name="common_connect">Connecter</string>
+    <string name="common_disconnect">Déconnecter</string>
+    <string name="common_copy">Copier</string>
+    <string name="common_paste">Coller</string>
+    <string name="common_label">Libellé</string>
+    <string name="common_password">Mot de passe</string>
+    <string name="common_port">Port</string>
+    <string name="common_host">Hôte</string>
+    <string name="common_username">Nom d\'utilisateur</string>
+    <string name="common_install">Installer</string>
+    <string name="common_reset">Réinitialiser</string>
+    <string name="common_allow">Autoriser</string>
+    <string name="common_not_now">Pas maintenant</string>
+    <string name="common_import">Importer</string>
+    <string name="common_add">Ajouter</string>
+    <string name="common_download">Télécharger</string>
+    <string name="common_unlock">Déverrouiller</string>
+
+    <!-- Common strings (shared across features) -->
+
+    <!-- Connections screen -->
+    <string name="connections_title">Connexions</string>
+    <string name="connections_add">Ajouter une connexion</string>
+    <string name="connections_quick_connect_placeholder">user@host ou host:port</string>
+    <string name="connections_quick_connect_button">Connecter</string>
+    <string name="connections_quick_connect_error">Format : user@host ou user@host:port</string>
+    <string name="connections_filter_placeholder">Filtrer les connexions\u2026</string>
+    <string name="connections_filter_clear">Effacer le filtre</string>
+    <string name="connections_reorder">Réorganiser</string>
+
+    <!-- Empty state -->
+    <string name="connections_empty_title">Aucune connexion</string>
+    <string name="connections_empty_subtitle">Appuyez sur + pour ajouter un serveur ou saisissez user@host ci-dessus</string>
+
+    <!-- Connection status -->
+    <string name="connections_status_connected">Connecté</string>
+    <string name="connections_status_error">Erreur</string>
+    <string name="connections_status_disconnected">Déconnecté</string>
+
+    <!-- Connection tree item -->
+    <string name="connections_proot_label">PRoot Alpine Linux</string>
+    <string name="connections_launch_desktop">Lancer le bureau</string>
+    <string name="connections_setup_desktop">Configurer le bureau</string>
+
+    <!-- Connection context menu -->
+    <string name="connections_menu_port_forwards">Redirection de ports</string>
+    <string name="connections_menu_connect_with_password">Connecter avec mot de passe</string>
+    <string name="connections_menu_sessions">Sessions</string>
+    <string name="connections_menu_disconnect">Déconnecter</string>
+    <string name="connections_menu_deploy_ssh_key">Déployer la clé SSH</string>
+
+    <!-- Delete confirmation dialog -->
+    <string name="connections_delete_title">Supprimer la connexion ?</string>
+    <string name="connections_delete_message">Supprimer \"%1$s\" ? Cette action est irréversible.</string>
+
+    <!-- Deploy key snackbar -->
+    <string name="connections_key_deployed">Clé SSH déployée avec succès</string>
+
+    <!-- Battery optimization dialog -->
+    <string name="connections_battery_title">Maintenir les connexions ?</string>
+    <string name="connections_battery_message">Android peut fermer les connexions SSH en arrière-plan pour économiser la batterie. Désactiver l\'optimisation de la batterie pour Haven empêche cela.</string>
+
+    <!-- Mosh setup guide dialog -->
+    <string name="connections_mosh_not_found_title">Mosh introuvable sur le serveur</string>
+    <string name="connections_mosh_not_found_message">L\'hôte distant n\'a pas mosh-server installé. Mosh (Mobile Shell) maintient votre session lors des changements de réseau et des connexions à latence élevée.</string>
+    <string name="connections_mosh_install_prompt">Installez-le sur le serveur :</string>
+    <string name="connections_mosh_install_commands">\u0020 Ubuntu/Debian:  sudo apt install mosh\n\u0020 Fedora/RHEL:    sudo dnf install mosh\n\u0020 Arch:           sudo pacman -S mosh\n\u0020 macOS:          brew install mosh</string>
+    <string name="connections_mosh_firewall_note">Le port UDP 60001 doit être ouvert sur le pare-feu du serveur.</string>
+    <string name="connections_mosh_github">Mosh sur GitHub</string>
+
+    <!-- Mosh client missing dialog -->
+    <string name="connections_mosh_client_missing_title">Client Mosh non compilé</string>
+    <string name="connections_mosh_client_missing_message">Le binaire mosh-client n\'est pas inclus dans cette version. Il doit être compilé pour Android avec le NDK.</string>
+    <string name="connections_mosh_client_build_instructions">Exécutez tools/build-mosh.sh avec Android NDK r27+ pour compiler mosh-client, puis recompilez l\'application.</string>
+
+    <!-- Session picker dialog -->
+    <string name="connections_sessions_title">Sessions %1$s</string>
+    <string name="connections_restore_previous_sessions">Restaurer %1$d sessions précédentes</string>
+    <string name="connections_rename_session">Renommer la session</string>
+    <string name="connections_kill_session">Terminer la session</string>
+    <string name="connections_new_session">Nouvelle session</string>
+
+    <!-- Rename dialog -->
+    <string name="connections_rename_title">Renommer la connexion</string>
+
+    <!-- Linux VM card -->
+    <string name="connections_linux_vm">Linux VM</string>
+    <string name="connections_vm_tap_to_setup">Appuyez pour configurer</string>
+    <string name="connections_vm_status_active">Active</string>
+    <string name="connections_vm_refresh">Actualiser le statut VM</string>
+
+    <!-- Desktop setup dialog -->
+    <string name="connections_desktop_setup_title">Configuration du bureau</string>
+    <string name="connections_desktop_wayland_description">Installer un compositeur Wayland dans l\'environnement PRoot. Expérimental — rendu logiciel.</string>
+    <string name="connections_desktop_openbox_description">Installer un bureau et un serveur VNC dans l\'environnement PRoot. Openbox est minimal — clic droit sur le bureau pour le menu.</string>
+    <string name="connections_desktop_vnc_description">Installer un bureau et un serveur VNC dans l\'environnement PRoot.</string>
+    <string name="connections_desktop_vnc_password">Mot de passe VNC</string>
+    <string name="connections_desktop_shell">Shell</string>
+    <string name="connections_desktop_installed">Bureau installé. Connexion VNC\u2026</string>
+    <string name="connections_desktop_setup_failed">Échec de la configuration : %1$s</string>
+
+    <!-- New group dialog -->
+    <string name="connections_new_group_title">Nouveau groupe</string>
+    <string name="connections_group_name">Nom du groupe</string>
+
+    <!-- Group header -->
+    <string name="connections_launch_group">Lancer le groupe</string>
+    <string name="connections_expand">Développer</string>
+    <string name="connections_collapse">Réduire</string>
+    <string name="connections_menu_launch_all">Tout lancer</string>
+    <string name="connections_menu_delete_group">Supprimer le groupe</string>
+    <string name="connections_new_group_action">Nouveau groupe</string>
+</resources>

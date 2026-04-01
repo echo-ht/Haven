@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">Отмена</string>
+    <string name="common_save">Сохранить</string>
+    <string name="common_done">Готово</string>
+    <string name="common_close">Закрыть</string>
+    <string name="common_ok">OK</string>
+    <string name="common_delete">Удалить</string>
+    <string name="common_edit">Изменить</string>
+    <string name="common_rename">Переименовать</string>
+    <string name="common_create">Создать</string>
+    <string name="common_connect">Подключить</string>
+    <string name="common_disconnect">Отключить</string>
+    <string name="common_copy">Копировать</string>
+    <string name="common_paste">Вставить</string>
+    <string name="common_label">Метка</string>
+    <string name="common_password">Пароль</string>
+    <string name="common_port">Порт</string>
+    <string name="common_host">Хост</string>
+    <string name="common_username">Имя пользователя</string>
+    <string name="common_install">Установить</string>
+    <string name="common_reset">Сбросить</string>
+    <string name="common_allow">Разрешить</string>
+    <string name="common_not_now">Не сейчас</string>
+    <string name="common_import">Импорт</string>
+    <string name="common_add">Добавить</string>
+    <string name="common_download">Скачать</string>
+    <string name="common_unlock">Разблокировать</string>
+
+    <!-- KeysScreen -->
+    <string name="keys_add_key">Добавить ключ</string>
+    <string name="keys_no_ssh_keys">Нет SSH-ключей</string>
+    <string name="keys_tap_to_add">Нажмите + чтобы создать или импортировать ключ</string>
+    <string name="keys_copy_public_key">Копировать открытый ключ</string>
+    <string name="keys_export_private_key">Экспортировать закрытый ключ</string>
+
+    <!-- AddKeyChooser -->
+    <string name="keys_add_ssh_key">Добавить SSH-ключ</string>
+    <string name="keys_generate_new_key">Создать новый ключ</string>
+    <string name="keys_generate_key_types">Ed25519, RSA или ECDSA</string>
+    <string name="keys_import_from_file">Импорт из файла</string>
+    <string name="keys_import_file_formats">Формат PEM, OpenSSH или Dropbear</string>
+    <string name="keys_paste_from_clipboard">Вставить из буфера обмена</string>
+    <string name="keys_paste_clipboard_hint">Только текстовые ключи (PEM/OpenSSH). Бинарные ключи Dropbear импортируйте из файла.</string>
+    <string name="keys_clipboard_empty">Буфер обмена пуст</string>
+    <string name="keys_clipboard_not_text_key">В буфере обмена нет текстового SSH-ключа. Бинарные ключи (напр. Dropbear) импортируйте из файла.</string>
+
+    <!-- GenerateKeyDialog -->
+    <string name="keys_generate_ssh_key">Создать SSH-ключ</string>
+    <string name="keys_label_placeholder">напр. my-server</string>
+    <string name="keys_key_type">Тип ключа</string>
+    <string name="keys_generate">Создать</string>
+
+    <!-- PassphraseDialog -->
+    <string name="keys_encrypted_key">Зашифрованный ключ</string>
+    <string name="keys_passphrase_prompt">Этот ключ защищён паролем.</string>
+    <string name="keys_passphrase">Парольная фраза</string>
+    <string name="keys_unlock">Разблокировать</string>
+
+    <!-- ImportLabelDialog -->
+    <string name="keys_import_ssh_key">Импорт SSH-ключа</string>
+    <string name="keys_import">Импорт</string>
+
+    <!-- copyPublicKey -->
+    <string name="keys_ssh_public_key_clip_label">Открытый SSH-ключ</string>
+</resources>

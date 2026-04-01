@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="common_cancel">रद्द करें</string>
+    <string name="common_save">सहेजें</string>
+    <string name="common_done">हो गया</string>
+    <string name="common_close">बंद करें</string>
+    <string name="common_ok">ठीक है</string>
+    <string name="common_delete">हटाएँ</string>
+    <string name="common_edit">संपादित करें</string>
+    <string name="common_rename">नाम बदलें</string>
+    <string name="common_create">बनाएँ</string>
+    <string name="common_connect">कनेक्ट करें</string>
+    <string name="common_disconnect">डिस्कनेक्ट करें</string>
+    <string name="common_copy">कॉपी करें</string>
+    <string name="common_paste">पेस्ट करें</string>
+    <string name="common_label">लेबल</string>
+    <string name="common_password">पासवर्ड</string>
+    <string name="common_port">पोर्ट</string>
+    <string name="common_host">होस्ट</string>
+    <string name="common_username">उपयोगकर्ता नाम</string>
+    <string name="common_install">इंस्टॉल करें</string>
+    <string name="common_reset">रीसेट करें</string>
+    <string name="common_allow">अनुमति दें</string>
+    <string name="common_not_now">अभी नहीं</string>
+    <string name="common_import">आयात करें</string>
+    <string name="common_add">जोड़ें</string>
+    <string name="common_download">डाउनलोड करें</string>
+    <string name="common_unlock">अनलॉक करें</string>
+
+    <!-- KeysScreen -->
+    <string name="keys_add_key">कुंजी जोड़ें</string>
+    <string name="keys_no_ssh_keys">कोई SSH कुंजी नहीं</string>
+    <string name="keys_tap_to_add">कुंजी बनाने या आयात करने के लिए + दबाएँ</string>
+    <string name="keys_copy_public_key">सार्वजनिक कुंजी कॉपी करें</string>
+    <string name="keys_export_private_key">निजी कुंजी निर्यात करें</string>
+
+    <!-- AddKeyChooser -->
+    <string name="keys_add_ssh_key">SSH कुंजी जोड़ें</string>
+    <string name="keys_generate_new_key">नई कुंजी बनाएँ</string>
+    <string name="keys_generate_key_types">Ed25519, RSA, या ECDSA</string>
+    <string name="keys_import_from_file">फ़ाइल से आयात करें</string>
+    <string name="keys_import_file_formats">PEM, OpenSSH, या Dropbear प्रारूप</string>
+    <string name="keys_paste_from_clipboard">क्लिपबोर्ड से पेस्ट करें</string>
+    <string name="keys_paste_clipboard_hint">केवल टेक्स्ट कुंजियाँ (PEM/OpenSSH)। बाइनरी Dropbear कुंजियों के लिए फ़ाइल आयात का उपयोग करें।</string>
+    <string name="keys_clipboard_empty">क्लिपबोर्ड खाली है</string>
+    <string name="keys_clipboard_not_text_key">क्लिपबोर्ड में टेक्स्ट SSH कुंजी नहीं है। बाइनरी कुंजियाँ (जैसे Dropbear) फ़ाइल से आयात करनी होंगी।</string>
+
+    <!-- GenerateKeyDialog -->
+    <string name="keys_generate_ssh_key">SSH कुंजी बनाएँ</string>
+    <string name="keys_label_placeholder">उदा. my-server</string>
+    <string name="keys_key_type">कुंजी का प्रकार</string>
+    <string name="keys_generate">बनाएँ</string>
+
+    <!-- PassphraseDialog -->
+    <string name="keys_encrypted_key">एन्क्रिप्टेड कुंजी</string>
+    <string name="keys_passphrase_prompt">यह कुंजी पासफ़्रेज़ से सुरक्षित है।</string>
+    <string name="keys_passphrase">पासफ़्रेज़</string>
+    <string name="keys_unlock">अनलॉक करें</string>
+
+    <!-- ImportLabelDialog -->
+    <string name="keys_import_ssh_key">SSH कुंजी आयात करें</string>
+    <string name="keys_import">आयात करें</string>
+
+    <!-- copyPublicKey -->
+    <string name="keys_ssh_public_key_clip_label">SSH सार्वजनिक कुंजी</string>
+</resources>
