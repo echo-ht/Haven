@@ -183,7 +183,9 @@ fun HavenNavHost(
                                 if (navDragIndex < 0) {
                                     val pageIndex = screens.indexOf(screen)
                                     if (pageIndex >= 0) coroutineScope.launch {
-                                        pagerState.animateScrollToPage(pageIndex)
+                                        // Use instant scroll to avoid double-jump through
+                                        // intermediate pages during animated scroll
+                                        pagerState.scrollToPage(pageIndex)
                                     }
                                 }
                             },

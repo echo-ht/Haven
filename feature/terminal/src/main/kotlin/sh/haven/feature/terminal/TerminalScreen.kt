@@ -369,6 +369,21 @@ fun TerminalScreen(
                                         Icon(Icons.Filled.Close, null, modifier = Modifier.size(18.dp))
                                     }
                                 }
+                                // Show connected sessions that don't have a tab open
+                                val untabbed by viewModel.untabbedSessions.collectAsState()
+                                if (untabbed.isNotEmpty()) {
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                    untabbed.forEach { session ->
+                                        DropdownMenuItem(
+                                            text = { Text(session.label, style = MaterialTheme.typography.bodySmall) },
+                                            leadingIcon = { Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp)) },
+                                            onClick = {
+                                                showTabMenu = false
+                                                viewModel.selectTabByProfileId(session.profileId)
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -293,6 +294,43 @@ class TerminalViewModel @Inject constructor(
 
     private val _tabs = MutableStateFlow<List<TerminalTab>>(emptyList())
     val tabs: StateFlow<List<TerminalTab>> = _tabs.asStateFlow()
+
+    /** Connected sessions that don't have an open terminal tab.
+     *  Shown in the tab long-press popup to quickly open a tab. */
+    data class AvailableSession(val profileId: String, val label: String, val sessionId: String)
+
+    val untabbedSessions: StateFlow<List<AvailableSession>> =
+        combine(
+            sessionManager.sessions,
+            reticulumSessionManager.sessions,
+            moshSessionManager.sessions,
+            etSessionManager.sessions,
+            _tabs,
+        ) { ssh, rns, mosh, et, tabs ->
+            val tabbedSessionIds = tabs.map { it.sessionId }.toSet()
+            val available = mutableListOf<AvailableSession>()
+            for ((id, state) in ssh) {
+                if (id !in tabbedSessionIds && state.status == SshSessionManager.SessionState.Status.CONNECTED) {
+                    available.add(AvailableSession(state.profileId, state.label, id))
+                }
+            }
+            for ((id, state) in rns) {
+                if (id !in tabbedSessionIds && state.status == ReticulumSessionManager.SessionState.Status.CONNECTED) {
+                    available.add(AvailableSession(state.profileId, state.label, id))
+                }
+            }
+            for ((id, state) in mosh) {
+                if (id !in tabbedSessionIds && state.status == MoshSessionManager.SessionState.Status.CONNECTED) {
+                    available.add(AvailableSession(state.profileId, state.label, id))
+                }
+            }
+            for ((id, state) in et) {
+                if (id !in tabbedSessionIds && state.status == EtSessionManager.SessionState.Status.CONNECTED) {
+                    available.add(AvailableSession(state.profileId, state.label, id))
+                }
+            }
+            available
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Emitted once when a session closes and no tabs remain. */
     private val _navigateToConnections = MutableStateFlow(false)
