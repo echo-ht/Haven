@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_connections">कनेक्शन</string>
+    <string name="nav_terminal">टर्मिनल</string>
+    <string name="nav_desktop">डेस्कटॉप</string>
+    <string name="nav_keys">कुंजियाँ</string>
+    <string name="nav_sftp">फ़ाइलें</string>
+    <string name="nav_settings">सेटिंग्स</string>
+</resources>

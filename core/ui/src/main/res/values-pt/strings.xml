@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_connections">Conexões</string>
+    <string name="nav_terminal">Terminal</string>
+    <string name="nav_desktop">Desktop</string>
+    <string name="nav_keys">Chaves</string>
+    <string name="nav_sftp">Arquivos</string>
+    <string name="nav_settings">Configurações</string>
+</resources>

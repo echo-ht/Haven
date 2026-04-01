@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Navigation tabs -->
+    <string name="nav_connections">Connect</string>
+    <string name="nav_terminal">Terminal</string>
+    <string name="nav_desktop">Desktop</string>
+    <string name="nav_keys">Keys</string>
+    <string name="nav_sftp">Files</string>
+    <string name="nav_settings">Settings</string>
+
     <!-- Common strings shared across all feature modules -->
     <string name="common_cancel">Cancel</string>
     <string name="common_save">Save</string>

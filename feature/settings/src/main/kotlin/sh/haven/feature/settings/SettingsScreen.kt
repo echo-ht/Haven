@@ -826,7 +826,7 @@ private fun ScreenOrderDialog(
                 order.forEachIndexed { index, screen ->
                     val isDragged = index == draggedIndex
                     ListItem(
-                        headlineContent = { Text(screen.label) },
+                        headlineContent = { Text(stringResource(screen.labelRes)) },
                         leadingContent = {
                             Icon(
                                 screen.icon,

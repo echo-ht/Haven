@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_connections">সংযোগ</string>
+    <string name="nav_terminal">টার্মিনাল</string>
+    <string name="nav_desktop">ডেস্কটপ</string>
+    <string name="nav_keys">কী</string>
+    <string name="nav_sftp">ফাইল</string>
+    <string name="nav_settings">সেটিংস</string>
+</resources>

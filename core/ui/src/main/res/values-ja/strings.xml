@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_connections">接続</string>
+    <string name="nav_terminal">ターミナル</string>
+    <string name="nav_desktop">デスクトップ</string>
+    <string name="nav_keys">鍵</string>
+    <string name="nav_sftp">ファイル</string>
+    <string name="nav_settings">設定</string>
+</resources>

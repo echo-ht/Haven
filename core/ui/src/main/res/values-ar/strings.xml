@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_connections">اتصالات</string>
+    <string name="nav_terminal">طرفية</string>
+    <string name="nav_desktop">سطح المكتب</string>
+    <string name="nav_keys">مفاتيح</string>
+    <string name="nav_sftp">ملفات</string>
+    <string name="nav_settings">إعدادات</string>
+</resources>
