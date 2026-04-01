@@ -332,6 +332,29 @@ class TerminalViewModel @Inject constructor(
             available
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Remote session manager session names (tmux/zellij/screen) for the active tab's connection. */
+    private val _remoteSessionNames = MutableStateFlow<List<String>>(emptyList())
+    val remoteSessionNames: StateFlow<List<String>> = _remoteSessionNames.asStateFlow()
+
+    /** Refresh the list of remote sessions for the active tab's connection. */
+    fun refreshRemoteSessions() {
+        val activeTab = _tabs.value.getOrNull(_activeTabIndex.value) ?: return
+        if (activeTab.transportType != "SSH") return
+        val configPair = sessionManager.getConnectionConfigForProfile(activeTab.profileId) ?: return
+        val (_, sshSessionMgr) = configPair
+        val listCmd = sshSessionMgr.listCommand ?: return
+        val session = sessionManager.getSession(activeTab.sessionId) ?: return
+        val client = session.client
+        viewModelScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) { client.execCommand(listCmd) }
+                if (result.exitStatus == 0) {
+                    _remoteSessionNames.value = SessionManager.parseSessionList(sshSessionMgr, result.stdout)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     /** Emitted once when a session closes and no tabs remain. */
     private val _navigateToConnections = MutableStateFlow(false)
     val navigateToConnections: StateFlow<Boolean> = _navigateToConnections.asStateFlow()
@@ -1315,6 +1338,42 @@ class TerminalViewModel @Inject constructor(
                 selectTabBySessionId(sessionId)
             } catch (e: Exception) {
                 Log.e(TAG, "addReticulumTab failed", e)
+            } finally {
+                _newTabLoading.value = false
+            }
+        }
+    }
+
+    /** Open a new tab attached to a named remote session (tmux/zellij/screen).
+     *  Creates a new SSH connection to the same profile and attaches to the named session. */
+    fun openRemoteSession(profileId: String, sessionName: String) {
+        val configPair = sessionManager.getConnectionConfigForProfile(profileId) ?: return
+        val (config, sshSessionMgr) = configPair
+        val existingTab = _tabs.value.firstOrNull { it.profileId == profileId }
+        val label = existingTab?.label ?: config.host
+
+        viewModelScope.launch {
+            _newTabLoading.value = true
+            val client = SshClient()
+            val sessionId = sessionManager.registerSession(profileId, label, client)
+            try {
+                val hostKeyEntry = withContext(Dispatchers.IO) { client.connect(config) }
+                when (val hkResult = hostKeyVerifier.verify(hostKeyEntry)) {
+                    is HostKeyResult.Trusted -> {}
+                    is HostKeyResult.NewHost -> hostKeyVerifier.accept(hkResult.entry)
+                    is HostKeyResult.KeyChanged -> {
+                        client.disconnect()
+                        sessionManager.removeSession(sessionId)
+                        _newTabLoading.value = false
+                        return@launch
+                    }
+                }
+                sessionManager.storeConnectionConfig(sessionId, config, sshSessionMgr)
+                sessionManager.setChosenSessionName(sessionId, sessionName)
+                finishNewSshTab(sessionId)
+            } catch (e: Exception) {
+                Log.e(TAG, "openRemoteSession failed", e)
+                sessionManager.removeSession(sessionId)
             } finally {
                 _newTabLoading.value = false
             }

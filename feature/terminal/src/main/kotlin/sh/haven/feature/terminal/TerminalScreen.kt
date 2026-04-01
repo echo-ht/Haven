@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -316,6 +317,10 @@ fun TerminalScreen(
                                     )
                                 }
                             }
+                            // Refresh remote sessions when popup opens
+                            LaunchedEffect(showTabMenu) {
+                                if (showTabMenu) viewModel.refreshRemoteSessions()
+                            }
                             // Long-press action bar
                             DropdownMenu(
                                 expanded = showTabMenu,
@@ -369,14 +374,29 @@ fun TerminalScreen(
                                         Icon(Icons.Filled.Close, null, modifier = Modifier.size(18.dp))
                                     }
                                 }
-                                // Show connected sessions that don't have a tab open
+                                // Show connected sessions without tabs + remote sessions (tmux/zellij)
                                 val untabbed by viewModel.untabbedSessions.collectAsState()
-                                if (untabbed.isNotEmpty()) {
+                                val remoteSessions by viewModel.remoteSessionNames.collectAsState()
+                                val tabbedRemoteSessions = tabs.map { it.label }.toSet()
+                                val untabbedRemote = remoteSessions.filter { it !in tabbedRemoteSessions }
+                                if (untabbed.isNotEmpty() || untabbedRemote.isNotEmpty()) {
                                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                    // Remote sessions (tmux/zellij/screen) on current connection
+                                    untabbedRemote.forEach { name ->
+                                        DropdownMenuItem(
+                                            text = { Text(name, style = MaterialTheme.typography.bodySmall) },
+                                            leadingIcon = { Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp)) },
+                                            onClick = {
+                                                showTabMenu = false
+                                                viewModel.openRemoteSession(tab.profileId, name)
+                                            },
+                                        )
+                                    }
+                                    // Other SSH connections without tabs
                                     untabbed.forEach { session ->
                                         DropdownMenuItem(
                                             text = { Text(session.label, style = MaterialTheme.typography.bodySmall) },
-                                            leadingIcon = { Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp)) },
+                                            leadingIcon = { Icon(Icons.Filled.Cable, null, modifier = Modifier.size(16.dp)) },
                                             onClick = {
                                                 showTabMenu = false
                                                 viewModel.selectTabByProfileId(session.profileId)
