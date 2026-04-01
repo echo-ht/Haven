@@ -58,4 +58,13 @@ object WaylandBridge {
 
     /** Launch a native Wayland client binary (e.g. GPU benchmark). */
     external fun nativeLaunchBenchmark(binaryPath: String)
+
+    /** Start virgl_test_server for GPU-accelerated OpenGL in PRoot apps. */
+    external fun nativeStartVirglServer(binaryPath: String, socketPath: String)
+
+    /** Stop the virgl_test_server process. */
+    external fun nativeStopVirglServer()
+
+    /** Check if virgl_test_server is still running. */
+    external fun nativeIsVirglRunning(): Boolean
 }
