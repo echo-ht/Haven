@@ -70,10 +70,11 @@
 
     <!-- Wayland section -->
     <string name="settings_wayland_shell_title">Shell de escritorio Wayland</string>
-    <string name="settings_shizuku_title">Acceso Wayland de Termux (Shizuku)</string>
-    <string name="settings_shizuku_enabled">Habilitado — socket vinculado a /data/local/tmp/haven-wayland/</string>
+    <string name="settings_shizuku_title">Integración Shizuku</string>
+    <string name="settings_shizuku_enabled">Activado — exención automática de batería, socket Wayland compartido</string>
     <string name="settings_shizuku_available">Shizuku instalado — toca para conceder permiso</string>
-    <string name="settings_shizuku_not_installed">Instala Shizuku para acceso de socket entre apps</string>
+    <string name="settings_shizuku_not_running">Shizuku instalado pero no activo — toca para abrir e iniciar con Depuración inalámbrica</string>
+    <string name="settings_shizuku_not_installed">Instalar Shizuku para exención de batería y acceso Wayland</string>
 
     <!-- Backup section -->
     <string name="settings_export_backup_title">Exportar respaldo</string>

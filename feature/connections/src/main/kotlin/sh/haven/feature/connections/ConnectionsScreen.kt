@@ -289,7 +289,12 @@ fun ConnectionsScreen(
         if (!batteryPromptDismissed) {
             val pm = context.getSystemService(PowerManager::class.java)
             if (pm != null && !pm.isIgnoringBatteryOptimizations(context.packageName)) {
-                showBatteryDialog = true
+                // If Shizuku is available, silently whitelist without bothering the user
+                if (sh.haven.core.local.WaylandSocketHelper.tryDisableBatteryOptimization(context.packageName)) {
+                    viewModel.dismissBatteryPrompt()
+                } else {
+                    showBatteryDialog = true
+                }
             }
         }
     }

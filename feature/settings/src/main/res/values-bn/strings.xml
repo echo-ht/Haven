@@ -70,10 +70,11 @@
 
     <!-- Wayland section -->
     <string name="settings_wayland_shell_title">Wayland ডেস্কটপ শেল</string>
-    <string name="settings_shizuku_title">Termux Wayland অ্যাক্সেস (Shizuku)</string>
-    <string name="settings_shizuku_enabled">সক্রিয় — সকেট /data/local/tmp/haven-wayland/-এ লিঙ্ক করা হয়েছে</string>
+    <string name="settings_shizuku_title">Shizuku ইন্টিগ্রেশন</string>
+    <string name="settings_shizuku_enabled">সক্রিয় — স্বয়ংক্রিয় ব্যাটারি ছাড়, Wayland সকেট শেয়ারিং</string>
     <string name="settings_shizuku_available">Shizuku ইনস্টল আছে — অনুমতি দিতে ট্যাপ করুন</string>
-    <string name="settings_shizuku_not_installed">ক্রস-অ্যাপ সকেট অ্যাক্সেসের জন্য Shizuku ইনস্টল করুন</string>
+    <string name="settings_shizuku_not_running">Shizuku ইনস্টল কিন্তু চলছে না — ওয়্যারলেস ডিবাগিং দিয়ে শুরু করতে ট্যাপ করুন</string>
+    <string name="settings_shizuku_not_installed">ব্যাটারি ছাড় এবং Wayland অ্যাক্সেসের জন্য Shizuku ইনস্টল করুন</string>
 
     <!-- Backup section -->
     <string name="settings_export_backup_title">ব্যাকআপ এক্সপোর্ট</string>

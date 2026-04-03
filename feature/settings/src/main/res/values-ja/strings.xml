@@ -70,10 +70,11 @@
 
     <!-- Wayland section -->
     <string name="settings_wayland_shell_title">Waylandデスクトップシェル</string>
-    <string name="settings_shizuku_title">Termux Waylandアクセス（Shizuku）</string>
-    <string name="settings_shizuku_enabled">有効 -- ソケットが/data/local/tmp/haven-wayland/にリンク済み</string>
+    <string name="settings_shizuku_title">Shizuku連携</string>
+    <string name="settings_shizuku_enabled">有効 — バッテリー最適化の自動除外、Waylandソケット共有</string>
     <string name="settings_shizuku_available">Shizukuインストール済み -- タップして権限を付与</string>
-    <string name="settings_shizuku_not_installed">クロスアプリソケットアクセスにはShizukuをインストール</string>
+    <string name="settings_shizuku_not_running">Shizukuはインストール済みだが未起動 — タップしてワイヤレスデバッグで起動</string>
+    <string name="settings_shizuku_not_installed">バッテリー除外とWaylandアクセスにShizukuをインストール</string>
 
     <!-- Backup section -->
     <string name="settings_export_backup_title">バックアップをエクスポート</string>

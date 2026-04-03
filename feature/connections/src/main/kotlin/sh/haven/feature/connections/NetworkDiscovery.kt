@@ -108,8 +108,23 @@ class NetworkDiscovery(private val context: Context) {
             val vncPorts = listOf(5900, 5901, 5902)
 
             // Probe localhost forwarded ports
-            val sshPort = sshPorts.firstOrNull { probePort("127.0.0.1", it, 100) }
-            val vncPort = vncPorts.firstOrNull { probePort("127.0.0.1", it, 100) }
+            var sshPort = sshPorts.firstOrNull { probePort("127.0.0.1", it, 100) }
+            var vncPort = vncPorts.firstOrNull { probePort("127.0.0.1", it, 100) }
+
+            // If no localhost SSH but VM exists, try auto-forwarding via Shizuku
+            if (sshPort == null && terminalInstalled) {
+                val helper = sh.haven.core.local.WaylandSocketHelper
+                if (helper.isShizukuAvailable() && helper.hasShizukuPermission()) {
+                    if (helper.tryVsockForward(8022, 22)) {
+                        // Give socat a moment to bind
+                        kotlinx.coroutines.delay(200)
+                        if (probePort("127.0.0.1", 8022, 200)) {
+                            sshPort = 8022
+                            Log.i(TAG, "Auto-forwarded VM SSH via Shizuku: localhost:8022 → vsock:2:22")
+                        }
+                    }
+                }
+            }
 
             // Probe VM's direct IP (avf_tap_fixed interface)
             val vmIp = discoverVmDirectIp()
@@ -145,42 +160,58 @@ class NetworkDiscovery(private val context: Context) {
 
     /**
      * Discover the VM's direct IP by reading /proc/net/route for avf_tap interfaces.
-     * Returns the gateway IP or derived host IP (e.g. 10.255.32.2).
+     * SELinux blocks /proc/net/route on Android 14+ for untrusted_app, so we try
+     * Shizuku first (reads via shell context), then fall back to direct read.
      */
     private fun discoverVmDirectIp(): String? {
-        return try {
-            BufferedReader(FileReader("/proc/net/route")).use { reader ->
-                reader.readLine() // skip header
-                var line = reader.readLine()
-                while (line != null) {
-                    val fields = line.split("\t")
-                    if (fields.size >= 3 && fields[0].startsWith("avf_tap")) {
-                        // Gateway field is in little-endian hex
-                        val gatewayHex = fields[2]
-                        if (gatewayHex != "00000000") {
-                            val ip = hexToIp(gatewayHex)
-                            if (ip != null) return@use ip
-                        }
-                        // Try destination field as network base, VM is typically at .2
-                        val destHex = fields[1]
-                        if (destHex != "00000000") {
-                            val baseIp = hexToIp(destHex)
-                            if (baseIp != null) {
-                                val parts = baseIp.split(".")
-                                if (parts.size == 4) {
-                                    return@use "${parts[0]}.${parts[1]}.${parts[2]}.2"
-                                }
-                            }
-                        }
-                    }
-                    line = reader.readLine()
-                }
-                null
+        // Try via Shizuku first (bypasses SELinux proc_net restriction)
+        val helper = sh.haven.core.local.WaylandSocketHelper
+        if (helper.isShizukuAvailable() && helper.hasShizukuPermission()) {
+            try {
+                val process = Class.forName("rikka.shizuku.Shizuku")
+                    .getMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+                    .invoke(null, arrayOf("sh", "-c", "cat /proc/net/route"), null, null) as Process
+                val output = process.inputStream.bufferedReader().readText()
+                process.waitFor()
+                val ip = parseRouteTable(output)
+                if (ip != null) return ip
+            } catch (e: Exception) {
+                Log.d(TAG, "Shizuku route read failed: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.d(TAG, "Could not read /proc/net/route for VM IP: ${e.message}")
+        }
+
+        // Fall back to direct read (works on Android < 14 or permissive SELinux)
+        return try {
+            val output = BufferedReader(FileReader("/proc/net/route")).use { it.readText() }
+            parseRouteTable(output)
+        } catch (_: Exception) {
             null
         }
+    }
+
+    /** Parse /proc/net/route text for avf_tap interfaces and return the VM IP. */
+    private fun parseRouteTable(routeText: String): String? {
+        for (line in routeText.lines().drop(1)) { // skip header
+            val fields = line.split("\t")
+            if (fields.size >= 3 && fields[0].startsWith("avf_tap")) {
+                val gatewayHex = fields[2]
+                if (gatewayHex != "00000000") {
+                    val ip = hexToIp(gatewayHex)
+                    if (ip != null) return ip
+                }
+                val destHex = fields[1]
+                if (destHex != "00000000") {
+                    val baseIp = hexToIp(destHex)
+                    if (baseIp != null) {
+                        val parts = baseIp.split(".")
+                        if (parts.size == 4) {
+                            return "${parts[0]}.${parts[1]}.${parts[2]}.2"
+                        }
+                    }
+                }
+            }
+        }
+        return null
     }
 
     /** Convert little-endian hex IP from /proc/net/route to dotted notation. */

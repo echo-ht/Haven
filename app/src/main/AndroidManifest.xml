@@ -12,6 +12,18 @@
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
+    <!-- Package visibility: needed for detecting installed apps on targetSdk 30+ -->
+    <queries>
+        <!-- Android Terminal VM (Linux VM on Pixel 8+) -->
+        <package android:name="com.android.virtualization.terminal" />
+        <!-- Shizuku (privileged shell access) -->
+        <package android:name="moe.shizuku.privileged.api" />
+        <!-- Launch intent for Terminal VM -->
+        <intent>
+            <action android:name="android.virtualization.VM_TERMINAL" />
+        </intent>
+    </queries>
+
     <application
         android:name=".HavenApp"
         android:allowBackup="false"

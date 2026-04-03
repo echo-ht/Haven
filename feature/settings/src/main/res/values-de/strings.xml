@@ -70,10 +70,11 @@
 
     <!-- Wayland section -->
     <string name="settings_wayland_shell_title">Wayland-Desktop-Shell</string>
-    <string name="settings_shizuku_title">Termux Wayland-Zugriff (Shizuku)</string>
-    <string name="settings_shizuku_enabled">Aktiviert -- Socket verknüpft mit /data/local/tmp/haven-wayland/</string>
+    <string name="settings_shizuku_title">Shizuku-Integration</string>
+    <string name="settings_shizuku_enabled">Aktiviert — automatische Akkuausnahme, Wayland-Socket-Freigabe</string>
     <string name="settings_shizuku_available">Shizuku installiert -- tippen um Berechtigung zu erteilen</string>
-    <string name="settings_shizuku_not_installed">Shizuku für App-übergreifenden Socket-Zugriff installieren</string>
+    <string name="settings_shizuku_not_running">Shizuku installiert aber nicht aktiv — tippen zum Starten über Wireless-Debugging</string>
+    <string name="settings_shizuku_not_installed">Shizuku für Akkuausnahme und Wayland-Zugriff installieren</string>
 
     <!-- Backup section -->
     <string name="settings_export_backup_title">Sicherung exportieren</string>

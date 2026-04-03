@@ -70,10 +70,11 @@
 
     <!-- Wayland section -->
     <string name="settings_wayland_shell_title">Wayland 桌面 Shell</string>
-    <string name="settings_shizuku_title">Termux Wayland 访问 (Shizuku)</string>
-    <string name="settings_shizuku_enabled">已启用——套接字已链接到 /data/local/tmp/haven-wayland/</string>
+    <string name="settings_shizuku_title">Shizuku 集成</string>
+    <string name="settings_shizuku_enabled">已启用 — 自动电池豁免、Wayland 套接字共享</string>
     <string name="settings_shizuku_available">Shizuku 已安装——点击授予权限</string>
-    <string name="settings_shizuku_not_installed">安装 Shizuku 以进行跨应用套接字访问</string>
+    <string name="settings_shizuku_not_running">Shizuku 已安装但未运行 — 点击打开并通过无线调试启动</string>
+    <string name="settings_shizuku_not_installed">安装 Shizuku 以获取电池豁免和 Wayland 访问</string>
 
     <!-- Backup section -->
     <string name="settings_export_backup_title">导出备份</string>

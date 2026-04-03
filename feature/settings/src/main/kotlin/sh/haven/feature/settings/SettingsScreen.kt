@@ -339,19 +339,49 @@ fun SettingsScreen(
             onClick = { showWaylandShellDialog = true },
         )
         run {
-            val shizukuAvailable = sh.haven.core.local.WaylandSocketHelper.isShizukuAvailable()
-            val shizukuGranted = shizukuAvailable && sh.haven.core.local.WaylandSocketHelper.hasShizukuPermission()
+            val context = LocalContext.current
+            val helper = sh.haven.core.local.WaylandSocketHelper
+            val shizukuRunning = helper.isShizukuAvailable()
+            val shizukuInstalled = shizukuRunning || helper.isShizukuInstalled(context)
+            val shizukuGranted = shizukuRunning && helper.hasShizukuPermission()
             SettingsItem(
                 icon = Icons.Filled.DesktopWindows,
                 title = stringResource(R.string.settings_shizuku_title),
                 subtitle = when {
                     shizukuGranted -> stringResource(R.string.settings_shizuku_enabled)
-                    shizukuAvailable -> stringResource(R.string.settings_shizuku_available)
+                    shizukuRunning -> stringResource(R.string.settings_shizuku_available)
+                    shizukuInstalled -> stringResource(R.string.settings_shizuku_not_running)
                     else -> stringResource(R.string.settings_shizuku_not_installed)
                 },
                 onClick = {
-                    if (shizukuAvailable && !shizukuGranted) {
-                        sh.haven.core.local.WaylandSocketHelper.requestPermission()
+                    when {
+                        shizukuRunning && !shizukuGranted -> {
+                            helper.requestPermission()
+                        }
+                        shizukuInstalled && !shizukuRunning -> {
+                            // Open Shizuku app so user can start it
+                            val intent = context.packageManager.getLaunchIntentForPackage(
+                                "moe.shizuku.privileged.api"
+                            )
+                            if (intent != null) {
+                                context.startActivity(intent)
+                            }
+                        }
+                        !shizukuInstalled -> {
+                            // Open Play Store or browser
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse("market://details?id=moe.shizuku.privileged.api"),
+                            )
+                            if (intent.resolveActivity(context.packageManager) != null) {
+                                context.startActivity(intent)
+                            } else {
+                                context.startActivity(android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://shizuku.rikka.app/download/"),
+                                ))
+                            }
+                        }
                     }
                 },
             )
