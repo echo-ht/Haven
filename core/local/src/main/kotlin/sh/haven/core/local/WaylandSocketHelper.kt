@@ -1,6 +1,10 @@
 package sh.haven.core.local
 
+import android.content.Context
 import android.util.Log
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Creates a symlink to the Wayland socket in /data/local/tmp/ via Shizuku
@@ -12,6 +16,71 @@ import android.util.Log
 object WaylandSocketHelper {
     private const val TAG = "WaylandSocket"
     private const val LINK_DIR = "/data/local/tmp/haven-wayland"
+
+    // --- Logcat capture ---
+
+    @Volatile
+    private var logcatProcess: Process? = null
+
+    val isCapturingLogcat: Boolean get() = logcatProcess != null
+
+    /**
+     * Start capturing logcat to /sdcard/Download/haven-logcat.txt.
+     * Uses Shizuku for all-process logs if available, otherwise captures
+     * this app's own logs (no permissions needed).
+     */
+    fun startLogcatCapture(): Boolean {
+        if (logcatProcess != null) return true
+        return try {
+            if (isShizukuAvailable() && hasShizukuPermission()) {
+                newShizukuProcess("logcat -c").waitFor()
+                logcatProcess = newShizukuProcess(
+                    "logcat -v threadtime > /sdcard/Download/haven-logcat.txt"
+                )
+            } else {
+                // App-own logs — no special permissions needed
+                val pid = android.os.Process.myPid()
+                Runtime.getRuntime().exec("logcat -c").waitFor()
+                logcatProcess = Runtime.getRuntime().exec(arrayOf(
+                    "sh", "-c",
+                    "logcat -v threadtime --pid=$pid > /sdcard/Download/haven-logcat.txt"
+                ))
+            }
+            Log.d(TAG, "Logcat capture started")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start logcat capture", e)
+            false
+        }
+    }
+
+    fun stopLogcatCapture() {
+        logcatProcess?.let { proc ->
+            try {
+                proc.destroy()
+            } catch (_: Exception) {}
+            logcatProcess = null
+            Log.d(TAG, "Logcat capture stopped")
+        }
+    }
+
+    /**
+     * Install an APK using the standard Android package installer intent.
+     * Works without Shizuku — shows the system install confirmation dialog.
+     */
+    fun installApkViaIntent(context: Context, apkFile: File) {
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            apkFile,
+        )
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
 
     /**
      * Try to create a symlink at /data/local/tmp/haven-wayland/wayland-0
@@ -156,16 +225,101 @@ object WaylandSocketHelper {
         }
     }
 
-    private fun runShizukuCommand(cmd: String): Int {
-        // Use Shizuku's remote process to execute shell commands
+    /**
+     * Download an APK from [url] and install it via Shizuku's shell.
+     * Uses `pm install -S <size>` with stdin piping to avoid file permission issues.
+     * Calls [onProgress] with status updates and [onResult] with (success, message).
+     */
+    fun installApkFromUrl(
+        context: Context,
+        url: String,
+        onProgress: (String) -> Unit,
+        onResult: (Boolean, String) -> Unit,
+    ) {
+        val useShizuku = isShizukuAvailable() && hasShizukuPermission()
+        Thread {
+            try {
+                onProgress("Downloading...")
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 10000
+                connection.readTimeout = 60000
+                connection.connect()
+
+                if (connection.responseCode != 200) {
+                    onResult(false, "HTTP ${connection.responseCode}: ${connection.responseMessage}")
+                    return@Thread
+                }
+
+                val tempFile = File(context.cacheDir, "dev-install.apk")
+                val contentLength = connection.contentLength
+                var downloaded = 0L
+                connection.inputStream.use { input ->
+                    tempFile.outputStream().use { output ->
+                        val buf = ByteArray(8192)
+                        var n: Int
+                        while (input.read(buf).also { n = it } >= 0) {
+                            output.write(buf, 0, n)
+                            downloaded += n
+                            if (contentLength > 0) {
+                                val pct = (downloaded * 100 / contentLength).toInt()
+                                onProgress("Downloading... $pct%")
+                            }
+                        }
+                    }
+                }
+
+                val fileSize = tempFile.length()
+
+                if (useShizuku) {
+                    onProgress("Installing via Shizuku (${fileSize / 1024}KB)...")
+                    val process = newShizukuProcess("pm install -S $fileSize")
+                    tempFile.inputStream().use { input ->
+                        input.copyTo(process.outputStream)
+                    }
+                    process.outputStream.close()
+
+                    val exitCode = process.waitFor()
+                    val stdout = process.inputStream.bufferedReader().readText().trim()
+                    val stderr = process.errorStream.bufferedReader().readText().trim()
+                    tempFile.delete()
+
+                    if (exitCode == 0 && stdout.contains("Success")) {
+                        onResult(true, "Installed. Restart the app.")
+                    } else {
+                        onResult(false, "pm install failed: $stdout $stderr".trim())
+                    }
+                } else {
+                    // No Shizuku — use system package installer intent
+                    onProgress("Opening installer...")
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        try {
+                            installApkViaIntent(context, tempFile)
+                            onResult(true, "System installer opened. Tap Install.")
+                        } catch (e: Exception) {
+                            onResult(false, "Intent failed: ${e.message}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Dev install failed", e)
+                onResult(false, "Error: ${e.message}")
+            }
+        }.start()
+    }
+
+    private fun newShizukuProcess(cmd: String): Process {
         val clazz = Class.forName("rikka.shizuku.Shizuku")
-        val method = clazz.getMethod(
+        val method = clazz.getDeclaredMethod(
             "newProcess",
             Array<String>::class.java,
             Array<String>::class.java,
             String::class.java,
         )
-        val process = method.invoke(null, arrayOf("sh", "-c", cmd), null, null) as Process
-        return process.waitFor()
+        method.isAccessible = true
+        return method.invoke(null, arrayOf("sh", "-c", cmd), null, null) as Process
+    }
+
+    private fun runShizukuCommand(cmd: String): Int {
+        return newShizukuProcess(cmd).waitFor()
     }
 }

@@ -168,9 +168,10 @@ class NetworkDiscovery(private val context: Context) {
         val helper = sh.haven.core.local.WaylandSocketHelper
         if (helper.isShizukuAvailable() && helper.hasShizukuPermission()) {
             try {
-                val process = Class.forName("rikka.shizuku.Shizuku")
-                    .getMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
-                    .invoke(null, arrayOf("sh", "-c", "cat /proc/net/route"), null, null) as Process
+                val method = Class.forName("rikka.shizuku.Shizuku")
+                    .getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+                method.isAccessible = true
+                val process = method.invoke(null, arrayOf("sh", "-c", "cat /proc/net/route"), null, null) as Process
                 val output = process.inputStream.bufferedReader().readText()
                 process.waitFor()
                 val ip = parseRouteTable(output)

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -381,6 +382,29 @@ fun SettingsScreen(
                                     android.net.Uri.parse("https://shizuku.rikka.app/download/"),
                                 ))
                             }
+                        }
+                    }
+                },
+            )
+            var capturing by remember { mutableStateOf(helper.isCapturingLogcat) }
+            SettingsItem(
+                icon = Icons.Filled.BugReport,
+                title = "Logcat Capture",
+                subtitle = if (capturing)
+                    "Recording to /sdcard/Download/haven-logcat.txt"
+                else
+                    "Capture logcat for remote debugging",
+                onClick = {
+                    if (capturing) {
+                        helper.stopLogcatCapture()
+                        capturing = false
+                        Toast.makeText(context, "Logcat saved", Toast.LENGTH_SHORT).show()
+                    } else {
+                        capturing = helper.startLogcatCapture()
+                        if (capturing) {
+                            Toast.makeText(context, "Logcat capture started", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Failed to start capture", Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
@@ -1849,4 +1873,75 @@ private fun ToolbarKeyRow(
             )
         }
     }
+}
+
+@Composable
+private fun DevInstallDialog(
+    context: Context,
+    onDismiss: () -> Unit,
+) {
+    var url by rememberSaveable { mutableStateOf("http://192.168.0.:8080/haven-debug.apk") }
+    var status by remember { mutableStateOf<String?>(null) }
+    var installing by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = { if (!installing) onDismiss() },
+        title = { Text("Dev Install") },
+        text = {
+            Column {
+                Text(
+                    "Download and install APK via Shizuku.\nServe with: python3 -m http.server 8080",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("APK URL") },
+                    singleLine = true,
+                    enabled = !installing,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (status != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        status!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (status!!.startsWith("Error") || status!!.startsWith("pm install"))
+                            MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                    )
+                }
+                if (installing) {
+                    Spacer(Modifier.height(8.dp))
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    installing = true
+                    status = "Starting..."
+                    sh.haven.core.local.WaylandSocketHelper.installApkFromUrl(
+                        context = context,
+                        url = url.trim(),
+                        onProgress = { msg -> status = msg },
+                        onResult = { success, msg ->
+                            status = msg
+                            installing = false
+                        },
+                    )
+                },
+                enabled = !installing && url.isNotBlank(),
+            ) { Text("Install") }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !installing,
+            ) { Text("Cancel") }
+        },
+    )
 }

@@ -48,6 +48,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import sh.haven.core.data.preferences.UserPreferencesRepository
 import sh.haven.core.data.repository.ConnectionRepository
+import androidx.hilt.navigation.compose.hiltViewModel
+import sh.haven.app.desktop.DesktopViewModel
 import sh.haven.feature.connections.ConnectionsScreen
 import sh.haven.feature.keys.KeysScreen
 import sh.haven.feature.settings.SettingsScreen
@@ -61,13 +63,15 @@ fun HavenNavHost(
     preferencesRepository: UserPreferencesRepository,
     connectionRepository: ConnectionRepository,
 ) {
+    // Desktop multi-session ViewModel — hoisted to nav scope so it survives tab switches
+    val desktopViewModel: DesktopViewModel = hiltViewModel()
+    val desktopTabs by desktopViewModel.tabs.collectAsState()
+
     // Native Wayland desktop — poll compositor state reactively
-    var pendingWaylandDesktop by rememberSaveable { mutableStateOf(false) }
     var waylandRunning by remember { mutableStateOf(false) }
-    LaunchedEffect(pendingWaylandDesktop) {
+    LaunchedEffect(Unit) {
         while (true) {
-            waylandRunning = pendingWaylandDesktop ||
-                sh.haven.core.wayland.WaylandBridge.nativeIsRunning()
+            waylandRunning = sh.haven.core.wayland.WaylandBridge.nativeIsRunning()
             kotlinx.coroutines.delay(500)
         }
     }
@@ -75,7 +79,8 @@ fun HavenNavHost(
     // Auto-hide tabs for protocols with no configured connections
     val connections by connectionRepository.observeAll()
         .collectAsState(initial = emptyList())
-    val hasDesktopConnections = waylandRunning || connections.any { it.isVnc || it.isRdp || it.isLocal }
+    val hasDesktopConnections = waylandRunning || desktopTabs.isNotEmpty() ||
+        connections.any { it.isVnc || it.isRdp || it.isLocal }
     val screenOrderPref by preferencesRepository.screenOrder
         .collectAsState(initial = emptyList())
     val screens = remember(screenOrderPref, hasDesktopConnections) {
@@ -126,29 +131,11 @@ fun HavenNavHost(
     // Profile ID for opening a new session (new tab) on an existing connection
     var pendingNewSessionProfileId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // VNC auto-connect params
-    var pendingVncHost by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingVncPort by rememberSaveable { mutableStateOf<Int?>(null) }
-    var pendingVncPassword by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingVncSshForward by rememberSaveable { mutableStateOf(false) }
-    var pendingVncSshSessionId by rememberSaveable { mutableStateOf<String?>(null) }
-
     // SMB auto-connect params
     var pendingSmbProfileId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Rclone auto-connect params
     var pendingRcloneProfileId by rememberSaveable { mutableStateOf<String?>(null) }
-
-    // RDP auto-connect params
-    var pendingRdpHost by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingRdpPort by rememberSaveable { mutableStateOf<Int?>(null) }
-    var pendingRdpUsername by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingRdpPassword by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingRdpDomain by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingRdpSshForward by rememberSaveable { mutableStateOf(false) }
-    var pendingRdpSshSessionId by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingRdpSshProfileId by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingRdpProfileId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Disable pager swipe while terminal text selection is active
     var terminalSelectionActive by remember { mutableStateOf(false) }
@@ -292,25 +279,16 @@ fun HavenNavHost(
                         }
                     },
                     onNavigateToVnc = { host, port, password ->
-                        pendingVncHost = host
-                        pendingVncPort = port
-                        pendingVncPassword = password
-                        pendingVncSshForward = false
-                        pendingVncSshSessionId = null
+                        desktopViewModel.addVncSession(host, port, password)
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                         }
                     },
                     onNavigateToRdp = { host, port, username, password, domain, sshForward, sshProfileId, sshSessionId, profileId ->
-                        pendingRdpHost = host
-                        pendingRdpPort = port
-                        pendingRdpUsername = username
-                        pendingRdpPassword = password
-                        pendingRdpDomain = domain
-                        pendingRdpSshForward = sshForward
-                        pendingRdpSshProfileId = sshProfileId
-                        pendingRdpSshSessionId = sshSessionId
-                        pendingRdpProfileId = profileId
+                        desktopViewModel.addRdpSession(
+                            host, port, username, password, domain,
+                            sshForward, sshSessionId, sshProfileId, profileId,
+                        )
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                         }
@@ -328,7 +306,7 @@ fun HavenNavHost(
                         }
                     },
                     onNavigateToWayland = {
-                        pendingWaylandDesktop = true
+                        desktopViewModel.addWaylandTab()
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                         }
@@ -352,11 +330,11 @@ fun HavenNavHost(
                             }
                         },
                         onNavigateToVnc = { host, port, password, sshForward, sshSessionId ->
-                            pendingVncHost = host
-                            pendingVncPort = port
-                            pendingVncPassword = password
-                            pendingVncSshForward = sshForward
-                            pendingVncSshSessionId = sshSessionId
+                            desktopViewModel.addVncSession(
+                                host, port, password,
+                                sshForward = sshForward,
+                                sshSessionId = sshSessionId,
+                            )
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                             }
@@ -390,48 +368,16 @@ fun HavenNavHost(
                         }
                     }
                 }
-                Screen.Desktop -> if (waylandRunning || pendingWaylandDesktop) {
-                    sh.haven.core.wayland.WaylandDesktopView(
-                        modifier = Modifier.fillMaxSize(),
-                        toolbarLayout = toolbarLayout,
-                        navBlockMode = navBlockMode,
-                        onFullscreenChanged = { desktopFullscreen = it },
-                    )
-                } else {
-                    val consumePending = {
-                        pendingVncHost = null
-                        pendingVncPort = null
-                        pendingVncPassword = null
-                        pendingVncSshForward = false
-                        pendingVncSshSessionId = null
-                        pendingRdpHost = null
-                        pendingRdpPort = null
-                        pendingRdpUsername = null
-                        pendingRdpPassword = null
-                        pendingRdpDomain = null
-                        pendingRdpSshForward = false
-                        pendingRdpSshSessionId = null
-                        pendingRdpSshProfileId = null
-                        pendingRdpProfileId = null
+                Screen.Desktop -> {
+                    // Auto-add Wayland tab when compositor is running
+                    LaunchedEffect(waylandRunning) {
+                        if (waylandRunning) desktopViewModel.addWaylandTab()
+                        else desktopViewModel.removeWaylandTab()
                     }
                     DesktopScreen(
-                        isActive = pagerState.settledPage == pageOf(Screen.Desktop),
-                        pendingVncHost = pendingVncHost,
-                        pendingVncPort = pendingVncPort,
-                        pendingVncPassword = pendingVncPassword,
-                        pendingVncSshForward = pendingVncSshForward,
-                        pendingVncSshSessionId = pendingVncSshSessionId,
-                        pendingRdpHost = pendingRdpHost,
-                        pendingRdpPort = pendingRdpPort,
-                        pendingRdpUsername = pendingRdpUsername,
-                        pendingRdpPassword = pendingRdpPassword,
-                        pendingRdpDomain = pendingRdpDomain,
-                        pendingRdpSshForward = pendingRdpSshForward,
-                        pendingRdpSshSessionId = pendingRdpSshSessionId,
-                        pendingRdpSshProfileId = pendingRdpSshProfileId,
-                        pendingRdpProfileId = pendingRdpProfileId,
+                        desktopViewModel = desktopViewModel,
                         toolbarLayout = toolbarLayout,
-                        onPendingConsumed = consumePending,
+                        navBlockMode = navBlockMode,
                         onFullscreenChanged = { desktopFullscreen = it },
                         onConnectedChanged = { desktopConnected = it },
                     )

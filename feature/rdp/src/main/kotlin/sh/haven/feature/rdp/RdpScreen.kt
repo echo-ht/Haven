@@ -93,10 +93,96 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import sh.haven.core.data.preferences.ToolbarKey
 import sh.haven.core.data.preferences.ToolbarLayout
 import kotlin.math.abs
 
+/**
+ * Stateless RDP session content — takes StateFlows and input lambdas directly.
+ * Used by DesktopViewModel's multi-tab system. All connection management
+ * is handled externally; this composable only renders and forwards input.
+ */
+@Composable
+fun RdpSessionContent(
+    connected: StateFlow<Boolean>,
+    frame: StateFlow<Bitmap?>,
+    error: StateFlow<String?>,
+    toolbarLayout: ToolbarLayout = ToolbarLayout.DEFAULT,
+    onTap: (Int, Int) -> Unit,
+    onDragStart: (Int, Int) -> Unit,
+    onDrag: (Int, Int) -> Unit,
+    onDragEnd: () -> Unit,
+    onScrollUp: () -> Unit,
+    onScrollDown: () -> Unit,
+    onTypeChar: (Char) -> Unit,
+    onKeyDown: (scancode: Int) -> Unit,
+    onKeyUp: (scancode: Int) -> Unit,
+    onDisconnect: () -> Unit,
+    onFullscreenChanged: (Boolean) -> Unit = {},
+) {
+    val connectedState by connected.collectAsState()
+    val frameState by frame.collectAsState()
+    val errorState by error.collectAsState()
+
+    var fullscreen by rememberSaveable { mutableStateOf(false) }
+    val view = LocalView.current
+    val window = (view.context as? android.app.Activity)?.window
+
+    LaunchedEffect(fullscreen) {
+        onFullscreenChanged(fullscreen)
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, view)
+            if (fullscreen) {
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    LaunchedEffect(connectedState) {
+        if (!connectedState && fullscreen) fullscreen = false
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (fullscreen && window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.show(WindowInsetsCompat.Type.systemBars())
+                onFullscreenChanged(false)
+            }
+        }
+    }
+
+    if (connectedState && frameState != null) {
+        RdpViewer(
+            frame = frameState!!,
+            fullscreen = fullscreen,
+            toolbarLayout = toolbarLayout,
+            onTap = onTap,
+            onDragStart = onDragStart,
+            onDrag = onDrag,
+            onDragEnd = onDragEnd,
+            onScrollUp = onScrollUp,
+            onScrollDown = onScrollDown,
+            onTypeChar = onTypeChar,
+            onKeyDown = onKeyDown,
+            onKeyUp = onKeyUp,
+            onToggleFullscreen = { fullscreen = !fullscreen },
+            onDisconnect = onDisconnect,
+        )
+    } else {
+        DesktopPlaceholder(
+            protocol = "RDP",
+            error = errorState,
+        )
+    }
+}
+
+/** Legacy RdpScreen with ViewModel — delegates to RdpSessionContent. */
 @Composable
 fun RdpScreen(
     isActive: Boolean = true,
@@ -113,9 +199,6 @@ fun RdpScreen(
     onFullscreenChanged: (Boolean) -> Unit = {},
     viewModel: RdpViewModel = hiltViewModel(),
 ) {
-    val connected by viewModel.connected.collectAsState()
-
-    // Auto-connect when navigated from a saved profile
     LaunchedEffect(pendingHost, pendingSshSessionId) {
         if (pendingHost != null && pendingPassword != null) {
             if (pendingSshForward && pendingSshSessionId != null) {
@@ -142,68 +225,26 @@ fun RdpScreen(
         }
     }
 
-    val frame by viewModel.frame.collectAsState()
-    val error by viewModel.error.collectAsState()
-
-    // Manage system bars for fullscreen
-    var fullscreen by rememberSaveable { mutableStateOf(false) }
-    val view = LocalView.current
-    val window = (view.context as? android.app.Activity)?.window
-
-    LaunchedEffect(fullscreen) {
-        onFullscreenChanged(fullscreen)
-        if (window != null) {
-            val controller = WindowCompat.getInsetsController(window, view)
-            if (fullscreen) {
-                controller.hide(WindowInsetsCompat.Type.systemBars())
-                controller.systemBarsBehavior =
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                controller.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
-
-    LaunchedEffect(connected) {
-        if (!connected && fullscreen) fullscreen = false
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            if (fullscreen && window != null) {
-                val controller = WindowCompat.getInsetsController(window, view)
-                controller.show(WindowInsetsCompat.Type.systemBars())
-                onFullscreenChanged(false)
-            }
-        }
-    }
-
-    if (connected && frame != null) {
-        RdpViewer(
-            frame = frame!!,
-            fullscreen = fullscreen,
-            toolbarLayout = toolbarLayout,
-            onTap = { x, y -> viewModel.sendClick(x, y) },
-            onDragStart = { x, y ->
-                viewModel.sendPointer(x, y)
-                viewModel.pressButton()
-            },
-            onDrag = { x, y -> viewModel.sendPointer(x, y) },
-            onDragEnd = { viewModel.releaseButton() },
-            onScrollUp = { viewModel.scrollUp() },
-            onScrollDown = { viewModel.scrollDown() },
-            onTypeChar = { ch -> viewModel.typeUnicode(ch.code) },
-            onKeyDown = { scancode -> viewModel.sendKey(scancode, true) },
-            onKeyUp = { scancode -> viewModel.sendKey(scancode, false) },
-            onToggleFullscreen = { fullscreen = !fullscreen },
-            onDisconnect = { viewModel.disconnect() },
-        )
-    } else {
-        DesktopPlaceholder(
-            protocol = "RDP",
-            error = error,
-        )
-    }
+    RdpSessionContent(
+        connected = viewModel.connected,
+        frame = viewModel.frame,
+        error = viewModel.error,
+        toolbarLayout = toolbarLayout,
+        onTap = { x, y -> viewModel.sendClick(x, y) },
+        onDragStart = { x, y ->
+            viewModel.sendPointer(x, y)
+            viewModel.pressButton()
+        },
+        onDrag = { x, y -> viewModel.sendPointer(x, y) },
+        onDragEnd = { viewModel.releaseButton() },
+        onScrollUp = { viewModel.scrollUp() },
+        onScrollDown = { viewModel.scrollDown() },
+        onTypeChar = { ch -> viewModel.typeUnicode(ch.code) },
+        onKeyDown = { scancode -> viewModel.sendKey(scancode, true) },
+        onKeyUp = { scancode -> viewModel.sendKey(scancode, false) },
+        onDisconnect = { viewModel.disconnect() },
+        onFullscreenChanged = onFullscreenChanged,
+    )
 }
 
 @Composable

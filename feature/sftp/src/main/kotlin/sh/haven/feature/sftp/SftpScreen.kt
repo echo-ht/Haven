@@ -128,6 +128,24 @@ fun SftpScreen(
     LaunchedEffect(lastDownload) {
         val dl = lastDownload ?: return@LaunchedEffect
         viewModel.dismissMessage() // clear the plain message so it doesn't double-show
+
+        // Auto-install APK files directly
+        if (dl.fileName.endsWith(".apk", ignoreCase = true)) {
+            try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                    setDataAndType(dl.uri, "application/vnd.android.package-archive")
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                @Suppress("LocalContextGetResourceValueCall")
+                snackbarHostState.showSnackbar("Install failed: ${e.message}")
+            }
+            viewModel.clearLastDownload()
+            return@LaunchedEffect
+        }
+
         @Suppress("LocalContextGetResourceValueCall")
         val downloadedMessage = context.getString(R.string.sftp_downloaded, dl.fileName)
         @Suppress("LocalContextGetResourceValueCall")

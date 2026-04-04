@@ -97,11 +97,96 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withTimeoutOrNull
 import sh.haven.core.data.preferences.ToolbarKey
 import sh.haven.core.data.preferences.ToolbarLayout
 import kotlin.math.abs
 
+/**
+ * Stateless VNC session content — takes StateFlows and input lambdas directly.
+ * Used by DesktopViewModel's multi-tab system. All connection management
+ * is handled externally; this composable only renders and forwards input.
+ */
+@Composable
+fun VncSessionContent(
+    connected: StateFlow<Boolean>,
+    frame: StateFlow<Bitmap?>,
+    error: StateFlow<String?>,
+    toolbarLayout: ToolbarLayout = ToolbarLayout.DEFAULT,
+    onTap: (Int, Int) -> Unit,
+    onLongPress: (Int, Int) -> Unit,
+    onDragStart: (Int, Int) -> Unit,
+    onDrag: (Int, Int) -> Unit,
+    onDragEnd: () -> Unit,
+    onScrollUp: () -> Unit,
+    onScrollDown: () -> Unit,
+    onTypeChar: (Char) -> Unit,
+    onKeyDown: (keySym: Int) -> Unit,
+    onKeyUp: (keySym: Int) -> Unit,
+    onDisconnect: () -> Unit,
+    onFullscreenChanged: (Boolean) -> Unit = {},
+) {
+    val connectedState by connected.collectAsState()
+    val frameState by frame.collectAsState()
+    val errorState by error.collectAsState()
+
+    var fullscreen by rememberSaveable { mutableStateOf(false) }
+    val view = LocalView.current
+    val window = (view.context as? android.app.Activity)?.window
+
+    LaunchedEffect(fullscreen) {
+        onFullscreenChanged(fullscreen)
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, view)
+            if (fullscreen) {
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    LaunchedEffect(connectedState) {
+        if (!connectedState && fullscreen) fullscreen = false
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (fullscreen && window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.show(WindowInsetsCompat.Type.systemBars())
+                onFullscreenChanged(false)
+            }
+        }
+    }
+
+    if (connectedState && frameState != null) {
+        VncViewer(
+            frame = frameState!!,
+            fullscreen = fullscreen,
+            toolbarLayout = toolbarLayout,
+            onTap = onTap,
+            onLongPress = onLongPress,
+            onDragStart = onDragStart,
+            onDrag = onDrag,
+            onDragEnd = onDragEnd,
+            onScrollUp = onScrollUp,
+            onScrollDown = onScrollDown,
+            onTypeChar = onTypeChar,
+            onKeyDown = onKeyDown,
+            onKeyUp = onKeyUp,
+            onToggleFullscreen = { fullscreen = !fullscreen },
+            onDisconnect = onDisconnect,
+        )
+    } else {
+        VncPlaceholder(error = errorState)
+    }
+}
+
+/** Legacy VncScreen with ViewModel — delegates to VncSessionContent. */
 @Composable
 fun VncScreen(
     isActive: Boolean = true,
@@ -117,9 +202,6 @@ fun VncScreen(
 ) {
     LaunchedEffect(isActive) { viewModel.setActive(isActive) }
 
-    val connected by viewModel.connected.collectAsState()
-
-    // Auto-connect when navigated from terminal
     LaunchedEffect(pendingHost) {
         if (pendingHost != null) {
             if (pendingSshForward && pendingSshSessionId != null) {
@@ -133,69 +215,27 @@ fun VncScreen(
         }
     }
 
-    val frame by viewModel.frame.collectAsState()
-    val error by viewModel.error.collectAsState()
-
-    // Manage system bars for fullscreen
-    var fullscreen by rememberSaveable { mutableStateOf(false) }
-    val view = LocalView.current
-    val window = (view.context as? android.app.Activity)?.window
-
-    // Notify parent and toggle system bars
-    LaunchedEffect(fullscreen) {
-        onFullscreenChanged(fullscreen)
-        if (window != null) {
-            val controller = WindowCompat.getInsetsController(window, view)
-            if (fullscreen) {
-                controller.hide(WindowInsetsCompat.Type.systemBars())
-                controller.systemBarsBehavior =
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                controller.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
-
-    // Exit fullscreen on disconnect
-    LaunchedEffect(connected) {
-        if (!connected && fullscreen) fullscreen = false
-    }
-
-    // Restore system bars if composable leaves composition while fullscreen
-    DisposableEffect(Unit) {
-        onDispose {
-            if (fullscreen && window != null) {
-                val controller = WindowCompat.getInsetsController(window, view)
-                controller.show(WindowInsetsCompat.Type.systemBars())
-                onFullscreenChanged(false)
-            }
-        }
-    }
-
-    if (connected && frame != null) {
-        VncViewer(
-            frame = frame!!,
-            fullscreen = fullscreen,
-            toolbarLayout = toolbarLayout,
-            onTap = { x, y -> viewModel.sendClick(x, y) },
-            onLongPress = { x, y -> viewModel.sendClick(x, y, button = 3) },
-            onDragStart = { x, y ->
-                viewModel.sendPointer(x, y)
-                viewModel.pressButton(1)
-            },
-            onDrag = { x, y -> viewModel.sendPointer(x, y) },
-            onDragEnd = { viewModel.releaseButton(1) },
-            onScrollUp = { viewModel.scrollUp() },
-            onScrollDown = { viewModel.scrollDown() },
-            onTypeChar = { ch -> viewModel.typeKey(charToKeySym(ch)) },
-            onKeyDown = { keySym -> viewModel.sendKey(keySym, true) },
-            onKeyUp = { keySym -> viewModel.sendKey(keySym, false) },
-            onToggleFullscreen = { fullscreen = !fullscreen },
-            onDisconnect = { viewModel.disconnect() },
-        )
-    } else {
-        VncPlaceholder(error = error)
-    }
+    VncSessionContent(
+        connected = viewModel.connected,
+        frame = viewModel.frame,
+        error = viewModel.error,
+        toolbarLayout = toolbarLayout,
+        onTap = { x, y -> viewModel.sendClick(x, y) },
+        onLongPress = { x, y -> viewModel.sendClick(x, y, button = 3) },
+        onDragStart = { x, y ->
+            viewModel.sendPointer(x, y)
+            viewModel.pressButton(1)
+        },
+        onDrag = { x, y -> viewModel.sendPointer(x, y) },
+        onDragEnd = { viewModel.releaseButton(1) },
+        onScrollUp = { viewModel.scrollUp() },
+        onScrollDown = { viewModel.scrollDown() },
+        onTypeChar = { ch -> viewModel.typeKey(charToKeySym(ch)) },
+        onKeyDown = { keySym -> viewModel.sendKey(keySym, true) },
+        onKeyUp = { keySym -> viewModel.sendKey(keySym, false) },
+        onDisconnect = { viewModel.disconnect() },
+        onFullscreenChanged = onFullscreenChanged,
+    )
 }
 
 @Composable
@@ -1097,7 +1137,7 @@ private const val XK_CONTROL_L = 0xffe3
 private const val XK_ALT_L = 0xffe9
 
 /** Convert a printable character to its X11 KeySym. */
-private fun charToKeySym(ch: Char): Int = when (ch) {
+fun charToKeySym(ch: Char): Int = when (ch) {
     '\n', '\r' -> XK_RETURN
     '\t' -> XK_TAB
     '\b' -> XK_BACKSPACE
