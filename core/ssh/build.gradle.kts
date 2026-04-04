@@ -28,7 +28,7 @@ android {
 dependencies {
     api(libs.jsch)
     // JSch optional deps — compileOnly so R8 doesn't error on missing classes
-    compileOnly("org.slf4j:slf4j-api:2.0.16")
+    compileOnly("org.slf4j:slf4j-api:2.0.9")
     compileOnly("net.java.dev.jna:jna:5.14.0")
     implementation(project(":core:data"))
     implementation(project(":core:reticulum"))

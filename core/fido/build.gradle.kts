@@ -24,8 +24,6 @@ android {
 }
 
 dependencies {
-    api(libs.yubikit.android)
-    api(libs.yubikit.fido)
     implementation(libs.jsch)
     implementation(libs.bouncycastle)
     implementation(libs.coroutines.core)
