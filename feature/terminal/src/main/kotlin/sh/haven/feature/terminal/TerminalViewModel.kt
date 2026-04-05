@@ -1212,6 +1212,7 @@ class TerminalViewModel @Inject constructor(
         val activeTab = _tabs.value.getOrNull(_activeTabIndex.value)
         if (activeTab == null) {
             Log.w(TAG, "addTab: no active tab (index=${_activeTabIndex.value}, tabs=${_tabs.value.size})")
+            _newTabMessage.value = appContext.getString(R.string.terminal_new_tab_no_active)
             return
         }
 
@@ -1249,6 +1250,10 @@ class TerminalViewModel @Inject constructor(
                 selectTabBySessionId(sessionId)
             } catch (e: Exception) {
                 Log.e(TAG, "addLocalTab failed: ${e.message}", e)
+                _newTabMessage.value = appContext.getString(
+                    R.string.terminal_new_tab_connection_failed,
+                    e.message ?: e.javaClass.simpleName,
+                )
             } finally {
                 _newTabLoading.value = false
             }
@@ -1264,6 +1269,7 @@ class TerminalViewModel @Inject constructor(
         val configPair = sessionManager.getConnectionConfigForProfile(profileId)
         if (configPair == null) {
             Log.w(TAG, "addSshTabForProfile: no connection config for profile $profileId")
+            _newTabMessage.value = appContext.getString(R.string.terminal_new_tab_no_config)
             return
         }
         val (config, sshSessionMgr) = configPair
@@ -1291,6 +1297,10 @@ class TerminalViewModel @Inject constructor(
                         client.disconnect()
                         sessionManager.removeSession(sessionId)
                         Log.w(TAG, "Host key changed for ${config.host}:${config.port} — aborting new tab")
+                        _newTabMessage.value = appContext.getString(
+                            R.string.terminal_new_tab_host_key_changed,
+                            "${config.host}:${config.port}",
+                        )
                         _newTabLoading.value = false
                         return@launch
                     }
@@ -1327,6 +1337,8 @@ class TerminalViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "addSshTabForProfile failed", e)
                 sessionManager.removeSession(sessionId)
+                val detail = e.message ?: e.javaClass.simpleName
+                _newTabMessage.value = appContext.getString(R.string.terminal_new_tab_connection_failed, detail)
             } finally {
                 _newTabLoading.value = false
             }
@@ -1340,7 +1352,10 @@ class TerminalViewModel @Inject constructor(
         val profileId = activeTab.profileId
         val rnsSession = reticulumSessionManager.sessions.value.values
             .firstOrNull { it.profileId == profileId }
-            ?: return
+        if (rnsSession == null) {
+            _newTabMessage.value = appContext.getString(R.string.terminal_new_tab_reticulum_no_session)
+            return
+        }
         val label = activeTab.label
         viewModelScope.launch {
             _newTabLoading.value = true
@@ -1362,6 +1377,10 @@ class TerminalViewModel @Inject constructor(
                 selectTabBySessionId(sessionId)
             } catch (e: Exception) {
                 Log.e(TAG, "addReticulumTab failed", e)
+                _newTabMessage.value = appContext.getString(
+                    R.string.terminal_new_tab_connection_failed,
+                    e.message ?: e.javaClass.simpleName,
+                )
             } finally {
                 _newTabLoading.value = false
             }
@@ -1371,7 +1390,11 @@ class TerminalViewModel @Inject constructor(
     /** Open a new tab attached to a named remote session (tmux/zellij/screen).
      *  Creates a new SSH connection to the same profile and attaches to the named session. */
     fun openRemoteSession(profileId: String, sessionName: String) {
-        val configPair = sessionManager.getConnectionConfigForProfile(profileId) ?: return
+        val configPair = sessionManager.getConnectionConfigForProfile(profileId)
+        if (configPair == null) {
+            _newTabMessage.value = appContext.getString(R.string.terminal_new_tab_no_config)
+            return
+        }
         val (config, sshSessionMgr) = configPair
         val existingTab = _tabs.value.firstOrNull { it.profileId == profileId }
         val label = existingTab?.label ?: config.host
@@ -1388,6 +1411,10 @@ class TerminalViewModel @Inject constructor(
                     is HostKeyResult.KeyChanged -> {
                         client.disconnect()
                         sessionManager.removeSession(sessionId)
+                        _newTabMessage.value = appContext.getString(
+                            R.string.terminal_new_tab_host_key_changed,
+                            "${config.host}:${config.port}",
+                        )
                         _newTabLoading.value = false
                         return@launch
                     }
@@ -1398,6 +1425,10 @@ class TerminalViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "openRemoteSession failed", e)
                 sessionManager.removeSession(sessionId)
+                _newTabMessage.value = appContext.getString(
+                    R.string.terminal_new_tab_connection_failed,
+                    e.message ?: e.javaClass.simpleName,
+                )
             } finally {
                 _newTabLoading.value = false
             }
@@ -1419,6 +1450,10 @@ class TerminalViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "onNewTabSessionSelected failed", e)
                 sessionManager.removeSession(sessionId)
+                _newTabMessage.value = appContext.getString(
+                    R.string.terminal_new_tab_shell_failed,
+                    e.message ?: e.javaClass.simpleName,
+                )
             } finally {
                 _newTabLoading.value = false
             }

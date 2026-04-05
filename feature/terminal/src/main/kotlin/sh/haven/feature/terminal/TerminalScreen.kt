@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -144,7 +145,7 @@ fun TerminalScreen(
 
     LaunchedEffect(newTabMessage) {
         newTabMessage?.let {
-            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
             viewModel.dismissNewTabMessage()
         }
     }
@@ -341,10 +342,21 @@ fun TerminalScreen(
                                             showTabMenu = false
                                             viewModel.addTab()
                                         },
+                                        enabled = !newTabLoading,
                                     ) {
-                                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+                                        if (newTabLoading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                strokeWidth = 2.dp,
+                                            )
+                                        } else {
+                                            Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+                                        }
                                         Spacer(Modifier.width(4.dp))
-                                        Text(stringResource(R.string.terminal_sessions))
+                                        Text(
+                                            if (newTabLoading) stringResource(R.string.terminal_new_tab_connecting)
+                                            else stringResource(R.string.terminal_sessions),
+                                        )
                                     }
                                     Row {
                                         IconButton(
