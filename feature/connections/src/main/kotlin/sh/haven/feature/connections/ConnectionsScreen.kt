@@ -140,6 +140,7 @@ fun ConnectionsScreen(
     onNavigateToSmb: (profileId: String) -> Unit = {},
     onNavigateToRclone: (profileId: String) -> Unit = {},
     onNavigateToWayland: () -> Unit = {},
+    onNavigateToConnections: () -> Unit = {},
     viewModel: ConnectionsViewModel = hiltViewModel(),
 ) {
     val connections by viewModel.connections.collectAsState()
@@ -174,6 +175,7 @@ fun ConnectionsScreen(
     val navigateToSmb by viewModel.navigateToSmb.collectAsState()
     val navigateToRclone by viewModel.navigateToRclone.collectAsState()
     val navigateToWayland by viewModel.navigateToWayland.collectAsState()
+    val navigateBackToConnections by viewModel.navigateToConnections.collectAsState()
     val deploySuccess by viewModel.deploySuccess.collectAsState()
     val sessionSelection by viewModel.sessionSelection.collectAsState()
     val passwordFallback by viewModel.passwordFallback.collectAsState()
@@ -234,6 +236,13 @@ fun ConnectionsScreen(
     LaunchedEffect(newSessionProfileId) {
         newSessionProfileId?.let { profileId ->
             onNavigateToNewSession(profileId)
+            viewModel.onNavigated()
+        }
+    }
+
+    LaunchedEffect(navigateBackToConnections) {
+        if (navigateBackToConnections) {
+            onNavigateToConnections()
             viewModel.onNavigated()
         }
     }

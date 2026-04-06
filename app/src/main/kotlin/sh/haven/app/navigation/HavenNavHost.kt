@@ -311,6 +311,11 @@ fun HavenNavHost(
                             pagerState.animateScrollToPage(pageOf(Screen.Desktop))
                         }
                     },
+                    onNavigateToConnections = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(pageOf(Screen.Connections))
+                        }
+                    },
                 )
                 Screen.Terminal -> {
                     TerminalScreen(

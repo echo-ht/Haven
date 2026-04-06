@@ -327,6 +327,10 @@ class ConnectionsViewModel @Inject constructor(
     private val _navigateToTerminal = MutableStateFlow<String?>(null)
     val navigateToTerminal: StateFlow<String?> = _navigateToTerminal.asStateFlow()
 
+    /** Emitted to navigate back to Connections screen after a post-connect failure. */
+    private val _navigateToConnections = MutableStateFlow(false)
+    val navigateToConnections: StateFlow<Boolean> = _navigateToConnections.asStateFlow()
+
     /** Emitted to navigate to VNC screen with connection params. */
     data class VncNavigation(val host: String, val port: Int, val password: String?)
     private val _navigateToVnc = MutableStateFlow<VncNavigation?>(null)
@@ -384,6 +388,7 @@ class ConnectionsViewModel @Inject constructor(
         _navigateToRdp.value = null
         _navigateToSmb.value = null
         _navigateToRclone.value = null
+        _navigateToConnections.value = false
         _newSessionProfileId.value = null
     }
 
@@ -1880,6 +1885,7 @@ class ConnectionsViewModel @Inject constructor(
                 }
                 if (!hasTerminal) {
                     _error.value = "Shell closed — is your session manager (tmux/zellij/screen) installed on this host?"
+                    _navigateToConnections.value = true
                 }
             }
         }
