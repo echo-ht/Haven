@@ -22,6 +22,7 @@ private const val TAG = "LocalSessionManager"
 class LocalSessionManager @Inject constructor(
     @ApplicationContext private val context: Context,
     val prootManager: ProotManager,
+    val desktopManager: DesktopManager,
 ) {
 
     data class SessionState(

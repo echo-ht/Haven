@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -182,6 +183,7 @@ fun ConnectionsScreen(
     val showMoshSetupGuide by viewModel.showMoshSetupGuide.collectAsState()
     val showMoshClientMissing by viewModel.showMoshClientMissing.collectAsState()
     val desktopSetupState by viewModel.desktopSetupState.collectAsState()
+    val desktopStates by viewModel.desktopStates.collectAsState()
     val groupLaunchState by viewModel.groupLaunchState.collectAsState()
 
     LaunchedEffect(navigateToTerminal) {
@@ -240,7 +242,9 @@ fun ConnectionsScreen(
     var connectingProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
     var deployingProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
     var portForwardProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
-    var setupDesktopProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
+    var setupDesktopDe by remember {
+        mutableStateOf<sh.haven.core.local.ProotManager.DesktopEnvironment?>(null)
+    }
     var quickConnectText by rememberSaveable { mutableStateOf("") }
     var filterText by rememberSaveable { mutableStateOf("") }
 
@@ -600,17 +604,25 @@ fun ConnectionsScreen(
         )
     }
 
-    setupDesktopProfile?.let { profile ->
+    setupDesktopDe?.let { de ->
+        // Auto-dismiss dialog when setup completes
+        LaunchedEffect(desktopSetupState) {
+            if (desktopSetupState is sh.haven.core.local.ProotManager.DesktopSetupState.Complete) {
+                setupDesktopDe = null
+                viewModel.resetDesktopSetupState()
+            }
+        }
         DesktopSetupDialog(
             desktopState = desktopSetupState,
-            onStart = { password, de, addons ->
-                viewModel.setupDesktop(profile, password, de, addons)
+            selectedDe = de,
+            onStart = { password, _, addons ->
+                viewModel.setupDesktop(password, de, addons)
             },
             onShellSelected = { shell ->
                 viewModel.setWaylandShellCommand(shell)
             },
             onDismiss = {
-                setupDesktopProfile = null
+                setupDesktopDe = null
                 viewModel.resetDesktopSetupState()
             },
         )
@@ -832,6 +844,20 @@ fun ConnectionsScreen(
                 }
 
                 LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
+                    // Desktop Manager section — shows when PRoot rootfs is installed
+                    if (viewModel.isRootfsReady) {
+                        item(key = "desktop-manager") {
+                            DesktopManagerSection(
+                                installedDesktops = viewModel.installedDesktops,
+                                desktopStates = desktopStates,
+                                onInstall = { de -> setupDesktopDe = de },
+                                onStart = { de -> viewModel.startDesktop(de) },
+                                onStop = { de -> viewModel.stopDesktop(de) },
+                                onUninstall = { de -> viewModel.uninstallDesktop(de) },
+                            )
+                        }
+                    }
+
                     displayIds.forEach { key ->
                         if (key.startsWith("group-")) {
                             val gid = key.removePrefix("group-")
@@ -875,10 +901,6 @@ fun ConnectionsScreen(
                                     onConnectWithPassword = { connectingProfile = profile },
                                     onPortForwards = { portForwardProfile = profile },
                                     onNewSession = { viewModel.openNewSession(profile.id) },
-                                    onSetupDesktop = { setupDesktopProfile = profile },
-                                    onLaunchDesktop = { viewModel.launchDesktop(profile) },
-                                    isDesktopInstalled = viewModel.isDesktopInstalled,
-                                    isLaunchingDesktop = launchingDesktop,
                                     enableDrag = !isFiltering,
                                     dragModifier = if (!isFiltering) Modifier
                                         .zIndex(if (isDragged) 1f else 0f)
@@ -956,10 +978,6 @@ fun ConnectionsScreen(
                                         onConnectWithPassword = { connectingProfile = dep },
                                         onPortForwards = { portForwardProfile = dep },
                                         onNewSession = { viewModel.openNewSession(dep.id) },
-                                        onSetupDesktop = { setupDesktopProfile = dep },
-                                        onLaunchDesktop = { viewModel.launchDesktop(dep) },
-                                        isDesktopInstalled = viewModel.isDesktopInstalled,
-                                        isLaunchingDesktop = launchingDesktop,
                                         dragModifier = if (parentDragged) Modifier
                                             .zIndex(1f)
                                             .offset(
@@ -1063,10 +1081,6 @@ private fun ConnectionTreeItem(
     onConnectWithPassword: () -> Unit,
     onPortForwards: () -> Unit,
     onNewSession: () -> Unit,
-    onSetupDesktop: () -> Unit = {},
-    onLaunchDesktop: () -> Unit = {},
-    isDesktopInstalled: Boolean = false,
-    isLaunchingDesktop: Boolean = false,
     enableDrag: Boolean = true,
     dragModifier: Modifier = Modifier,
     onDragStart: () -> Unit = {},
@@ -1218,19 +1232,7 @@ private fun ConnectionTreeItem(
                         )
                     }
                 },
-                trailingContent = if (profile.isLocal) {{
-                    if (isLaunchingDesktop) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        IconButton(onClick = if (isDesktopInstalled) onLaunchDesktop else onSetupDesktop) {
-                            Icon(
-                                Icons.Filled.DesktopWindows,
-                                contentDescription = stringResource(if (isDesktopInstalled) R.string.connections_launch_desktop else R.string.connections_setup_desktop),
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-                }} else null,
+                trailingContent = null,
                 modifier = Modifier
                     .weight(1f)
                     .combinedClickable(
@@ -1287,13 +1289,6 @@ private fun ConnectionTreeItem(
                     text = { Text(stringResource(R.string.connections_menu_deploy_ssh_key)) },
                     leadingIcon = { Icon(Icons.Filled.VpnKey, null) },
                     onClick = { showMenu = false; onDeployKey() },
-                )
-            }
-            if (profile.isLocal) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.connections_setup_desktop)) },
-                    leadingIcon = { Icon(Icons.Filled.Laptop, null) },
-                    onClick = { showMenu = false; onSetupDesktop() },
                 )
             }
             DropdownMenuItem(
@@ -1567,16 +1562,187 @@ private fun LinuxVmCard(
 }
 
 @Composable
+private fun DesktopManagerSection(
+    installedDesktops: Set<sh.haven.core.local.ProotManager.DesktopEnvironment>,
+    desktopStates: Map<sh.haven.core.local.ProotManager.DesktopEnvironment, sh.haven.core.local.DesktopManager.DesktopInstance>,
+    onInstall: (sh.haven.core.local.ProotManager.DesktopEnvironment) -> Unit,
+    onStart: (sh.haven.core.local.ProotManager.DesktopEnvironment) -> Unit,
+    onStop: (sh.haven.core.local.ProotManager.DesktopEnvironment) -> Unit,
+    onUninstall: (sh.haven.core.local.ProotManager.DesktopEnvironment) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+            ) {
+                Icon(
+                    Icons.Filled.DesktopWindows,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.connections_desktops_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+
+            if (expanded) {
+                Spacer(Modifier.height(8.dp))
+                sh.haven.core.local.ProotManager.DesktopEnvironment.entries.filter { !it.hidden }.forEach { de ->
+                    val isInstalled = de in installedDesktops
+                    val instance = desktopStates[de]
+                    DesktopRow(
+                        de = de,
+                        isInstalled = isInstalled,
+                        instance = instance,
+                        onInstall = { onInstall(de) },
+                        onStart = { onStart(de) },
+                        onStop = { onStop(de) },
+                        onUninstall = { onUninstall(de) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopRow(
+    de: sh.haven.core.local.ProotManager.DesktopEnvironment,
+    isInstalled: Boolean,
+    instance: sh.haven.core.local.DesktopManager.DesktopInstance?,
+    onInstall: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onUninstall: () -> Unit,
+) {
+    var showUninstallConfirm by remember { mutableStateOf(false) }
+
+    if (showUninstallConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUninstallConfirm = false },
+            title = { Text(stringResource(R.string.connections_desktop_uninstall_title)) },
+            text = { Text(stringResource(R.string.connections_desktop_uninstall_message, de.label)) },
+            confirmButton = {
+                TextButton(onClick = { showUninstallConfirm = false; onUninstall() }) {
+                    Text(stringResource(R.string.common_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUninstallConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+    ) {
+        // Status indicator
+        Icon(
+            Icons.Filled.Circle,
+            contentDescription = null,
+            tint = when (instance?.state) {
+                sh.haven.core.local.DesktopManager.DesktopState.RUNNING -> Color(0xFF4CAF50)
+                sh.haven.core.local.DesktopManager.DesktopState.STARTING -> Color(0xFFFFC107)
+                sh.haven.core.local.DesktopManager.DesktopState.ERROR -> Color(0xFFF44336)
+                else -> MaterialTheme.colorScheme.outline
+            },
+            modifier = Modifier.size(10.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(de.label, style = MaterialTheme.typography.bodyMedium)
+            when {
+                instance?.state == sh.haven.core.local.DesktopManager.DesktopState.RUNNING && !de.isNative ->
+                    Text(
+                        "VNC :${instance.displayNumber} (port ${instance.vncPort})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                instance?.state == sh.haven.core.local.DesktopManager.DesktopState.RUNNING && de.isNative ->
+                    Text(
+                        stringResource(R.string.connections_desktop_native_running),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                instance?.state == sh.haven.core.local.DesktopManager.DesktopState.ERROR ->
+                    Text(
+                        instance.errorMessage ?: "Error",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                !isInstalled ->
+                    Text(
+                        de.sizeEstimate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+            }
+        }
+
+        if (!isInstalled) {
+            TextButton(onClick = onInstall) {
+                Text(stringResource(R.string.common_install))
+            }
+        } else {
+            when (instance?.state) {
+                sh.haven.core.local.DesktopManager.DesktopState.RUNNING ->
+                    IconButton(onClick = onStop) {
+                        Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.connections_desktop_stop))
+                    }
+                sh.haven.core.local.DesktopManager.DesktopState.STARTING ->
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                else -> {
+                    IconButton(onClick = onStart) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.connections_desktop_start))
+                    }
+                    IconButton(onClick = { showUninstallConfirm = true }) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.common_delete),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DesktopSetupDialog(
     desktopState: sh.haven.core.local.ProotManager.DesktopSetupState,
+    selectedDe: sh.haven.core.local.ProotManager.DesktopEnvironment,
     onStart: (password: String, de: sh.haven.core.local.ProotManager.DesktopEnvironment, addons: Set<sh.haven.core.local.ProotManager.DesktopAddon>) -> Unit,
     onShellSelected: (String) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     var password by rememberSaveable { mutableStateOf("haven") }
     var shellCmd by rememberSaveable { mutableStateOf("/bin/sh") }
-    val deOptions = sh.haven.core.local.ProotManager.DesktopEnvironment.entries
-    var selectedDe by rememberSaveable { mutableIntStateOf(0) }
     var selectedAddons by remember {
         mutableStateOf(emptySet<sh.haven.core.local.ProotManager.DesktopAddon>())
     }
@@ -1589,27 +1755,19 @@ private fun DesktopSetupDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (desktopState) {
                     is sh.haven.core.local.ProotManager.DesktopSetupState.Idle -> {
-                        val currentDe = deOptions[selectedDe]
+                        Text(
+                            "${selectedDe.label} (${selectedDe.sizeEstimate})",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
                         Text(
                             when {
-                                currentDe.isWayland -> stringResource(R.string.connections_desktop_wayland_description)
-                                currentDe == sh.haven.core.local.ProotManager.DesktopEnvironment.OPENBOX -> stringResource(R.string.connections_desktop_openbox_description)
+                                selectedDe.isWayland -> stringResource(R.string.connections_desktop_wayland_description)
+                                selectedDe == sh.haven.core.local.ProotManager.DesktopEnvironment.OPENBOX -> stringResource(R.string.connections_desktop_openbox_description)
                                 else -> stringResource(R.string.connections_desktop_vnc_description)
                             },
                             style = MaterialTheme.typography.bodySmall,
                         )
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            deOptions.forEachIndexed { index, de ->
-                                SegmentedButton(
-                                    selected = selectedDe == index,
-                                    onClick = { selectedDe = index },
-                                    shape = SegmentedButtonDefaults.itemShape(index, deOptions.size),
-                                ) {
-                                    Text("${de.label} (${de.sizeEstimate})")
-                                }
-                            }
-                        }
-                        if (!currentDe.isWayland) {
+                        if (!selectedDe.isWayland) {
                             OutlinedTextField(
                                 value = password,
                                 onValueChange = { password = it },
@@ -1619,7 +1777,7 @@ private fun DesktopSetupDialog(
                             )
                         }
                         @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-                        if (currentDe.isNative) {
+                        if (selectedDe.isNative) {
                             var shellExpanded by remember { mutableStateOf(false) }
                             val shellOptions = listOf("/bin/sh", "/bin/ash", "/bin/bash", "/bin/zsh", "/bin/fish")
                             ExposedDropdownMenuBox(
@@ -1706,8 +1864,8 @@ private fun DesktopSetupDialog(
             if (desktopState is sh.haven.core.local.ProotManager.DesktopSetupState.Idle) {
                 TextButton(
                     onClick = {
-                        if (deOptions[selectedDe].isNative) onShellSelected(shellCmd)
-                        onStart(password, deOptions[selectedDe], selectedAddons)
+                        if (selectedDe.isNative) onShellSelected(shellCmd)
+                        onStart(password, selectedDe, selectedAddons)
                     },
                 ) { Text(stringResource(R.string.common_install)) }
             }

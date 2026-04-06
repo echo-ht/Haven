@@ -382,14 +382,15 @@ class TerminalViewModel @Inject constructor(
         }
     }
 
-    /** True when the PRoot desktop environment (Xvnc) is installed. */
+    /** True when any PRoot desktop environment is installed. */
     val isLocalDesktopInstalled: Boolean
-        get() = localSessionManager.prootManager.isDesktopInstalled
+        get() = localSessionManager.prootManager.hasAnyDesktopInstalled
 
-    /** Start the PRoot VNC server (kills any existing instance first). */
+    /** Start the first installed desktop via DesktopManager. */
     suspend fun startLocalVncServer() {
+        val de = localSessionManager.prootManager.installedDesktop ?: return
         withContext(Dispatchers.IO) {
-            localSessionManager.prootManager.startVncServer()
+            localSessionManager.desktopManager.startDesktop(de)
         }
     }
 

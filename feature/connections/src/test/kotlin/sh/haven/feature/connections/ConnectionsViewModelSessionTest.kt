@@ -22,6 +22,7 @@ import sh.haven.core.data.repository.PortForwardRepository
 import sh.haven.core.data.repository.SshKeyRepository
 import sh.haven.core.et.EtSessionManager
 import sh.haven.core.fido.FidoAuthenticator
+import sh.haven.core.local.DesktopManager
 import sh.haven.core.local.LocalSessionManager
 import sh.haven.core.local.ProotManager
 import sh.haven.core.mosh.MoshSessionManager
@@ -53,6 +54,7 @@ class ConnectionsViewModelSessionTest {
     private lateinit var localSessionManager: LocalSessionManager
     private lateinit var rdpSessionManager: RdpSessionManager
     private lateinit var prootManager: ProotManager
+    private lateinit var desktopManager: DesktopManager
     private lateinit var sessionManagerRegistry: SessionManagerRegistry
     private lateinit var viewModel: ConnectionsViewModel
 
@@ -85,10 +87,14 @@ class ConnectionsViewModelSessionTest {
             every { sessions } returns MutableStateFlow(emptyMap())
         }
         prootManager = mockk(relaxed = true)
+        desktopManager = mockk(relaxed = true) {
+            every { desktops } returns MutableStateFlow(emptyMap())
+        }
         localSessionManager = mockk(relaxed = true) {
             every { sessions } returns MutableStateFlow(emptyMap())
             every { activeSessions } returns emptyList()
             every { prootManager } returns this@ConnectionsViewModelSessionTest.prootManager
+            every { desktopManager } returns this@ConnectionsViewModelSessionTest.desktopManager
         }
         rdpSessionManager = mockk(relaxed = true) {
             every { sessions } returns MutableStateFlow(emptyMap())
@@ -158,7 +164,7 @@ class ConnectionsViewModelSessionTest {
     fun `disconnect stops VNC server`() {
         viewModel.disconnect("profile1")
 
-        verify { prootManager.stopVncServer() }
+        verify { desktopManager.stopAll() }
     }
 
     @Test
@@ -179,7 +185,7 @@ class ConnectionsViewModelSessionTest {
         viewModel.deleteConnection("profile1")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        verify { prootManager.stopVncServer() }
+        verify { desktopManager.stopAll() }
         coVerify { repository.delete("profile1") }
     }
 }

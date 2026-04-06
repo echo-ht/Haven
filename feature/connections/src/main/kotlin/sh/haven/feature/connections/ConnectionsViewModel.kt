@@ -667,7 +667,7 @@ class ConnectionsViewModel @Inject constructor(
     fun deleteConnection(id: String) {
         viewModelScope.launch {
             sessionManagerRegistry.disconnectProfile(id)
-            localSessionManager.prootManager.stopVncServer()
+            localSessionManager.desktopManager.stopAll()
             updateServiceNotification()
             repository.delete(id)
         }
@@ -852,8 +852,16 @@ class ConnectionsViewModel @Inject constructor(
     val desktopSetupState: StateFlow<sh.haven.core.local.ProotManager.DesktopSetupState> =
         localSessionManager.prootManager.desktopState
 
+    /** Desktop process states from DesktopManager. */
+    val desktopStates: StateFlow<Map<sh.haven.core.local.ProotManager.DesktopEnvironment, sh.haven.core.local.DesktopManager.DesktopInstance>> =
+        localSessionManager.desktopManager.desktops
+
+    /** All installed desktop environments. */
+    val installedDesktops: Set<sh.haven.core.local.ProotManager.DesktopEnvironment>
+        get() = localSessionManager.prootManager.installedDesktops
+
+    /** Install a desktop environment (packages only, does not auto-start). */
     fun setupDesktop(
-        localProfile: ConnectionProfile,
         vncPassword: String,
         de: sh.haven.core.local.ProotManager.DesktopEnvironment = sh.haven.core.local.ProotManager.DesktopEnvironment.XFCE4,
         addons: Set<sh.haven.core.local.ProotManager.DesktopAddon> = emptySet(),
@@ -867,60 +875,88 @@ class ConnectionsViewModel @Inject constructor(
                 prootManager.installAddons(addons)
             }
 
-            val state = prootManager.desktopState.value
-            Log.d(TAG, "Desktop setup result: $state")
-            if (state is sh.haven.core.local.ProotManager.DesktopSetupState.Complete) {
-                // Ensure Local Shell is connected (VNC server runs inside its PRoot session)
-                val activeSessions = localSessionManager.getSessionsForProfile(localProfile.id)
-                Log.d(TAG, "Local sessions for ${localProfile.id}: ${activeSessions.map { "${it.sessionId}=${it.status}" }}")
-                val hasActiveSession = activeSessions
-                    .any { it.status == sh.haven.core.local.LocalSessionManager.SessionState.Status.CONNECTED }
-                // Start VNC server via a standalone proot process
-                // (doesn't need an active terminal session)
-                Log.d(TAG, "Starting VNC server via proot...")
-                val shellCmd = preferencesRepository.waylandShellCommand.first()
-                withContext(Dispatchers.IO) {
-                    prootManager.startVncServer(shellCmd)
+            Log.d(TAG, "Desktop setup result: ${prootManager.desktopState.value}")
+            // Don't reset state here — let the dialog observe Complete and auto-dismiss
+        }
+    }
+
+    /** Uninstall a desktop environment. */
+    fun uninstallDesktop(de: sh.haven.core.local.ProotManager.DesktopEnvironment) {
+        viewModelScope.launch {
+            // Stop if running
+            localSessionManager.desktopManager.stopDesktop(de)
+            localSessionManager.prootManager.uninstallDesktop(de)
+            localSessionManager.prootManager.resetDesktopState()
+        }
+    }
+
+    /** Start a desktop environment and navigate to viewer. */
+    fun startDesktop(de: sh.haven.core.local.ProotManager.DesktopEnvironment) {
+        viewModelScope.launch {
+            val desktopManager = localSessionManager.desktopManager
+            val shellCmd = preferencesRepository.waylandShellCommand.first()
+            Log.d(TAG, "startDesktop: ${de.label} shell=$shellCmd")
+            withContext(Dispatchers.IO) {
+                desktopManager.startDesktop(de, shellCmd)
+            }
+            val state = desktopManager.desktops.value[de]
+            Log.d(TAG, "startDesktop: state after start = ${state?.state}")
+            if (de.isNative) {
+                delay(2000)
+                _navigateToWayland.value = true
+            } else {
+                val port = desktopManager.getVncPort(de) ?: 5901
+                Log.d(TAG, "startDesktop: VNC port=$port")
+                // Create or update VNC connection profile for this desktop
+                val existing = connections.value.find {
+                    it.isVnc && it.host == "localhost" && it.vncPort == port
                 }
-                Log.d(TAG, "VNC server start initiated (shell=$shellCmd)")
-
-                if (de.isNative) {
-                    // Native Wayland — no VNC needed
-                    Log.d(TAG, "DE is native, waiting 2s for compositor...")
-                    delay(2000)
-                    Log.d(TAG, "Setting _navigateToWayland=true")
-                    _navigateToWayland.value = true
-                    prootManager.resetDesktopState()
-                    Log.d(TAG, "Navigating to native Wayland desktop")
+                val pwd = connections.value
+                    .find { it.isVnc && it.host == "localhost" }
+                    ?.vncPassword
+                if (existing == null) {
+                    val vncProfile = ConnectionProfile(
+                        label = "${de.label} Desktop",
+                        host = "localhost",
+                        port = port,
+                        username = "",
+                        connectionType = "VNC",
+                        vncPort = port,
+                        vncPassword = pwd,
+                        vncSshForward = false,
+                    )
+                    repository.save(vncProfile)
+                    Log.d(TAG, "startDesktop: created VNC profile localhost:$port")
+                }
+                Log.d(TAG, "startDesktop: waiting for VNC server on port $port...")
+                // Wait up to 8s for VNC port to become available
+                val ready = withContext(Dispatchers.IO) {
+                    repeat(16) {
+                        try {
+                            java.net.Socket("127.0.0.1", port).close()
+                            return@withContext true
+                        } catch (_: Exception) {
+                            delay(500)
+                        }
+                    }
+                    false
+                }
+                if (ready) {
+                    Log.d(TAG, "startDesktop: VNC server ready, navigating to localhost:$port")
+                    _navigateToVnc.value = VncNavigation("localhost", port, pwd)
                 } else {
-                    // Create or update VNC connection profile
-                    val existing = connections.value.find {
-                        it.isVnc && it.host == "localhost" && it.vncPort == 5901
-                    }
-                    val pwd = vncPassword.ifEmpty { null }
-                    if (existing == null) {
-                        val vncProfile = ConnectionProfile(
-                            label = "${localProfile.label} Desktop",
-                            host = "localhost",
-                            port = 5901,
-                            username = "",
-                            connectionType = "VNC",
-                            vncPort = 5901,
-                            vncPassword = pwd,
-                            vncSshForward = false,
-                        )
-                        repository.save(vncProfile)
-                    } else if (existing.vncPassword != pwd) {
-                        repository.save(existing.copy(vncPassword = pwd))
-                    }
-
-                    // Give VNC server (3s) and Xfce4 time to start
-                    delay(7000)
-                    _navigateToVnc.value = VncNavigation("localhost", 5901, pwd)
-                    prootManager.resetDesktopState()
-                    Log.d(TAG, "Navigating to VNC localhost:5901")
+                    Log.e(TAG, "startDesktop: VNC server not listening on port $port after 8s")
+                    // Desktop process likely failed — stop it
+                    desktopManager.stopDesktop(de)
                 }
             }
+        }
+    }
+
+    /** Stop a running desktop environment. */
+    fun stopDesktop(de: sh.haven.core.local.ProotManager.DesktopEnvironment) {
+        viewModelScope.launch(Dispatchers.IO) {
+            localSessionManager.desktopManager.stopDesktop(de)
         }
     }
 
@@ -934,36 +970,16 @@ class ConnectionsViewModel @Inject constructor(
         }
     }
 
-    /** True if the PRoot desktop environment is already installed. */
+    /** True if any PRoot desktop environment is installed. */
     val isDesktopInstalled: Boolean
-        get() = localSessionManager.prootManager.isDesktopInstalled
+        get() = localSessionManager.prootManager.hasAnyDesktopInstalled
+
+    /** True if PRoot rootfs is installed and ready for desktop use. */
+    val isRootfsReady: Boolean
+        get() = localSessionManager.prootManager.isReady
 
     private val _launchingDesktop = MutableStateFlow(false)
     val launchingDesktop: StateFlow<Boolean> = _launchingDesktop.asStateFlow()
-
-    /** Launch an already-installed desktop — start VNC server and navigate to viewer. */
-    fun launchDesktop(localProfile: ConnectionProfile) {
-        if (_launchingDesktop.value) return // prevent double-tap
-        viewModelScope.launch {
-            _launchingDesktop.value = true
-            val prootManager = localSessionManager.prootManager
-            val shellCmd = preferencesRepository.waylandShellCommand.first()
-            withContext(Dispatchers.IO) {
-                prootManager.startVncServer(shellCmd)
-            }
-            if (prootManager.installedDesktop?.isNative == true) {
-                delay(2000) // native compositor startup
-                _navigateToWayland.value = true
-            } else {
-                val pwd = connections.value
-                    .find { it.isVnc && it.host == "localhost" && it.vncPort == 5901 }
-                    ?.vncPassword
-                delay(4000) // VNC server startup
-                _navigateToVnc.value = VncNavigation("localhost", 5901, pwd)
-            }
-            _launchingDesktop.value = false
-        }
-    }
 
     fun consumeNavigateToWayland() {
         _navigateToWayland.value = false
@@ -2211,7 +2227,7 @@ class ConnectionsViewModel @Inject constructor(
 
         viewModelScope.launch { connectionLogRepository.logEvent(profileId, ConnectionLog.Status.DISCONNECTED, verboseLog = transportLog) }
         sessionManagerRegistry.disconnectProfile(profileId)
-        localSessionManager.prootManager.stopVncServer()
+        localSessionManager.desktopManager.stopAll()
         updateServiceNotification()
     }
 

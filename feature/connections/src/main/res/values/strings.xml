@@ -101,8 +101,16 @@
     <string name="connections_vm_status_active">Active</string>
     <string name="connections_vm_refresh">Refresh VM status</string>
 
+    <!-- Desktop Manager -->
+    <string name="connections_desktops_title">Desktops</string>
+    <string name="connections_desktop_start">Start</string>
+    <string name="connections_desktop_stop">Stop</string>
+    <string name="connections_desktop_native_running">Native compositor</string>
+    <string name="connections_desktop_uninstall_title">Uninstall desktop?</string>
+    <string name="connections_desktop_uninstall_message">Uninstall %1$s? Packages will be removed from the PRoot environment.</string>
+
     <!-- Desktop setup dialog -->
-    <string name="connections_desktop_setup_title">Setup Desktop</string>
+    <string name="connections_desktop_setup_title">Install Desktop</string>
     <string name="connections_desktop_wayland_description">Install a Wayland compositor in the PRoot environment. Experimental — uses software rendering.</string>
     <string name="connections_desktop_openbox_description">Install a desktop environment and VNC server in the PRoot environment. Openbox is minimal — right-click the desktop for the app menu.</string>
     <string name="connections_desktop_vnc_description">Install a desktop environment and VNC server in the PRoot environment.</string>

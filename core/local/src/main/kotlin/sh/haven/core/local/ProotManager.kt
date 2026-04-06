@@ -42,7 +42,7 @@ class ProotManager @Inject constructor(
     private val _state = MutableStateFlow<SetupState>(SetupState.NotInstalled)
     val state: StateFlow<SetupState> = _state.asStateFlow()
 
-    private val rootfsDir: File
+    internal val rootfsDir: File
         get() = File(context.filesDir, "proot/rootfs/alpine")
 
     val isRootfsInstalled: Boolean
@@ -61,11 +61,15 @@ class ProotManager @Inject constructor(
     val isReady: Boolean
         get() = prootBinary != null && isRootfsInstalled
 
+    val hasAnyDesktopInstalled: Boolean
+        get() = installedDesktops.isNotEmpty()
+
+    fun isDesktopInstalled(de: DesktopEnvironment): Boolean =
+        de in installedDesktops && File(rootfsDir, de.verifyBinary).exists()
+
+    /** Compat alias — true if any DE is installed. */
     val isDesktopInstalled: Boolean
-        get() {
-            val de = installedDesktop ?: return false
-            return File(rootfsDir, de.verifyBinary).exists()
-        }
+        get() = hasAnyDesktopInstalled
 
     enum class DesktopEnvironment(
         val label: String,
@@ -75,6 +79,8 @@ class ProotManager @Inject constructor(
         val sizeEstimate: String,
         val isWayland: Boolean = false,
         val isNative: Boolean = false,
+        /** Hidden DEs are not shown in the Desktop Manager UI. */
+        val hidden: Boolean = false,
     ) {
         XFCE4(
             label = "Xfce4",
@@ -94,6 +100,7 @@ class ProotManager @Inject constructor(
             label = "Labwc (Wayland)",
             packages = "labwc wayvnc foot font-noto",
             verifyBinary = "usr/bin/labwc",
+            hidden = true,
             startCommands = "export XDG_RUNTIME_DIR=/tmp/xdg-runtime; " +
                 "mkdir -p \$XDG_RUNTIME_DIR; " +
                 "rm -f \$XDG_RUNTIME_DIR/wayland-0 \$XDG_RUNTIME_DIR/wayland-0.lock; " +
@@ -171,18 +178,18 @@ class ProotManager @Inject constructor(
             } catch (_: Exception) { emptySet() }
         }
 
-    /** Which DE was last installed (persisted as a file in the rootfs). */
-    val installedDesktop: DesktopEnvironment?
+    /** All installed DEs — detected by checking verifyBinary on filesystem. */
+    val installedDesktops: Set<DesktopEnvironment>
         get() {
-            val marker = File(rootfsDir, "root/.haven-desktop")
-            if (!marker.exists()) return null
-            return try {
-                // Marker format: "DE_NAME\npackage list" — match both name and packages
-                val lines = marker.readText().trim().lines()
-                val de = DesktopEnvironment.valueOf(lines.first())
-                if (lines.size >= 2 && lines[1] == de.packages) de else null
-            } catch (_: Exception) { null }
+            if (!isRootfsInstalled) return emptySet()
+            return DesktopEnvironment.entries.filter { de ->
+                File(rootfsDir, de.verifyBinary).exists()
+            }.toSet()
         }
+
+    /** Compat alias — returns the first installed DE. */
+    val installedDesktop: DesktopEnvironment?
+        get() = installedDesktops.firstOrNull()
 
     sealed class DesktopSetupState {
         data object Idle : DesktopSetupState()
@@ -500,8 +507,8 @@ class ProotManager @Inject constructor(
                 }
             }
 
-            // Reinstall if switching DE or not yet installed
-            val needsInstall = installedDesktop != de
+            // Install if this DE is not yet installed
+            val needsInstall = !isDesktopInstalled(de)
             if (needsInstall) {
                 _desktopState.value = DesktopSetupState.Installing(
                     "Installing ${de.label} (${de.sizeEstimate} download)..."
@@ -522,9 +529,10 @@ class ProotManager @Inject constructor(
                 return
             }
 
-            // Write marker so we know which DE is installed
+            // Update marker — append this DE to the installed set
             File(rootfsDir, "root").mkdirs()
-            File(rootfsDir, "root/.haven-desktop").writeText("${de.name}\n${de.packages}")
+            val updated = installedDesktops + de
+            File(rootfsDir, "root/.haven-desktop").writeText(updated.joinToString("\n") { it.name })
             Log.d(TAG, "${de.label} packages installed")
             }
 
@@ -614,6 +622,31 @@ chmod +x /root/.vnc/xstartup""")
         } catch (e: Exception) {
             Log.e(TAG, "Addon install failed", e)
             _desktopState.value = DesktopSetupState.Error(e.message ?: "Addon install failed")
+        }
+    }
+
+    /**
+     * Uninstall a desktop environment from the PRoot rootfs.
+     * Removes packages and updates the marker file.
+     */
+    suspend fun uninstallDesktop(de: DesktopEnvironment) {
+        try {
+            _desktopState.value = DesktopSetupState.Installing("Removing ${de.label}...")
+            val (output, exit) = runCommandInProot("apk del ${de.packages}")
+            Log.d(TAG, "apk del ${de.label} exit=$exit output(last 300)=${output.takeLast(300)}")
+
+            val remaining = installedDesktops - de
+            val marker = File(rootfsDir, "root/.haven-desktop")
+            if (remaining.isEmpty()) {
+                marker.delete()
+            } else {
+                marker.writeText(remaining.joinToString("\n") { it.name })
+            }
+            Log.d(TAG, "${de.label} uninstalled, remaining: ${remaining.map { it.name }}")
+            _desktopState.value = DesktopSetupState.Complete
+        } catch (e: Exception) {
+            Log.e(TAG, "Desktop uninstall failed", e)
+            _desktopState.value = DesktopSetupState.Error(e.message ?: "Uninstall failed")
         }
     }
 
@@ -772,323 +805,6 @@ chmod +x /root/.vnc/xstartup""")
             |</openbox_menu>
             """.trimMargin()
         )
-    }
-
-    private var vncProcess: Process? = null
-
-    /**
-     * Start the VNC server as a background proot process.
-     * Xvnc runs directly (not via vncserver wrapper) to avoid lock file issues.
-     * The process stays alive until explicitly killed or the app exits.
-     */
-    fun startVncServer(waylandShellCommand: String = "/bin/sh -l") {
-        // Kill any existing VNC process (our handle + orphans from previous app instances)
-        vncProcess?.destroyForcibly()
-        killOrphanedXvnc()
-
-        val de = installedDesktop ?: DesktopEnvironment.XFCE4
-
-        if (de.isNative && DesktopAddon.VNC_DESKTOP !in installedAddons) {
-            startNativeCompositor(de, waylandShellCommand)
-            return
-        }
-
-        // If native Wayland is installed with VNC_DESKTOP addon, use XFCE4 config for VNC
-        val vncDe = if (de.isNative) DesktopEnvironment.XFCE4 else de
-
-        val prootBin = prootBinary ?: return
-        val loaderPath = File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath
-
-        // Ensure /root exists on the host filesystem
-        val rootHome = File(rootfsDir, "root")
-        rootHome.mkdirs()
-
-        val shellCommand = if (vncDe.isWayland) {
-            Log.d(TAG, "Starting Wayland desktop: ${vncDe.label}")
-            // Wayland: labwc + wayvnc — no X11 lock files or Xvnc needed
-            "export HOME=/root; ${vncDe.startCommands} wait"
-        } else {
-            // X11: Xvnc + traditional desktop environment
-            File(context.cacheDir, ".X1-lock").delete()
-            File(rootHome, ".ICEauthority").apply { if (!exists()) createNewFile() }
-            File(rootHome, ".Xauthority").apply { if (!exists()) createNewFile() }
-
-            val passwdFile = File(rootfsDir, "root/.vnc/passwd")
-            val useAuth = passwdFile.exists() && passwdFile.length() >= 8
-            val securityArg = if (useAuth) {
-                "-SecurityTypes VncAuth -PasswordFile /root/.vnc/passwd"
-            } else {
-                "-SecurityTypes None"
-            }
-            Log.d(TAG, "Starting Xvnc: useAuth=$useAuth passwdSize=${passwdFile.length()}")
-
-            "rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 && " +
-                "Xvnc :1 -geometry 1280x720 " +
-                "$securityArg " +
-                "-BlacklistThreshold 10000 " +
-                "-localhost 0 & " +
-                "sleep 3; " +
-                "export DISPLAY=:1; " +
-                "export HOME=/root; " +
-                // virgl GPU passthrough for GL apps (if virgl_test_server is running)
-                "export GALLIUM_DRIVER=virpipe; " +
-                "export VTEST_SOCKET=/tmp/.virgl_test; " +
-                "${vncDe.startCommands} " +
-                "wait"
-        }
-
-        // Start virgl_test_server for GPU-accelerated OpenGL in PRoot apps
-        val virglBin = File(context.applicationInfo.nativeLibraryDir, "libvirgl_test_server.so")
-        val virglSocket = File(context.cacheDir, ".virgl_test")
-        virglSocket.delete()
-        if (virglBin.canExecute()) {
-            Log.d(TAG, "Starting virgl_test_server for ${de.label}...")
-            sh.haven.core.wayland.WaylandBridge.nativeStartVirglServer(
-                virglBin.absolutePath, virglSocket.absolutePath
-            )
-        }
-
-        val prootArgs = mutableListOf(
-            prootBin, "-0", "--link2symlink",
-            "-r", rootfsDir.absolutePath,
-            "-b", "/dev", "-b", "/proc", "-b", "/sys",
-            "-b", "${context.cacheDir.absolutePath}:/tmp",
-        )
-        prootArgs.addAll(listOf(
-            "-w", "/root",
-            "/bin/busybox", "sh", "-c",
-            shellCommand,
-        ))
-
-        val process = ProcessBuilder(prootArgs).apply {
-            environment().apply {
-                put("HOME", "/root")
-                put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
-                put("PROOT_TMP_DIR", context.cacheDir.absolutePath)
-                put("PROOT_LOADER", loaderPath)
-            }
-            redirectErrorStream(true)
-        }.start()
-
-        vncProcess = process
-
-        // Log output on a background thread
-        val logPrefix = if (de.isWayland) "Wayland" else "Xvnc"
-        Thread({
-            try {
-                process.inputStream.bufferedReader().forEachLine { line ->
-                    Log.d(TAG, "$logPrefix: $line")
-                }
-            } catch (_: Exception) {}
-            Log.d(TAG, "$logPrefix process exited: ${process.waitFor()}")
-        }, "desktop-server-log").apply { isDaemon = true }.start()
-    }
-
-    fun stopVncServer() {
-        if (sh.haven.core.wayland.WaylandBridge.nativeIsRunning()) {
-            sh.haven.core.wayland.WaylandBridge.nativeStop()
-        }
-        sh.haven.core.wayland.WaylandBridge.nativeStopVirglServer()
-        vncProcess?.destroyForcibly()
-        vncProcess = null
-        killOrphanedXvnc()
-    }
-
-    /**
-     * Start the native Wayland compositor (embedded in Haven's process).
-     * PRoot clients connect via a bind-mounted Wayland socket.
-     */
-    /** Recursively extract an assets directory to the filesystem. */
-    private fun extractAssetsDir(ctx: Context, assetPath: String, destDir: File) {
-        val assets = ctx.assets
-        val list = assets.list(assetPath) ?: return
-        if (list.isEmpty()) {
-            // It's a file
-            destDir.parentFile?.mkdirs()
-            assets.open(assetPath).use { input ->
-                destDir.outputStream().use { output -> input.copyTo(output) }
-            }
-        } else {
-            destDir.mkdirs()
-            for (child in list) {
-                extractAssetsDir(ctx, "$assetPath/$child", File(destDir, child))
-            }
-        }
-    }
-
-    private fun startNativeCompositor(de: DesktopEnvironment, shellCommand: String = "/bin/sh -l") {
-        val bridge = sh.haven.core.wayland.WaylandBridge
-
-        // Prepare XDG runtime dir (must be mode 0700, owned by app)
-        val xdgDir = File(context.cacheDir, "wayland-xdg").apply {
-            mkdirs()
-            setReadable(true, true)
-            setWritable(true, true)
-            setExecutable(true, true)
-        }
-        // Clean stale sockets
-        File(xdgDir, "wayland-0").delete()
-        File(xdgDir, "wayland-0.lock").delete()
-
-        // Extract XKB data from assets on first use
-        val xkbDir = File(context.filesDir, "xkb")
-        if (!File(xkbDir, "rules/evdev").exists()) {
-            Log.d(TAG, "Extracting XKB data...")
-            extractAssetsDir(context, "xkb", xkbDir)
-        }
-        // Fontconfig pointing to system fonts
-        val fontconfFile = File(context.cacheDir, "fonts.conf")
-        if (!fontconfFile.exists()) {
-            fontconfFile.writeText("""
-                <?xml version="1.0"?>
-                <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
-                <fontconfig>
-                  <dir>/system/fonts</dir>
-                  <cachedir>${context.cacheDir.absolutePath}/fontconfig-cache</cachedir>
-                </fontconfig>
-            """.trimIndent())
-            File(context.cacheDir, "fontconfig-cache").mkdirs()
-        }
-
-        // Set up native XWayland wrapper binary.
-        // wlroots forks and execs $WLR_XWAYLAND. Shell scripts don't work
-        // (Android's execvp doesn't handle shebangs). The native wrapper
-        // runs PRoot which then execs Xwayland inside the rootfs.
-        val xwaylandWrapper = File(context.applicationInfo.nativeLibraryDir, "libxwayland_wrapper.so")
-        val loaderPathXw = File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath
-        android.system.Os.setenv("WLR_XWAYLAND", xwaylandWrapper.absolutePath, true)
-        android.system.Os.setenv("HAVEN_PROOT_BIN", prootBinary ?: "", true)
-        android.system.Os.setenv("HAVEN_PROOT_LOADER", loaderPathXw, true)
-        android.system.Os.setenv("HAVEN_PROOT_ROOTFS", rootfsDir.absolutePath, true)
-        android.system.Os.setenv("HAVEN_CACHE_DIR", context.cacheDir.absolutePath, true)
-        android.system.Os.setenv("HAVEN_XDG_DIR", xdgDir.absolutePath, true)
-        Log.d(TAG, "Starting native compositor: XDG_RUNTIME_DIR=${xdgDir.absolutePath} WLR_XWAYLAND=${xwaylandWrapper.absolutePath}")
-        bridge.nativeStart(
-            xdgRuntimeDir = xdgDir.absolutePath,
-            xkbConfigRoot = xkbDir.absolutePath,
-            fontconfigFile = fontconfFile.absolutePath,
-        )
-
-        // Wait for socket to appear
-        val socket = File(xdgDir, "wayland-0")
-        var waited = 0
-        while (!socket.exists() && waited < 10) {
-            Thread.sleep(500)
-            waited++
-        }
-        if (socket.exists()) {
-            Log.d(TAG, "Native compositor started, socket: ${socket.absolutePath}")
-            // Try to create a symlink in /data/local/tmp/ via Shizuku for Termux access
-            WaylandSocketHelper.tryCreateSymlink(socket.absolutePath)
-        } else {
-            Log.e(TAG, "Native compositor socket not created after ${waited * 500}ms")
-        }
-
-        // Start virgl_test_server for GPU-accelerated OpenGL in PRoot apps
-        val virglBin = File(context.applicationInfo.nativeLibraryDir, "libvirgl_test_server.so")
-        val virglSocket = File(context.cacheDir, ".virgl_test")
-        virglSocket.delete()
-        if (virglBin.canExecute()) {
-            Log.d(TAG, "Starting virgl_test_server...")
-            bridge.nativeStartVirglServer(virglBin.absolutePath, virglSocket.absolutePath)
-        }
-
-        // Start PRoot with Wayland clients, bind-mounting the native socket
-        val prootBin = prootBinary ?: return
-        val loaderPath = File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath
-        val rootHome = File(rootfsDir, "root").apply { mkdirs() }
-
-        val process = ProcessBuilder(
-            prootBin, "-0", "--link2symlink",
-            "-r", rootfsDir.absolutePath,
-            "-b", "/dev", "-b", "/proc", "-b", "/sys",
-            "-b", "${context.cacheDir.absolutePath}:/tmp",
-            "-b", "${xdgDir.absolutePath}:/tmp/xdg-runtime",
-            "-w", "/root",
-            "/bin/busybox", "sh", "-c",
-            "export HOME=/root; " +
-                "export XDG_RUNTIME_DIR=/tmp/xdg-runtime; " +
-                "export XDG_DATA_HOME=/root/.local/share; " +
-                "export XDG_DATA_DIRS=/usr/local/share:/usr/share; " +
-                // GTK: prefer native Wayland over XWayland
-                "export GDK_BACKEND=wayland,x11; " +
-                "export WAYLAND_DISPLAY=wayland-0; " +
-                "unset FONTCONFIG_FILE; " +
-                "unset XKB_CONFIG_ROOT; " +
-                "export TERM=xterm-256color; " +
-                "export SHELL=${shellCommand.split(" ").first()}; " +
-                // virgl GPU passthrough env vars
-                "export GALLIUM_DRIVER=virpipe; " +
-                "export VTEST_SOCKET=/tmp/.virgl_test; " +
-                // Start XWayland for X11 apps (renders into Wayland compositor)
-                // XWayland is started by the compositor via WLR_XWAYLAND.
-                // Wait for the X11 socket, fallback to Xvfb if not available.
-                "mkdir -p /tmp/.X11-unix; " +
-                "i=0; while [ ! -e /tmp/.X11-unix/X0 ] && [ \$i -lt 5 ]; do sleep 1; i=\$((i+1)); done; " +
-                "if [ ! -e /tmp/.X11-unix/X0 ]; then Xvfb :0 -screen 0 1280x720x24 >/dev/null 2>&1 & sleep 1; fi; " +
-                "export DISPLAY=:0; " +
-                // App launcher wrapper — runs apps in a clean session
-                // so they survive fuzzel's exit
-                "mkdir -p /usr/local/bin; printf '#!/bin/sh\\n\"\\$@\" &\\n' > /usr/local/bin/launch && chmod +x /usr/local/bin/launch; " +
-                // Auto-start desktop components if installed.
-                // dbus-run-session provides the session bus waybar requires.
-                "if [ -x /usr/bin/waybar ]; then " +
-                    "dbus-run-session waybar >/tmp/waybar.log 2>&1 & sleep 2; " +
-                "fi; " +
-                "[ -x /usr/bin/thunar ] && thunar --daemon & " +
-                "foot -e $shellCommand 2>&1; " +
-                "wait",
-        ).apply {
-            environment().apply {
-                put("HOME", "/root")
-                put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
-                put("PROOT_TMP_DIR", context.cacheDir.absolutePath)
-                put("PROOT_LOADER", loaderPath)
-                remove("FONTCONFIG_FILE")
-                remove("XKB_CONFIG_ROOT")
-            }
-            redirectErrorStream(true)
-        }.start()
-
-        vncProcess = process
-
-        Thread({
-            try {
-                process.inputStream.bufferedReader().forEachLine { line ->
-                    Log.d(TAG, "NativeWayland: $line")
-                }
-            } catch (_: Exception) {}
-            Log.d(TAG, "NativeWayland PRoot exited: ${process.waitFor()}")
-        }, "native-wayland-log").apply { isDaemon = true }.start()
-    }
-
-    /**
-     * Kill any Xvnc processes that survived a previous app instance.
-     * PRoot child processes can outlive the Java Process handle.
-     * Android's toolbox ps doesn't support -eo, so we grep the default output.
-     */
-    private fun killOrphanedXvnc() {
-        try {
-            // Android ps: columns are USER PID PPID VSZ RSS WCHAN ADDR S NAME (or similar)
-            // Use grep to find Xvnc or proot lines, awk to get PID (field 2)
-            val proc = ProcessBuilder("sh", "-c",
-                "ps -A 2>/dev/null | grep 'Xvnc' | grep -v grep | awk '{print \$2}'"
-            ).redirectErrorStream(true).start()
-            val pids = proc.inputStream.bufferedReader().readText().trim()
-            proc.waitFor()
-            if (pids.isNotEmpty()) {
-                Log.d(TAG, "Killing orphaned Xvnc PIDs: $pids")
-                for (pid in pids.lines()) {
-                    try {
-                        ProcessBuilder("kill", "-9", pid.trim()).start().waitFor()
-                    } catch (_: Exception) {}
-                }
-            } else {
-                Log.d(TAG, "No orphaned Xvnc/proot processes found")
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "killOrphanedXvnc failed: ${e.message}")
-        }
     }
 
     fun resetDesktopState() {
