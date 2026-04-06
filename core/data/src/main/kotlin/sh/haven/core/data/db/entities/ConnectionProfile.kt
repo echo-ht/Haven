@@ -55,6 +55,8 @@ data class ConnectionProfile(
     val rcloneRemoteName: String? = null,
     /** rclone provider type (e.g. "drive", "s3", "dropbox"). */
     val rcloneProvider: String? = null,
+    /** Use native Android shell instead of PRoot for local connections. */
+    val useAndroidShell: Boolean = false,
 ) {
     enum class AuthType {
         PASSWORD,

@@ -1227,7 +1227,12 @@ class TerminalViewModel @Inject constructor(
             _newTabLoading.value = true
             try {
                 val label = activeTab.label
-                val sessionId = localSessionManager.registerSession(activeTab.profileId, label)
+                val existingSession = localSessionManager.sessions.value.values
+                    .find { it.profileId == activeTab.profileId }
+                val sessionId = localSessionManager.registerSession(
+                    activeTab.profileId, label,
+                    useAndroidShell = existingSession?.useAndroidShell ?: false,
+                )
                 localSessionManager.connectSession(sessionId)
                 syncSessions()
                 selectTabBySessionId(sessionId)

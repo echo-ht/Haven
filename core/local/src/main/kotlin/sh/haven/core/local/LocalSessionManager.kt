@@ -31,6 +31,7 @@ class LocalSessionManager @Inject constructor(
         val label: String,
         val status: Status,
         val localSession: LocalSession? = null,
+        val useAndroidShell: Boolean = false,
     ) {
         enum class Status { CONNECTING, CONNECTED, DISCONNECTED, ERROR }
     }
@@ -48,7 +49,7 @@ class LocalSessionManager @Inject constructor(
                 it.status == SessionState.Status.CONNECTING
         }
 
-    fun registerSession(profileId: String, label: String): String {
+    fun registerSession(profileId: String, label: String, useAndroidShell: Boolean = false): String {
         val sessionId = UUID.randomUUID().toString()
         _sessions.update { map ->
             map + (sessionId to SessionState(
@@ -56,6 +57,7 @@ class LocalSessionManager @Inject constructor(
                 profileId = profileId,
                 label = label,
                 status = SessionState.Status.CONNECTING,
+                useAndroidShell = useAndroidShell,
             ))
         }
         return sessionId
@@ -78,10 +80,10 @@ class LocalSessionManager @Inject constructor(
      * Build the shell command for a local session.
      * Uses proot if a rootfs is installed, otherwise falls back to /system/bin/sh.
      */
-    fun buildCommand(): Triple<String, Array<String>, Array<String>> {
+    fun buildCommand(useAndroidShell: Boolean = false): Triple<String, Array<String>, Array<String>> {
         val prootBinary = prootManager.prootBinary
 
-        return if (prootBinary != null && prootManager.isRootfsInstalled) {
+        return if (!useAndroidShell && prootBinary != null && prootManager.isRootfsInstalled) {
             // PRoot with Alpine rootfs
             val rootfsDir = java.io.File(context.filesDir, "proot/rootfs/alpine")
 
@@ -145,7 +147,7 @@ class LocalSessionManager @Inject constructor(
         if (session.status != SessionState.Status.CONNECTED) return null
         if (session.localSession != null) return null
 
-        val (cmd, args, env) = buildCommand()
+        val (cmd, args, env) = buildCommand(session.useAndroidShell)
 
         val localSession = LocalSession(
             sessionId = sessionId,

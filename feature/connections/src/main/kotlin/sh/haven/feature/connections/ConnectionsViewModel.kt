@@ -1008,7 +1008,7 @@ class ConnectionsViewModel @Inject constructor(
                 }
             }
 
-            val sessionId = localSessionManager.registerSession(profile.id, profile.label)
+            val sessionId = localSessionManager.registerSession(profile.id, profile.label, profile.useAndroidShell)
             try {
                 localSessionManager.connectSession(sessionId)
                 repository.markConnected(profile.id)

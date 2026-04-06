@@ -59,6 +59,7 @@
     <string name="connections_menu_connect_with_password">Connect with password</string>
     <string name="connections_menu_sessions">Sessions</string>
     <string name="connections_menu_duplicate">Duplicate</string>
+    <string name="connections_use_android_shell">Use native Android shell</string>
     <string name="connections_menu_disconnect">Disconnect</string>
     <string name="connections_menu_deploy_ssh_key">Deploy SSH Key</string>
 

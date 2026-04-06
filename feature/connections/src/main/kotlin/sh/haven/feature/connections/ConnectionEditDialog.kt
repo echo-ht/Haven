@@ -3,6 +3,7 @@ package sh.haven.feature.connections
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -142,6 +144,7 @@ fun ConnectionEditDialog(
     var keyId by rememberSaveable { mutableStateOf(existing?.keyId) }
     var sshOptions by rememberSaveable { mutableStateOf(existing?.sshOptions ?: "") }
     var disableAltScreen by rememberSaveable { mutableStateOf(existing?.disableAltScreen ?: false) }
+    var useAndroidShell by rememberSaveable { mutableStateOf(existing?.useAndroidShell ?: false) }
     var selectedSessionManager by rememberSaveable { mutableStateOf(existing?.sessionManager) }
     var etPort by rememberSaveable { mutableStateOf(existing?.etPort?.toString() ?: "2022") }
     var localSideband by rememberSaveable {
@@ -345,12 +348,32 @@ fun ConnectionEditDialog(
 
                 if (connectionType == "LOCAL") {
                     Text(
-                        "Runs an Alpine Linux shell locally via PRoot. " +
-                            "Downloads a minimal rootfs (~4MB) on first use. " +
-                            "No root or network connection needed.",
+                        if (useAndroidShell) {
+                            "Runs the native Android shell (/system/bin/sh). " +
+                                "Access Android commands, file system, and root (if available)."
+                        } else {
+                            "Runs an Alpine Linux shell locally via PRoot. " +
+                                "Downloads a minimal rootfs (~4MB) on first use. " +
+                                "No root or network connection needed."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { useAndroidShell = !useAndroidShell },
+                    ) {
+                        Checkbox(
+                            checked = useAndroidShell,
+                            onCheckedChange = { useAndroidShell = it },
+                        )
+                        Text(
+                            stringResource(R.string.connections_use_android_shell),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 } else if (connectionType == "RCLONE") {
                     val providerOptions = listOf(
                         "drive" to "Google Drive",
@@ -1377,11 +1400,12 @@ fun ConnectionEditDialog(
                             host = "localhost",
                             username = "",
                         )).copy(
-                            label = label.ifBlank { "Local Shell" },
+                            label = label.ifBlank { if (useAndroidShell) "Android Shell" else "Local Shell" },
                             host = "localhost",
                             port = 0,
                             username = "",
                             connectionType = "LOCAL",
+                            useAndroidShell = useAndroidShell,
                             colorTag = colorTag,
                             groupId = groupId,
                         )
@@ -1494,6 +1518,7 @@ fun ConnectionEditDialog(
                             keyId = keyId,
                             sshOptions = sshOptions.ifBlank { null },
                             disableAltScreen = disableAltScreen,
+                            useAndroidShell = useAndroidShell,
                             sessionManager = selectedSessionManager,
                             useMosh = selectedTransport == "MOSH",
                             useEternalTerminal = selectedTransport == "ET",

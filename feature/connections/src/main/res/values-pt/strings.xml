@@ -130,4 +130,5 @@
     <string name="connections_desktop_native_running">Native compositor</string>
     <string name="connections_desktop_uninstall_title">Uninstall desktop?</string>
     <string name="connections_desktop_uninstall_message">Uninstall %1$s? Packages will be removed from the PRoot environment.</string>
+    <string name="connections_use_android_shell">Use native Android shell</string>
 </resources>
