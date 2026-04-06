@@ -189,6 +189,7 @@ fun ConnectionsScreen(
     val showMoshClientMissing by viewModel.showMoshClientMissing.collectAsState()
     val desktopSetupState by viewModel.desktopSetupState.collectAsState()
     val desktopStates by viewModel.desktopStates.collectAsState()
+    val desktopVncPasswordPrompt by viewModel.desktopVncPasswordPrompt.collectAsState()
     val groupLaunchState by viewModel.groupLaunchState.collectAsState()
 
     LaunchedEffect(navigateToTerminal) {
@@ -654,6 +655,41 @@ fun ConnectionsScreen(
             onDismiss = {
                 setupDesktopDe = null
                 viewModel.resetDesktopSetupState()
+            },
+        )
+    }
+
+    // Desktop VNC password prompt — shown when starting a desktop that requires auth
+    // but no stored password is available
+    desktopVncPasswordPrompt?.let { prompt ->
+        var vncPwd by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDesktopVncPasswordPrompt() },
+            title = { Text("VNC Password") },
+            text = {
+                OutlinedTextField(
+                    value = vncPwd,
+                    onValueChange = { vncPwd = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                        platformImeOptions = androidx.compose.ui.text.input.PlatformImeOptions("flagNoPersonalizedLearning"),
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.onDesktopVncPasswordEntered(vncPwd) },
+                    enabled = vncPwd.isNotBlank(),
+                ) { Text("Connect") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissDesktopVncPasswordPrompt() }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
             },
         )
     }

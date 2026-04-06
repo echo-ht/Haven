@@ -906,11 +906,36 @@ class ConnectionsViewModel @Inject constructor(
     /** Uninstall a desktop environment. */
     fun uninstallDesktop(de: sh.haven.core.local.ProotManager.DesktopEnvironment) {
         viewModelScope.launch {
-            // Stop if running
-            localSessionManager.desktopManager.stopDesktop(de)
-            localSessionManager.prootManager.uninstallDesktop(de)
-            localSessionManager.prootManager.resetDesktopState()
+            try {
+                // Stop if running
+                localSessionManager.desktopManager.stopDesktop(de)
+                localSessionManager.prootManager.uninstallDesktop(de)
+                localSessionManager.prootManager.resetDesktopState()
+            } catch (e: Exception) {
+                Log.e(TAG, "uninstallDesktop failed for ${de.label}", e)
+                _error.value = "Uninstall failed: ${e.message}"
+            }
         }
+    }
+
+    /** Prompt for desktop VNC password when no stored password is available. */
+    data class DesktopVncPasswordPrompt(
+        val de: sh.haven.core.local.ProotManager.DesktopEnvironment,
+        val port: Int,
+    )
+    private val _desktopVncPasswordPrompt = MutableStateFlow<DesktopVncPasswordPrompt?>(null)
+    val desktopVncPasswordPrompt: StateFlow<DesktopVncPasswordPrompt?> = _desktopVncPasswordPrompt.asStateFlow()
+
+    fun onDesktopVncPasswordEntered(password: String) {
+        val prompt = _desktopVncPasswordPrompt.value ?: return
+        _desktopVncPasswordPrompt.value = null
+        // Save for next time
+        localSessionManager.prootManager.storedVncPassword = password
+        _navigateToVnc.value = VncNavigation("localhost", prompt.port, password)
+    }
+
+    fun dismissDesktopVncPasswordPrompt() {
+        _desktopVncPasswordPrompt.value = null
     }
 
     /** Start a desktop environment and navigate to viewer. */
@@ -930,9 +955,11 @@ class ConnectionsViewModel @Inject constructor(
             } else {
                 val port = desktopManager.getVncPort(de) ?: 5901
                 Log.d(TAG, "startDesktop: VNC port=$port")
-                val pwd = connections.value
-                    .find { it.isVnc && it.host == "localhost" }
-                    ?.vncPassword
+                // Look up VNC password: stored from setup, then saved profiles
+                val pwd = localSessionManager.prootManager.storedVncPassword
+                    ?: connections.value
+                        .find { it.isVnc && it.host == "localhost" }
+                        ?.vncPassword
                 Log.d(TAG, "startDesktop: waiting for VNC server on port $port...")
                 // Wait up to 8s for VNC port to become available
                 val ready = withContext(Dispatchers.IO) {
@@ -947,11 +974,18 @@ class ConnectionsViewModel @Inject constructor(
                     false
                 }
                 if (ready) {
-                    Log.d(TAG, "startDesktop: VNC server ready, navigating to localhost:$port")
-                    _navigateToVnc.value = VncNavigation("localhost", port, pwd)
+                    if (pwd == null) {
+                        // No stored password — prompt the user (VNC may or may not need auth,
+                        // but it's better to ask than to fail silently)
+                        Log.d(TAG, "startDesktop: VNC needs auth but no password stored, prompting")
+                        _desktopVncPasswordPrompt.value = DesktopVncPasswordPrompt(de, port)
+                    } else {
+                        Log.d(TAG, "startDesktop: VNC server ready, navigating to localhost:$port")
+                        _navigateToVnc.value = VncNavigation("localhost", port, pwd)
+                    }
                 } else {
                     Log.e(TAG, "startDesktop: VNC server not listening on port $port after 8s")
-                    // Desktop process likely failed — stop it
+                    _error.value = "Desktop failed to start — VNC server not responding"
                     desktopManager.stopDesktop(de)
                 }
             }

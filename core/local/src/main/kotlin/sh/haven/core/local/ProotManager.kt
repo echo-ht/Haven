@@ -178,6 +178,17 @@ class ProotManager @Inject constructor(
             } catch (_: Exception) { emptySet() }
         }
 
+    /** Stored VNC password for desktop viewer. */
+    var storedVncPassword: String?
+        get() {
+            val file = File(rootfsDir, "root/.haven-vnc-password")
+            return if (file.exists()) file.readText().trim().ifEmpty { null } else null
+        }
+        set(value) {
+            val file = File(rootfsDir, "root/.haven-vnc-password")
+            if (value != null) file.writeText(value) else file.delete()
+        }
+
     /** All installed DEs — detected by checking verifyBinary on filesystem. */
     val installedDesktops: Set<DesktopEnvironment>
         get() {
@@ -548,9 +559,12 @@ class ProotManager @Inject constructor(
                     Log.d(TAG, "vncpasswd exit=$pwdExit output=$pwdOut")
                     val passwdFile = File(rootfsDir, "root/.vnc/passwd")
                     Log.d(TAG, "passwd file exists=${passwdFile.exists()} size=${passwdFile.length()}")
+                    // Store plaintext for the VNC viewer to use on subsequent starts
+                    File(rootfsDir, "root/.haven-vnc-password").writeText(vncPassword)
                 } else {
                     // No password — remove any existing passwd file so server uses None
                     File(rootfsDir, "root/.vnc/passwd").delete()
+                    File(rootfsDir, "root/.haven-vnc-password").delete()
                     Log.d(TAG, "No VNC password set, using SecurityTypes None")
                 }
 
