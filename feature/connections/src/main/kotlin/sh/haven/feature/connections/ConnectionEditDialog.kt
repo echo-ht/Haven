@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import sh.haven.core.data.db.entities.ConnectionProfile
@@ -501,6 +502,10 @@ fun ConnectionEditDialog(
                         label = { Text("Password (optional)") },
                         singleLine = true,
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            platformImeOptions = PlatformImeOptions("flagNoPersonalizedLearning"),
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(4.dp))
@@ -740,6 +745,10 @@ fun ConnectionEditDialog(
                         label = { Text("Password (optional)") },
                         singleLine = true,
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            platformImeOptions = PlatformImeOptions("flagNoPersonalizedLearning"),
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(4.dp))

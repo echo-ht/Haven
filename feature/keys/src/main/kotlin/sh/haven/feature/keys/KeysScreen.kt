@@ -51,7 +51,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import sh.haven.core.data.db.entities.SshKey
@@ -456,6 +459,10 @@ private fun PassphraseDialog(
                     label = { Text(stringResource(R.string.keys_passphrase)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        platformImeOptions = PlatformImeOptions("flagNoPersonalizedLearning"),
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp),

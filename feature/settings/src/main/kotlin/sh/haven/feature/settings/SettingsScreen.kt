@@ -100,7 +100,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.res.stringResource
@@ -877,6 +880,10 @@ private fun BackupPasswordDialog(
                     label = { Text(stringResource(R.string.settings_backup_password_label)) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        platformImeOptions = PlatformImeOptions("flagNoPersonalizedLearning"),
+                    ),
                     isError = passwordError != null,
                     supportingText = passwordError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth(),
@@ -889,6 +896,10 @@ private fun BackupPasswordDialog(
                         label = { Text(stringResource(R.string.settings_backup_confirm_password_label)) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            platformImeOptions = PlatformImeOptions("flagNoPersonalizedLearning"),
+                        ),
                         isError = confirmError != null,
                         supportingText = confirmError?.let { { Text(it) } },
                         modifier = Modifier.fillMaxWidth(),

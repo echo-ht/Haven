@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -85,6 +86,7 @@ fun DeployKeyDialog(
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Go,
+                        platformImeOptions = PlatformImeOptions("flagNoPersonalizedLearning"),
                     ),
                     keyboardActions = KeyboardActions(
                         onGo = { selectedKey?.let { onDeploy(it.id, password) } },
