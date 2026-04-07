@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "sh.haven.core.local"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         minSdk = 26
