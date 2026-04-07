@@ -117,23 +117,14 @@ class ProotManager @Inject constructor(
             sizeEstimate = "~15MB",
             isWayland = true,
         ),
-        XFCE4_WAYLAND(
-            label = "Xfce4 (Wayland)",
-            packages = "foot font-noto xkeyboard-config xwayland mesa-dri-gallium mesa-gbm mesa-gl " +
-                "xfce4-panel xfce4-terminal xfdesktop thunar xfce4-settings mousepad " +
-                "xfce4-appfinder dbus-x11",
-            verifyBinary = "root/.haven-xfce4-wayland",
-            startCommands = "", // compositor runs natively via WaylandBridge, not in PRoot
-            sizeEstimate = "~110MB",
-            isWayland = true,
-            isNative = true,
-        ),
         WAYLAND_NATIVE(
             label = "Native Wayland",
-            packages = "foot font-noto xkeyboard-config xwayland mesa-dri-gallium mesa-gbm mesa-gl htop",
+            packages = "foot font-noto font-awesome adwaita-icon-theme " +
+                "xkeyboard-config xwayland mesa-dri-gallium mesa-gbm mesa-gl " +
+                "waybar fuzzel xfce4-terminal thunar mousepad htop dbus-x11",
             verifyBinary = "usr/bin/foot",
             startCommands = "", // compositor runs natively via WaylandBridge, not in PRoot
-            sizeEstimate = "~5MB",
+            sizeEstimate = "~80MB",
             isWayland = true,
             isNative = true,
         ),
@@ -692,23 +683,57 @@ chmod +x /root/.vnc/xstartup""")
     private fun writeDesktopConfigs() {
         val root = File(rootfsDir, "root")
 
-        // waybar config — bottom bar with app launcher and clock
+        // waybar config — Xfce-style panel with quick-launch buttons and system info
         File(root, ".config/waybar").mkdirs()
         File(root, ".config/waybar/config").writeText(
             """
             |{
             |    "layer": "top",
             |    "position": "bottom",
-            |    "height": 40,
-            |    "modules-left": ["custom/launcher"],
-            |    "modules-right": ["clock"],
-            |    "custom/launcher": {
-            |        "format": "Apps",
+            |    "height": 44,
+            |    "spacing": 0,
+            |    "modules-left": [
+            |        "custom/apps",
+            |        "custom/terminal",
+            |        "custom/files",
+            |        "custom/editor"
+            |    ],
+            |    "modules-center": [],
+            |    "modules-right": [
+            |        "cpu",
+            |        "memory",
+            |        "clock"
+            |    ],
+            |    "custom/apps": {
+            |        "format": "\uF0C9  Apps",
             |        "on-click": "fuzzel"
             |    },
+            |    "custom/terminal": {
+            |        "format": "\uF120  Terminal",
+            |        "on-click": "xfce4-terminal || foot"
+            |    },
+            |    "custom/files": {
+            |        "format": "\uF07B  Files",
+            |        "on-click": "thunar || foot -e ls"
+            |    },
+            |    "custom/editor": {
+            |        "format": "\uF044  Edit",
+            |        "on-click": "mousepad"
+            |    },
+            |    "cpu": {
+            |        "format": "\uF2DB {usage}%",
+            |        "interval": 5,
+            |        "tooltip": true
+            |    },
+            |    "memory": {
+            |        "format": "\uF538 {percentage}%",
+            |        "interval": 5,
+            |        "tooltip-format": "{used:0.1f}G / {total:0.1f}G"
+            |    },
             |    "clock": {
-            |        "format": "{:%H:%M}",
-            |        "format-alt": "{:%Y-%m-%d %H:%M}"
+            |        "format": "\uF017 {:%H:%M}",
+            |        "format-alt": "\uF073 {:%a %d %b %H:%M}",
+            |        "tooltip-format": "<tt>{calendar}</tt>"
             |    }
             |}
             """.trimMargin()
@@ -716,20 +741,44 @@ chmod +x /root/.vnc/xstartup""")
         File(root, ".config/waybar/style.css").writeText(
             """
             |* {
-            |    font-family: "Noto Sans", sans-serif;
-            |    font-size: 16px;
+            |    font-family: "Font Awesome 6 Free", "Noto Sans", sans-serif;
+            |    font-size: 15px;
             |    min-height: 0;
             |}
             |window#waybar {
-            |    background-color: rgba(30, 30, 46, 0.9);
-            |    color: #cdd6f4;
+            |    background-color: rgba(43, 48, 59, 0.95);
+            |    color: #d8dee9;
+            |    border-top: 1px solid rgba(100, 114, 125, 0.4);
             |}
-            |#custom-launcher {
-            |    padding: 0 16px;
+            |button {
+            |    border: none;
+            |    border-radius: 0;
+            |}
+            |button:hover {
+            |    background: rgba(255, 255, 255, 0.1);
+            |}
+            |#custom-apps {
+            |    padding: 0 14px;
             |    font-weight: bold;
+            |    background-color: rgba(94, 129, 172, 0.3);
+            |    border-right: 1px solid rgba(100, 114, 125, 0.3);
+            |}
+            |#custom-apps:hover {
+            |    background-color: rgba(94, 129, 172, 0.5);
+            |}
+            |#custom-terminal, #custom-files, #custom-editor {
+            |    padding: 0 12px;
+            |}
+            |#cpu, #memory {
+            |    padding: 0 10px;
+            |    color: #a3be8c;
+            |}
+            |#memory {
+            |    color: #ebcb8b;
             |}
             |#clock {
-            |    padding: 0 16px;
+            |    padding: 0 14px;
+            |    font-weight: bold;
             |}
             """.trimMargin()
         )
