@@ -53,6 +53,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.KeyboardAlt
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.AlertDialog
@@ -144,6 +145,7 @@ fun SettingsScreen(
     val verboseLoggingEnabled by viewModel.verboseLoggingEnabled.collectAsState()
     val mouseInputEnabled by viewModel.mouseInputEnabled.collectAsState()
     val terminalRightClick by viewModel.terminalRightClick.collectAsState()
+    val allowStandardKeyboard by viewModel.allowStandardKeyboard.collectAsState()
     val backupStatus by viewModel.backupStatus.collectAsState()
     val waylandShellCommand by viewModel.waylandShellCommand.collectAsState()
     val mediaExtensions by viewModel.mediaExtensions.collectAsState()
@@ -329,6 +331,13 @@ fun SettingsScreen(
             subtitle = stringResource(R.string.settings_right_click_subtitle),
             checked = terminalRightClick,
             onCheckedChange = viewModel::setTerminalRightClick,
+        )
+        SettingsToggleItem(
+            icon = Icons.Filled.Keyboard,
+            title = stringResource(R.string.settings_standard_keyboard_title),
+            subtitle = stringResource(R.string.settings_standard_keyboard_subtitle),
+            checked = allowStandardKeyboard,
+            onCheckedChange = viewModel::setAllowStandardKeyboard,
         )
         SettingsItem(
             icon = Icons.Filled.ColorLens,

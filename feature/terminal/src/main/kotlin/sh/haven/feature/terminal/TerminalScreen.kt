@@ -119,6 +119,7 @@ fun TerminalScreen(
     showCopyOutputButton: Boolean = false,
     mouseInputEnabled: Boolean = true,
     terminalRightClick: Boolean = false,
+    allowStandardKeyboard: Boolean = false,
     onNavigateToConnections: () -> Unit = {},
     onNavigateToVnc: (host: String, port: Int, password: String?, sshForward: Boolean, sshSessionId: String?) -> Unit = { _, _, _, _, _ -> },
     onSelectionActiveChanged: (Boolean) -> Unit = {},
@@ -634,6 +635,7 @@ fun TerminalScreen(
                                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
                                 },
                                 gestureCallback = gestureCallback,
+                                allowStandardKeyboard = allowStandardKeyboard,
                             )
                         }
 

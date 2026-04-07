@@ -66,6 +66,8 @@
     <string name="settings_mouse_input_subtitle">Forward taps as clicks and long-press as right-click when apps like htop, mc, or vim enable mouse tracking</string>
     <string name="settings_right_click_title">Long-press sends right-click</string>
     <string name="settings_right_click_subtitle">Send right-click to terminal instead of starting text selection. Useful for tmux context menus</string>
+    <string name="settings_standard_keyboard_title">Voice input and autocomplete</string>
+    <string name="settings_standard_keyboard_subtitle">Disables secure keyboard flags (password mode, no suggestions). Enables voice input, swipe typing, and word predictions — but the IME may learn typed passwords</string>
 
     <!-- Appearance section -->
     <string name="settings_theme_title">Theme</string>
