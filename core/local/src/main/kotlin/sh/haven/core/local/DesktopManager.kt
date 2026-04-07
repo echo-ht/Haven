@@ -294,6 +294,10 @@ class DesktopManager @Inject constructor(
             android.system.Os.setenv("HAVEN_PROOT_ROOTFS", rootfsDir.absolutePath, true)
             android.system.Os.setenv("HAVEN_CACHE_DIR", context.cacheDir.absolutePath, true)
             android.system.Os.setenv("HAVEN_XDG_DIR", xdgDir.absolutePath, true)
+            // Clean stale X11 sockets before compositor starts XWayland
+            val x11UnixDir = File(context.cacheDir, ".X11-unix")
+            x11UnixDir.deleteRecursively()
+            x11UnixDir.mkdirs()
             Log.d(TAG, "Starting native compositor: XDG_RUNTIME_DIR=${xdgDir.absolutePath}")
             bridge.nativeStart(
                 xdgRuntimeDir = xdgDir.absolutePath,
@@ -364,8 +368,9 @@ class DesktopManager @Inject constructor(
                     "mkdir -p /tmp/.X11-unix; " +
                     "i=0; while ! ls /tmp/.X11-unix/X* >/dev/null 2>&1 && [ \$i -lt 5 ]; do sleep 1; i=\$((i+1)); done; " +
                     "if ls /tmp/.X11-unix/X* >/dev/null 2>&1; then " +
-                        "XDISP=\$(ls /tmp/.X11-unix/ | sort | head -1 | sed 's/X//'); " +
+                        "XDISP=\$(ls /tmp/.X11-unix/ | sort -r | head -1 | sed 's/X//'); " +
                         "export DISPLAY=:\$XDISP; " +
+                        "mkdir -p /etc/profile.d; echo \"export DISPLAY=:\$XDISP\" > /etc/profile.d/display.sh; " +
                     "fi; " +
                     // Auto-start desktop components if installed
                     "if [ -x /usr/bin/waybar ]; then " +
