@@ -2,12 +2,6 @@
 <resources>
     <string name="app_name">Haven</string>
 
-    <!-- Navigation -->
-    <string name="nav_connections">कनेक्शन</string>
-    <string name="nav_terminal">टर्मिनल</string>
-    <string name="nav_sftp">फ़ाइलें</string>
-    <string name="nav_keys">कुंजियाँ</string>
-    <string name="nav_settings">सेटिंग्स</string>
 
     <!-- Common strings shared across modules -->
     <string name="common_cancel">रद्द करें</string>

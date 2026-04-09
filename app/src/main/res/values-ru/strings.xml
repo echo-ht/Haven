@@ -2,12 +2,6 @@
 <resources>
     <string name="app_name">Haven</string>
 
-    <!-- Navigation -->
-    <string name="nav_connections">Подключения</string>
-    <string name="nav_terminal">Терминал</string>
-    <string name="nav_sftp">Файлы</string>
-    <string name="nav_keys">Ключи</string>
-    <string name="nav_settings">Настройки</string>
 
     <!-- Common strings shared across modules -->
     <string name="common_cancel">Отмена</string>

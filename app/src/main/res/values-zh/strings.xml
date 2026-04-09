@@ -2,12 +2,6 @@
 <resources>
     <string name="app_name">Haven</string>
 
-    <!-- Navigation -->
-    <string name="nav_connections">连接</string>
-    <string name="nav_terminal">终端</string>
-    <string name="nav_sftp">文件</string>
-    <string name="nav_keys">密钥</string>
-    <string name="nav_settings">设置</string>
 
     <!-- Common strings shared across modules -->
     <string name="common_cancel">取消</string>
