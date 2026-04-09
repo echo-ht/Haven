@@ -48,6 +48,7 @@ import sh.haven.core.data.db.entities.KnownHost
 import sh.haven.core.mosh.MoshSessionManager
 import sh.haven.core.et.EtSessionManager
 import sh.haven.core.fido.FidoAuthenticator
+import sh.haven.core.fido.FidoTouchPrompt
 import sh.haven.core.local.LocalSessionManager
 import sh.haven.core.rclone.RcloneClient
 import sh.haven.core.rclone.RcloneSessionManager
@@ -292,6 +293,15 @@ class ConnectionsViewModel @Inject constructor(
      */
     private val _warning = MutableStateFlow<String?>(null)
     val warning: StateFlow<String?> = _warning.asStateFlow()
+
+    /**
+     * Direct re-export of [FidoAuthenticator.touchPrompt] so the connections
+     * screen can show a "plug in / tap your security key" prompt during a
+     * FIDO2 SSH assertion. Re-exporting (rather than collecting and copying)
+     * keeps the StateFlow's hot semantics — the prompt appears and disappears
+     * exactly when the authenticator's assertion goroutine sets/clears it.
+     */
+    val fidoTouchPrompt: StateFlow<FidoTouchPrompt?> = fidoAuthenticator.touchPrompt
 
     private val _showMoshSetupGuide = MutableStateFlow(false)
     val showMoshSetupGuide: StateFlow<Boolean> = _showMoshSetupGuide.asStateFlow()

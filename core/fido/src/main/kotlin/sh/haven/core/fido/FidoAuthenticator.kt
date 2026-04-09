@@ -17,6 +17,9 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.lang.ref.WeakReference
@@ -32,6 +35,18 @@ data class FidoAssertionResult(
     val flags: Byte,
     val counter: Int,
 )
+
+/**
+ * UI state for an in-flight FIDO2 assertion. The UI should show a modal
+ * prompt while [FidoAuthenticator.touchPrompt] is non-null and dismiss it
+ * when the flow returns to null.
+ */
+sealed class FidoTouchPrompt {
+    /** Discovery active — waiting for the user to plug in or tap a key. */
+    data object WaitingForKey : FidoTouchPrompt()
+    /** Key detected; CTAP2 in flight; waiting for the user to physically touch it. */
+    data object TouchKey : FidoTouchPrompt()
+}
 
 /**
  * Manages FIDO2 authenticator interactions using the generic CTAP2 protocol.
@@ -70,8 +85,14 @@ class FidoAuthenticator @Inject constructor(
      */
     private var activeActivity: WeakReference<Activity>? = null
 
-    /** Callback for UI to show/hide "touch your security key" prompt. */
-    var onTouchRequired: ((Boolean) -> Unit)? = null
+    private val _touchPrompt = MutableStateFlow<FidoTouchPrompt?>(null)
+    /**
+     * Current FIDO2 prompt state observable by the UI. Non-null while an
+     * assertion is in flight; transitions [FidoTouchPrompt.WaitingForKey]
+     * → [FidoTouchPrompt.TouchKey] → null. Observers should render a
+     * modal prompt while non-null.
+     */
+    val touchPrompt: StateFlow<FidoTouchPrompt?> = _touchPrompt.asStateFlow()
 
     /**
      * Publish the foreground activity from `Activity.onResume`. Required to
@@ -140,11 +161,19 @@ class FidoAuthenticator @Inject constructor(
             Log.d(TAG, "No foreground activity — NFC path disabled, USB only")
         }
 
-        onTouchRequired?.invoke(true)
+        // If a USB key was already plugged in, we already completed the
+        // deferred above — skip straight to TouchKey. Otherwise tell the
+        // UI we're waiting for the user to plug in / tap.
+        _touchPrompt.value = if (deferred.isCompleted) FidoTouchPrompt.TouchKey
+        else FidoTouchPrompt.WaitingForKey
 
         try {
             Log.d(TAG, "Waiting for security key (USB${if (nfcEnabled) " or NFC" else ""})...")
             val device = deferred.await()
+
+            // Device just landed — switch the prompt to "touch your key now"
+            // before sending the CTAP2 GetAssertion command.
+            _touchPrompt.value = FidoTouchPrompt.TouchKey
 
             val result = when (device) {
                 is ConnectedDevice.Usb -> performUsbAssertion(device.device, rpId, clientDataHash, credentialId)
@@ -168,7 +197,7 @@ class FidoAuthenticator @Inject constructor(
             if (nfcEnabled && nfcActivity != null) {
                 stopNfcReaderModeOnMain(nfcActivity)
             }
-            onTouchRequired?.invoke(false)
+            _touchPrompt.value = null
         }
     }
 
@@ -321,7 +350,10 @@ class FidoAuthenticator @Inject constructor(
 
             val command = Ctap2Cbor.encodeGetAssertionCommand(rpId, clientDataHash, credentialId)
             val response = transport.sendCborCommand(command) {
-                onTouchRequired?.invoke(true)
+                // Authenticator says STATUS_UPNEEDED — it is *right now*
+                // waiting for the user to physically touch the key. Idempotent
+                // re-assert (the state was already TouchKey from getAssertion).
+                _touchPrompt.value = FidoTouchPrompt.TouchKey
             }
 
             return parseCtap2Response(response)

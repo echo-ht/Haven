@@ -181,6 +181,7 @@ fun ConnectionsScreen(
     val sessionSelection by viewModel.sessionSelection.collectAsState()
     val passwordFallback by viewModel.passwordFallback.collectAsState()
     val hostKeyPrompt by viewModel.hostKeyPrompt.collectAsState()
+    val fidoTouchPrompt by viewModel.fidoTouchPrompt.collectAsState()
     val globalSessionManagerLabel by viewModel.globalSessionManagerLabel.collectAsState()
     val newSessionProfileId by viewModel.newSessionProfileId.collectAsState()
     val subnetScanning by viewModel.subnetScanning.collectAsState()
@@ -552,6 +553,10 @@ fun ConnectionsScreen(
                 )
             }
         }
+    }
+
+    fidoTouchPrompt?.let { prompt ->
+        FidoTouchPromptDialog(prompt = prompt)
     }
 
     deployingProfile?.let { profile ->
