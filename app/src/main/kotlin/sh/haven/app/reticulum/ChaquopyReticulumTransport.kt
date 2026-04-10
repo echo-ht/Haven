@@ -41,8 +41,14 @@ class ChaquopyReticulumTransport @Inject constructor(
     override val discoveredDestinations: StateFlow<List<DiscoveredDestination>> =
         _discovered.asStateFlow()
 
-    override suspend fun init(configDir: String, host: String, port: Int): String =
-        withContext(Dispatchers.IO) {
+    override suspend fun init(
+        configDir: String,
+        host: String,
+        port: Int,
+        ifacNetname: String?,
+        ifacNetkey: String?,
+    ): String = withContext(Dispatchers.IO) {
+            // IFAC params ignored — Chaquopy bridge reads IFAC from config file
             val identityHash = bridge.initReticulum(configDir, host, port)
             refreshDiscovered()
             identityHash

@@ -52,6 +52,8 @@ class NativeReticulumTransport @Inject constructor() : ReticulumTransport {
         configDir: String,
         host: String,
         port: Int,
+        ifacNetname: String?,
+        ifacNetkey: String?,
     ): String = withContext(Dispatchers.IO) {
         if (initialised) {
             return@withContext clientIdentity?.hexHash ?: "already-initialised"
@@ -80,6 +82,8 @@ class NativeReticulumTransport @Inject constructor() : ReticulumTransport {
                 name = "Gateway $host:$port",
                 targetHost = host,
                 targetPort = port,
+                ifacNetname = ifacNetname,
+                ifacNetkey = ifacNetkey,
             )
             Reticulum.getInstance().addInterface(tcpClient)
             Transport.registerInterface(tcpClient.toRef())

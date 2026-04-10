@@ -24,9 +24,17 @@ interface ReticulumTransport {
      * @param configDir Writable directory for RNS config/identity storage
      * @param host Shared-instance or gateway host
      * @param port Shared-instance or gateway TCP port
+     * @param ifacNetname IFAC network name for gateway isolation (optional)
+     * @param ifacNetkey IFAC passphrase for gateway isolation (optional)
      * @return Haven's RNS identity hash (hex)
      */
-    suspend fun init(configDir: String, host: String = "127.0.0.1", port: Int = 37428): String
+    suspend fun init(
+        configDir: String,
+        host: String = "127.0.0.1",
+        port: Int = 37428,
+        ifacNetname: String? = null,
+        ifacNetkey: String? = null,
+    ): String
 
     /** Whether Reticulum has been initialised. */
     val isInitialised: Boolean

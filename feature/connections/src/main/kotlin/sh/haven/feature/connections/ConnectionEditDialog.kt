@@ -161,6 +161,8 @@ fun ConnectionEditDialog(
     var rcloneRemoteName by rememberSaveable { mutableStateOf(existing?.rcloneRemoteName ?: "") }
     var rcloneProvider by rememberSaveable { mutableStateOf(existing?.rcloneProvider ?: "") }
     var rnsPort by rememberSaveable { mutableStateOf(existing?.reticulumPort?.toString() ?: "4242") }
+    var rnsNetworkName by rememberSaveable { mutableStateOf(existing?.reticulumNetworkName ?: "") }
+    var rnsPassphrase by rememberSaveable { mutableStateOf(existing?.reticulumPassphrase ?: "") }
 
     val isEdit = existing != null
     val title = if (isEdit) "Edit Connection" else "New Connection"
@@ -1415,6 +1417,25 @@ fun ConnectionEditDialog(
                                 modifier = Modifier.width(80.dp),
                             )
                         }
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = rnsNetworkName,
+                            onValueChange = { rnsNetworkName = it },
+                            label = { Text("Network Name") },
+                            placeholder = { Text("IFAC network name (optional)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = rnsPassphrase,
+                            onValueChange = { rnsPassphrase = it },
+                            label = { Text("Passphrase") },
+                            placeholder = { Text("IFAC passphrase (optional)") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }
@@ -1583,6 +1604,8 @@ fun ConnectionEditDialog(
                             destinationHash = destinationHash.lowercase(),
                             reticulumHost = savedHost,
                             reticulumPort = savedPort,
+                            reticulumNetworkName = rnsNetworkName.ifBlank { null },
+                            reticulumPassphrase = rnsPassphrase.ifBlank { null },
                             colorTag = colorTag,
                             groupId = groupId,
                         )

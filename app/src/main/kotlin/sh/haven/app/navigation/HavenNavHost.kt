@@ -112,6 +112,15 @@ fun HavenNavHost(
     val pagerState = rememberPagerState { screens.size }
     fun pageOf(screen: Screen): Int = screens.indexOf(screen).coerceAtLeast(0)
     val coroutineScope = rememberCoroutineScope()
+
+    // Debug navigation: scroll pager when DebugReceiver (debug builds only) emits a route
+    LaunchedEffect(Unit) {
+        DebugNavEvents.requests.collect { route ->
+            val target = screens.indexOfFirst { it.route == route }
+            if (target >= 0) pagerState.animateScrollToPage(target)
+        }
+    }
+
     val terminalFontSize by preferencesRepository.terminalFontSize
         .collectAsState(initial = UserPreferencesRepository.DEFAULT_FONT_SIZE)
     val toolbarLayout by preferencesRepository.toolbarLayout

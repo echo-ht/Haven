@@ -1287,6 +1287,8 @@ class ConnectionsViewModel @Inject constructor(
                         configDir = configDir,
                         host = profile.reticulumHost,
                         port = profile.reticulumPort,
+                        ifacNetname = profile.reticulumNetworkName,
+                        ifacNetkey = profile.reticulumPassphrase,
                     )
                 }
 
@@ -2589,6 +2591,8 @@ class ConnectionsViewModel @Inject constructor(
                     configDir = configDir,
                     host = profile.reticulumHost,
                     port = profile.reticulumPort,
+                    ifacNetname = profile.reticulumNetworkName,
+                    ifacNetkey = profile.reticulumPassphrase,
                 )
             }
             repository.markConnected(profile.id)

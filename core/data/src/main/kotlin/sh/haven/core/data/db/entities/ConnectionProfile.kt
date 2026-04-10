@@ -61,6 +61,10 @@ data class ConnectionProfile(
     val moshServerCommand: String? = null,
     /** Enable SSH agent forwarding (OpenSSH `ForwardAgent`) — exposes non-encrypted stored SSH keys to the remote session. */
     val forwardAgent: Boolean = false,
+    /** IFAC network name for Reticulum gateway isolation (maps to ifacNetname). */
+    val reticulumNetworkName: String? = null,
+    /** IFAC passphrase for Reticulum gateway isolation (maps to ifacNetkey). */
+    val reticulumPassphrase: String? = null,
 ) {
     enum class AuthType {
         PASSWORD,
