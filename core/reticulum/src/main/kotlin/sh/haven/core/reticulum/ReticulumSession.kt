@@ -81,9 +81,11 @@ class ReticulumSession(
      */
     fun sendInput(data: ByteArray) {
         if (closed) return
+        Log.d(TAG, "sendInput: ${data.size} bytes, session=$sessionId")
         scope.launch {
             try {
                 shellSession.sendInput(data)
+                Log.d(TAG, "sendInput: delivered ${data.size} bytes")
             } catch (e: Exception) {
                 Log.e(TAG, "sendInput failed", e)
             }
