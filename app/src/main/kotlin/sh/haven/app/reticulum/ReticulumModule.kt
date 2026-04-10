@@ -5,6 +5,7 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import sh.haven.core.reticulum.ReticulumBridge
+import sh.haven.core.reticulum.ReticulumTransport
 import javax.inject.Singleton
 
 @Module
@@ -14,4 +15,8 @@ abstract class ReticulumModule {
     @Binds
     @Singleton
     abstract fun bindReticulumBridge(impl: ChaquopyReticulumBridge): ReticulumBridge
+
+    @Binds
+    @Singleton
+    abstract fun bindReticulumTransport(impl: ChaquopyReticulumTransport): ReticulumTransport
 }

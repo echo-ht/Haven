@@ -51,6 +51,14 @@ includeBuild("rclone-android") {
     }
 }
 
+// rnsh-kt: Kotlin rnsh client library (sibling repo, will become submodule).
+includeBuild("rnsh-kt") {
+    dependencySubstitution {
+        substitute(module("tech.torlando:rnsh-core"))
+            .using(project(":rnsh-core"))
+    }
+}
+
 // reticulum-kt upstream (submodule, pinned to 83c92af). See issue #79.
 includeBuild("reticulum-kt") {
     dependencySubstitution {
