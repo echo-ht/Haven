@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import sh.haven.app.navigation.DebugNavEvents
 import sh.haven.core.data.db.entities.ConnectionProfile
 import sh.haven.core.data.repository.ConnectionRepository
+import sh.haven.core.reticulum.ReticulumTransport
 import javax.inject.Inject
 
 /**
@@ -54,18 +55,7 @@ import javax.inject.Inject
 class DebugReceiver : BroadcastReceiver() {
 
     @Inject lateinit var connectionRepository: ConnectionRepository
-
-    override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action ?: return
-        Log.d(TAG, "Received action: $action")
-
-        when (action) {
-            ACTION_CREATE_PROFILE -> handleCreateProfile(intent)
-            ACTION_LIST_PROFILES -> handleListProfiles()
-            ACTION_NAVIGATE -> handleNavigate(intent)
-            else -> Log.w(TAG, "Unknown action: $action")
-        }
-    }
+    @Inject lateinit var reticulumTransport: ReticulumTransport
 
     private fun handleCreateProfile(intent: Intent) {
         val label = intent.getStringExtra("label")
@@ -149,10 +139,68 @@ class DebugReceiver : BroadcastReceiver() {
         DebugNavEvents.emit(route)
     }
 
+    private fun handleScanReticulum(intent: Intent) {
+        val host = intent.getStringExtra("host") ?: "192.168.0.2"
+        val port = if (intent.hasExtra("port")) intent.getIntExtra("port", 4242) else 4242
+        val networkName = intent.getStringExtra("networkName")
+        val passphrase = intent.getStringExtra("passphrase")
+
+        Log.i(TAG, "SCAN_RETICULUM: host=$host port=$port ifac=${networkName != null}")
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val configDir = java.io.File(
+                    context.filesDir, "reticulum"
+                ).apply { mkdirs() }.absolutePath
+
+                reticulumTransport.init(configDir, host, port, networkName, passphrase)
+                Log.i(TAG, "SCAN_RETICULUM: transport initialised, collecting announces for 10s...")
+
+                val job = launch {
+                    reticulumTransport.discoveredDestinations.collect { list ->
+                        if (list.isNotEmpty()) {
+                            Log.i(TAG, "SCAN_RETICULUM: ${list.size} destination(s):")
+                            list.forEach { d ->
+                                Log.i(TAG, "  ${d.hash} (${d.hops} hops)")
+                            }
+                        }
+                    }
+                }
+                kotlinx.coroutines.delay(10_000)
+                job.cancel()
+
+                val final_ = reticulumTransport.discoveredDestinations.value
+                Log.i(TAG, "SCAN_RETICULUM: complete, ${final_.size} destination(s) found")
+            } catch (e: Exception) {
+                Log.e(TAG, "SCAN_RETICULUM: failed", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private lateinit var context: Context
+
+    override fun onReceive(ctx: Context, intent: Intent) {
+        context = ctx
+        val action = intent.action ?: return
+        Log.d(TAG, "Received action: $action")
+
+        when (action) {
+            ACTION_CREATE_PROFILE -> handleCreateProfile(intent)
+            ACTION_LIST_PROFILES -> handleListProfiles()
+            ACTION_NAVIGATE -> handleNavigate(intent)
+            ACTION_SCAN_RETICULUM -> handleScanReticulum(intent)
+            else -> Log.w(TAG, "Unknown action: $action")
+        }
+    }
+
     companion object {
         private const val TAG = "DebugReceiver"
         private const val ACTION_CREATE_PROFILE = "sh.haven.app.DEBUG_CREATE_PROFILE"
         private const val ACTION_LIST_PROFILES = "sh.haven.app.DEBUG_LIST_PROFILES"
         private const val ACTION_NAVIGATE = "sh.haven.app.DEBUG_NAVIGATE"
+        private const val ACTION_SCAN_RETICULUM = "sh.haven.app.DEBUG_SCAN_RETICULUM"
     }
 }

@@ -155,9 +155,9 @@ fun ConnectionEditDialog(
     var etPort by rememberSaveable { mutableStateOf(existing?.etPort?.toString() ?: "2022") }
     var localSideband by rememberSaveable {
         mutableStateOf(
-            existing == null ||
-                (existing.reticulumHost in listOf("127.0.0.1", "localhost", "::1") &&
-                    existing.reticulumPort == 37428),
+            existing != null &&
+                existing.reticulumHost in listOf("127.0.0.1", "localhost", "::1") &&
+                existing.reticulumPort == 37428,
         )
     }
     var rnsHost by rememberSaveable { mutableStateOf(existing?.reticulumHost ?: "") }
@@ -1338,83 +1338,10 @@ fun ConnectionEditDialog(
                         }
                     }
                 } else {
-                    // Scan button to discover rnsh destinations
-                    OutlinedButton(
-                        onClick = {
-                            val scanHost = if (localSideband) "127.0.0.1" else rnsHost
-                            val scanPort = if (localSideband) 37428 else (rnsPort.toIntOrNull() ?: 4242)
-                            onScanReticulum(
-                                scanHost,
-                                scanPort,
-                                rnsNetworkName.ifBlank { null },
-                                rnsPassphrase.ifBlank { null },
-                            )
-                        },
-                        enabled = !reticulumScanning,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        if (reticulumScanning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text("Scanning...")
-                        } else {
-                            Text("Scan for rnsh nodes")
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
+                    // --- Reticulum connection form ---
+                    // Order: gateway config → scan → destination hash
 
-                    // Discovered destinations — filter by typed prefix, cap at 8
-                    val filtered = remember(discoveredDestinations, destinationHash) {
-                        val prefix = destinationHash.lowercase()
-                        discoveredDestinations
-                            .filter { prefix.isEmpty() || it.hash.startsWith(prefix) }
-                            .take(8)
-                    }
-                    if (filtered.isNotEmpty()) {
-                        val hiddenCount = discoveredDestinations.size - filtered.size
-                        Text(
-                            text = if (hiddenCount > 0) {
-                                "Discovered (${filtered.size} of ${discoveredDestinations.size})"
-                            } else {
-                                "Discovered (${filtered.size})"
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            filtered.forEach { dest ->
-                                val hopsLabel = if (dest.hops >= 0) " (${dest.hops}h)" else ""
-                                SuggestionChip(
-                                    onClick = { destinationHash = dest.hash },
-                                    label = {
-                                        Text(
-                                            text = dest.hash.take(12) + ".." + hopsLabel,
-                                            style = MaterialTheme.typography.labelSmall,
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                    }
-
-                    OutlinedTextField(
-                        value = destinationHash,
-                        onValueChange = {
-                            destinationHash = it.filter { c -> c in "0123456789abcdefABCDEF" }
-                                .take(32)
-                        },
-                        label = { Text("Destination Hash") },
-                        placeholder = { Text("32-character hex") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(4.dp))
+                    // 1. Gateway configuration
                     FilterChip(
                         selected = localSideband,
                         onClick = {
@@ -1468,6 +1395,85 @@ fun ConnectionEditDialog(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
+
+                    // 2. Scan for destinations (uses gateway config above)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            val scanHost = if (localSideband) "127.0.0.1" else rnsHost
+                            val scanPort = if (localSideband) 37428 else (rnsPort.toIntOrNull() ?: 4242)
+                            onScanReticulum(
+                                scanHost,
+                                scanPort,
+                                rnsNetworkName.ifBlank { null },
+                                rnsPassphrase.ifBlank { null },
+                            )
+                        },
+                        enabled = !reticulumScanning,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (reticulumScanning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Scanning...")
+                        } else {
+                            Text("Scan for rnsh nodes")
+                        }
+                    }
+
+                    // 3. Discovered destinations (tapping a chip fills the hash)
+                    val filtered = remember(discoveredDestinations, destinationHash) {
+                        val prefix = destinationHash.lowercase()
+                        discoveredDestinations
+                            .filter { prefix.isEmpty() || it.hash.startsWith(prefix) }
+                            .take(8)
+                    }
+                    if (filtered.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        val hiddenCount = discoveredDestinations.size - filtered.size
+                        Text(
+                            text = if (hiddenCount > 0) {
+                                "Discovered (${filtered.size} of ${discoveredDestinations.size})"
+                            } else {
+                                "Discovered (${filtered.size})"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            filtered.forEach { dest ->
+                                val hopsLabel = if (dest.hops >= 0) " (${dest.hops}h)" else ""
+                                SuggestionChip(
+                                    onClick = { destinationHash = dest.hash },
+                                    label = {
+                                        Text(
+                                            text = dest.hash.take(12) + ".." + hopsLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    // 4. Destination hash (auto-filled by chip tap, or manual entry)
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = destinationHash,
+                        onValueChange = {
+                            destinationHash = it.filter { c -> c in "0123456789abcdefABCDEF" }
+                                .take(32)
+                        },
+                        label = { Text("Destination Hash") },
+                        placeholder = { Text("32-character hex") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         },
