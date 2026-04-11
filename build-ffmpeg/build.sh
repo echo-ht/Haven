@@ -502,6 +502,9 @@ EXTRA_LDFLAGS="-pie -Wl,-z,max-page-size=16384 -L$DEPS_SYSROOT/lib"
         --enable-demuxer=mp3 \
         --enable-demuxer=wav \
         --enable-demuxer=ogg \
+        --enable-demuxer=flac \
+        --enable-demuxer=avi \
+        --enable-demuxer=mpegts \
         --enable-demuxer=webm_dash_manifest \
         --enable-muxer=mp4 \
         --enable-muxer=mov \
@@ -519,6 +522,9 @@ EXTRA_LDFLAGS="-pie -Wl,-z,max-page-size=16384 -L$DEPS_SYSROOT/lib"
         --enable-decoder=mpeg4 \
         --enable-decoder=aac \
         --enable-decoder=mp3 \
+        --enable-decoder=flac \
+        --enable-decoder=vorbis \
+        --enable-decoder=opus \
         --enable-decoder=pcm_s16le \
         --enable-encoder=mpeg4 \
         --enable-encoder=libx264 \

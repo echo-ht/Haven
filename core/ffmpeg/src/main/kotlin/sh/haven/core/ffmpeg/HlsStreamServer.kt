@@ -73,9 +73,16 @@ class HlsStreamServer @Inject constructor(
             playlistPath,
         )
 
+        Log.w(TAG, "Starting ffmpeg HLS: ${args.joinToString(" ")}")
         ffmpegJob = ffmpegExecutor.startJob(args) { line ->
-            Log.d(TAG, "ffmpeg: $line")
+            Log.w(TAG, "ffmpeg: $line")
         }
+
+        // Monitor ffmpeg in a background thread — log if it exits early
+        Thread({
+            val result = ffmpegJob?.await()
+            Log.w(TAG, "ffmpeg exited: code=${result?.exitCode} stderr=${result?.stderr?.take(500)}")
+        }, "hls-ffmpeg-monitor").apply { isDaemon = true }.start()
 
         // Start HTTP server
         val ss = ServerSocket(preferredPort, 10, InetAddress.getByName("0.0.0.0"))

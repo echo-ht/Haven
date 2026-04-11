@@ -769,12 +769,14 @@ class SftpViewModel @Inject constructor(
      * Returns the URL to share with other devices.
      */
     fun streamFile(entry: SftpEntry) {
+        Log.w(TAG, "streamFile: ${entry.path} isLocal=${_isLocalProfile.value} ffmpegAvail=${ffmpegExecutor.isAvailable()}")
         if (!_isLocalProfile.value) {
             _error.value = "Streaming is only available for local files"
             return
         }
         viewModelScope.launch {
             try {
+                Log.w(TAG, "Starting HLS stream for ${entry.path}")
                 val port = hlsStreamServer.startFile(entry.path)
                 // Get the device's IP address for the shareable URL
                 val ip = withContext(Dispatchers.IO) {

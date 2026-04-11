@@ -703,11 +703,10 @@ fun SftpScreen(
                                 },
                                 onCopy = { viewModel.copyToClipboard(listOf(entry), isCut = false) },
                                 onCut = { viewModel.copyToClipboard(listOf(entry), isCut = true) },
-                                onConvert = if (!entry.isDirectory && entry.isMediaFile(mediaExtensions) && viewModel.ffmpegAvailable) {
+                                onConvert = if (!entry.isDirectory && entry.isMediaFile(mediaExtensions)) {
                                     { showConvertDialog = entry }
                                 } else null,
-                                onStream = if (!entry.isDirectory && entry.isMediaFile(mediaExtensions)
-                                    && viewModel.ffmpegAvailable && viewModel.isLocalProfile()) {
+                                onStream = if (!entry.isDirectory && viewModel.isLocalProfile()) {
                                     { viewModel.streamFile(entry) }
                                 } else null,
                                 onPlay = if (isRclone && entry.isMediaFile(mediaExtensions)) {
