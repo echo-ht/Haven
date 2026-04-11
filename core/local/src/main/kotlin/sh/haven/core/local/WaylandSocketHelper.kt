@@ -17,6 +17,64 @@ object WaylandSocketHelper {
     private const val TAG = "WaylandSocket"
     private const val LINK_DIR = "/data/local/tmp/haven-wayland"
 
+    /**
+     * Tracks Shizuku binder availability reactively.
+     * pingBinder() is unreliable at startup because the binder connection
+     * is asynchronous. We register listeners once and update this flag.
+     */
+    @Volatile
+    private var shizukuBinderAlive = false
+
+    @Volatile
+    private var shizukuListenersRegistered = false
+
+    fun initShizukuListeners() {
+        if (shizukuListenersRegistered) return
+        try {
+            val clazz = Class.forName("rikka.shizuku.Shizuku")
+
+            // Check current state first
+            val pingMethod = clazz.getMethod("pingBinder")
+            shizukuBinderAlive = pingMethod.invoke(null) as Boolean
+            Log.d(TAG, "Shizuku initial pingBinder: $shizukuBinderAlive")
+
+            // Register for binder received events
+            val addReceivedMethod = clazz.getMethod(
+                "addBinderReceivedListenerSticky",
+                Class.forName("rikka.shizuku.Shizuku\$OnBinderReceivedListener"),
+            )
+            val receivedProxy = java.lang.reflect.Proxy.newProxyInstance(
+                clazz.classLoader,
+                arrayOf(Class.forName("rikka.shizuku.Shizuku\$OnBinderReceivedListener")),
+            ) { _, _, _ ->
+                Log.d(TAG, "Shizuku binder received")
+                shizukuBinderAlive = true
+                null
+            }
+            addReceivedMethod.invoke(null, receivedProxy)
+
+            // Register for binder dead events
+            val addDeadMethod = clazz.getMethod(
+                "addBinderDeadListener",
+                Class.forName("rikka.shizuku.Shizuku\$OnBinderDeadListener"),
+            )
+            val deadProxy = java.lang.reflect.Proxy.newProxyInstance(
+                clazz.classLoader,
+                arrayOf(Class.forName("rikka.shizuku.Shizuku\$OnBinderDeadListener")),
+            ) { _, _, _ ->
+                Log.d(TAG, "Shizuku binder dead")
+                shizukuBinderAlive = false
+                null
+            }
+            addDeadMethod.invoke(null, deadProxy)
+
+            shizukuListenersRegistered = true
+            Log.d(TAG, "Shizuku binder listeners registered")
+        } catch (e: Exception) {
+            Log.d(TAG, "Shizuku listener registration failed: ${e.message}")
+        }
+    }
+
     // --- Logcat capture ---
 
     @Volatile
@@ -123,13 +181,8 @@ object WaylandSocketHelper {
 
     /** Shizuku is installed AND its binder service is running. */
     fun isShizukuAvailable(): Boolean {
-        return try {
-            val clazz = Class.forName("rikka.shizuku.Shizuku")
-            val method = clazz.getMethod("pingBinder")
-            method.invoke(null) as Boolean
-        } catch (_: Exception) {
-            false
-        }
+        initShizukuListeners()
+        return shizukuBinderAlive
     }
 
     /** Shizuku APK is installed on the device (may not be running). */
@@ -146,8 +199,11 @@ object WaylandSocketHelper {
         return try {
             val clazz = Class.forName("rikka.shizuku.Shizuku")
             val method = clazz.getMethod("checkSelfPermission")
-            (method.invoke(null) as Int) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        } catch (_: Exception) {
+            val result = (method.invoke(null) as Int) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            Log.d(TAG, "Shizuku permission: $result")
+            result
+        } catch (e: Exception) {
+            Log.d(TAG, "Shizuku permission check failed: ${e.message}")
             false
         }
     }

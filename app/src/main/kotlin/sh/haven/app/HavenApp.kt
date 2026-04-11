@@ -12,5 +12,8 @@ class HavenApp : Application() {
         if (!Python.isStarted()) {
             Python.start(AndroidPlatform(this))
         }
+        // Register Shizuku binder listeners early so the async callback
+        // has time to fire before any UI checks isShizukuAvailable().
+        sh.haven.core.local.WaylandSocketHelper.initShizukuListeners()
     }
 }
