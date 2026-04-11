@@ -52,4 +52,4 @@ Security:
 - Connection audit log
 - No ads, no tracking, no data collection
 
-Haven is free and open source (GPLv3).
+Haven is free and open source (AGPLv3).
