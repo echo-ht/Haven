@@ -531,7 +531,12 @@ class SftpViewModel @Inject constructor(
      * @param entry The remote file to convert
      * @param format Output format key: "h264", "h265", "vp9", "mp3"
      */
-    fun convertFile(entry: SftpEntry, format: String) {
+    fun convertFile(
+        entry: SftpEntry,
+        format: String,
+        videoFilters: List<sh.haven.core.ffmpeg.VideoFilter> = emptyList(),
+        audioFilters: List<sh.haven.core.ffmpeg.AudioFilter> = emptyList(),
+    ) {
         val profileId = _activeProfileId.value ?: return
         viewModelScope.launch {
             try {
@@ -584,7 +589,7 @@ class SftpViewModel @Inject constructor(
                     "vp9" -> sh.haven.core.ffmpeg.TranscodeCommand.vp9(cacheInput.absolutePath, cacheOutput.absolutePath)
                     "mp3" -> sh.haven.core.ffmpeg.TranscodeCommand.mp3(cacheInput.absolutePath, cacheOutput.absolutePath)
                     else -> sh.haven.core.ffmpeg.TranscodeCommand.h264(cacheInput.absolutePath, cacheOutput.absolutePath)
-                }
+                }.videoFilters(videoFilters).audioFilters(audioFilters)
 
                 _transferProgress.value = TransferProgress("Converting to $format", 100, 0)
                 val result = withContext(Dispatchers.IO) {

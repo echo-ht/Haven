@@ -21,6 +21,8 @@ class TranscodeCommand(
     private var crf: Int? = null
     private var preset: String? = null
     private var scale: String? = null
+    private val vFilters = mutableListOf<VideoFilter>()
+    private val aFilters = mutableListOf<AudioFilter>()
     private var extraArgs = mutableListOf<String>()
     private var overwrite = true
 
@@ -31,6 +33,10 @@ class TranscodeCommand(
     fun crf(value: Int) = apply { crf = value }
     fun preset(value: String) = apply { preset = value }
     fun scale(widthxheight: String) = apply { scale = widthxheight }
+    fun videoFilter(filter: VideoFilter) = apply { vFilters.add(filter) }
+    fun videoFilters(filters: List<VideoFilter>) = apply { vFilters.addAll(filters) }
+    fun audioFilter(filter: AudioFilter) = apply { aFilters.add(filter) }
+    fun audioFilters(filters: List<AudioFilter>) = apply { aFilters.addAll(filters) }
     fun overwrite(value: Boolean) = apply { overwrite = value }
     fun extra(vararg args: String) = apply { extraArgs.addAll(args) }
 
@@ -47,7 +53,20 @@ class TranscodeCommand(
         aBitrate?.let { add("-b:a"); add(it) }
         crf?.let { add("-crf"); add(it.toString()) }
         preset?.let { add("-preset"); add(it) }
-        scale?.let { add("-vf"); add("scale=$it") }
+
+        // Build -vf chain: combine explicit scale + VideoFilter list
+        val allVf = buildList {
+            scale?.let { add("scale=$it") }
+            if (vFilters.isNotEmpty()) add(VideoFilter.chain(vFilters))
+        }
+        if (allVf.isNotEmpty()) {
+            add("-vf"); add(allVf.joinToString(","))
+        }
+
+        // Build -af chain from AudioFilter list
+        if (aFilters.isNotEmpty()) {
+            add("-af"); add(AudioFilter.chain(aFilters))
+        }
 
         addAll(extraArgs)
         add(output)

@@ -18,7 +18,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -756,9 +757,10 @@ fun SftpScreen(
         )
     }
 
-    // Convert format picker
+    // Convert format picker + filter UI
     showConvertDialog?.let { entry ->
         var selectedFormat by remember { mutableStateOf("h264") }
+        val filterState = remember { FilterState() }
         val formats = listOf(
             "h264" to "H.264 (MP4)",
             "h265" to "H.265 (MP4)",
@@ -769,28 +771,43 @@ fun SftpScreen(
             onDismissRequest = { showConvertDialog = null },
             title = { Text(stringResource(R.string.sftp_convert_title)) },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(entry.name, style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(12.dp))
+
+                    // Format selection
+                    Text(stringResource(R.string.sftp_convert_format), style = MaterialTheme.typography.labelMedium)
                     formats.forEach { (key, label) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { selectedFormat = key }
-                                .padding(vertical = 4.dp),
+                                .padding(vertical = 2.dp),
                         ) {
                             RadioButton(selected = selectedFormat == key, onClick = { selectedFormat = key })
                             Spacer(Modifier.width(8.dp))
                             Text(label)
                         }
                     }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    // Filter section (collapsible)
+                    FilterSection(
+                        state = filterState,
+                        isAudioOnly = selectedFormat == "mp3",
+                    )
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     showConvertDialog = null
-                    viewModel.convertFile(entry, selectedFormat)
+                    viewModel.convertFile(
+                        entry, selectedFormat,
+                        filterState.buildVideoFilters(),
+                        filterState.buildAudioFilters(),
+                    )
                 }) { Text(stringResource(R.string.sftp_convert)) }
             },
             dismissButton = {
