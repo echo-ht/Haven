@@ -525,6 +525,8 @@ EXTRA_LDFLAGS="-pie -Wl,-z,max-page-size=16384 -L$DEPS_SYSROOT/lib"
         --enable-decoder=flac \
         --enable-decoder=vorbis \
         --enable-decoder=opus \
+        --enable-decoder=mjpeg \
+        --enable-decoder=png \
         --enable-decoder=pcm_s16le \
         --enable-encoder=mpeg4 \
         --enable-encoder=libx264 \
