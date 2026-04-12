@@ -24,7 +24,7 @@
 - [x] **Import SSH keys** — PEM/OpenSSH/PuTTY PPK format with passphrase support
 - [x] **FIDO2 SSH keys** — ecdsa-sk, ed25519-sk hardware key support
 - [x] **Network discovery** — mDNS/broadcast LAN scanning for SSH hosts
-- [x] **Port forwarding** — local (`-L`) and remote (`-R`) with visual flow diagrams, live add/edit/remove
+- [x] **Port forwarding** — local (`-L`), remote (`-R`), and dynamic (`-D` SOCKS5 proxy) with visual flow diagrams, live add/edit/remove
 - [x] **ProxyJump / multi-hop** — `ssh -J` style jump hosts via direct-tcpip channels
 - [x] **Custom session commands** — override tmux/screen/zellij template with `{name}` placeholder
 - [x] **Per-connection SSH options** — freeform ssh_config-style key-value pairs
@@ -46,6 +46,7 @@
 
 ### Remote Desktop
 - [x] **VNC viewer** — embedded VNC client over SSH port forwarding
+- [x] **VNC VeNCrypt** — RFB security type 19 with TLSPlain/X509Plain/TLSVnc/X509Vnc/TLSNone/X509None/Plain sub-types; connects to wayvnc, TigerVNC, libvncserver, x11vnc with username + password over TLS
 - [x] **RDP** — Windows remote desktop via IronRDP (Rust/UniFFI)
 - [x] **Local Xfce desktop** — PRoot VNC desktop environment
 
@@ -53,6 +54,13 @@
 - [x] **SFTP browser** — full file browser with upload/download/open
 - [x] **SMB/CIFS** — Windows file share browsing
 - [x] **DocumentsProvider** — expose SFTP as Android storage provider
+
+### Media tools
+- [x] **ffmpeg integration** — custom FFmpeg 8.0 build (full codec/format/filter set) wired into the file browser. Long-press any media file to convert; works on local, SFTP, SMB, and rclone. Container + video + audio encoder dropdowns with copy-remux defaults. Frame preview with filter live-update, fullscreen view, and seek slider. Audio preview (5-second playback with filters applied). Video filters (brightness, contrast, saturation, gamma, sharpen, denoise, deshake, auto color, speed, rotation) and audio filters (volume, EBU R128 normalize). "Save to" picker: Downloads or back to source folder with upload progress.
+- [x] **Rclone cloud media streaming** — ffmpeg reads source files from rclone via HTTP + Range requests through the rclone VFS, so convert/preview/stream all start in seconds regardless of file size. Optional "Download first" toggle for offline conversion.
+- [x] **HLS streaming server** — transcode any local or rclone media file to HLS segments and serve to other devices on the network; URL auto-copied to clipboard, muted-autoplay HTML5 player with "Tap to unmute", force H.264 Main/4.0 + 30fps + 1920×1080 cap for Android MediaCodec compatibility.
+- [x] **Tap-to-play** — single tap on a rclone or local media file launches the system player (VLC, MX Player, etc.) via the rclone HTTP media server or FileProvider URI.
+- [x] **DLNA server** — stream cloud media to smart TVs and Chromecast on the local network (via rclone's built-in DLNA serve).
 
 ### PRoot / Local
 - [x] **Local Alpine Linux terminal** — PRoot-based local shell
@@ -63,10 +71,16 @@
 ### Cloud & file sync
 - [ ] **rclone sync** — one-tap folder sync between remotes (local ↔ cloud, cloud ↔ cloud) from the file browser, with progress and conflict resolution
 - [ ] **rclone bisync** — two-way sync with change detection for keeping folders in lockstep
-- [x] **Media streaming** — stream audio/video from rclone remotes to VLC/any player via local HTTP server with M3U playlists and natural sort
 
-### Media tools
-- [ ] **ffmpeg integration** — video/audio conversion, compression, audio extraction, trimming, and merging via [ffmpeg-kit](https://github.com/arthenica/ffmpeg-kit) with a task-based GUI in the file browser. Long-press a media file to convert, compress, extract audio, or trim. Works on local files, SFTP, SMB, and rclone remotes. Presets for common operations (compress for sharing, extract MP3, re-encode for compatibility) plus advanced options for power users.
+### Media tools (further work)
+- [ ] **AV1 decoder (libdav1d)** — add AV1 decoding support to the bundled ffmpeg so the next class of modern files (YouTube / new cameras) decodes without falling back to native Android MediaCodec
+- [ ] **libvidstab two-pass stabilization** — replace the built-in `deshake` filter with the much higher-quality two-pass vidstab in the "Stabilize" preset
+- [ ] **librubberband speed changes** — pitch-preserving time-stretch so the Speed slider doesn't produce chipmunk audio when slowing down a video
+- [ ] **libwebp image support** — frame preview could save as WebP instead of the current 1-frame-MP4 + MediaMetadataRetriever workaround
+- [ ] **libssh in ffmpeg** — lets ffmpeg read directly from SFTP servers without going through the download-to-cache path (HTTP-stream trick for SFTP profiles)
+- [ ] **Media trim/cut UI** — start/end seek points in the convert dialog to extract a portion of a file (infrastructure for seekTo/duration already in TranscodeCommand)
+- [ ] **Resolution preset picker** — quick 720p / 480p / Original chips in the convert dialog that drive `-vf scale`
+- [ ] **Estimated output size** — `(bitrate × duration)` hint next to the Convert button so users know what they're about to create
 
 ### Encryption
 - [ ] **age file encryption** — encrypt/decrypt files in the SFTP/rclone browser using [age](https://age-encryption.org) (Go library via gomobile), with key management in Haven's key store
