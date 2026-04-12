@@ -573,6 +573,20 @@ class SftpViewModel @Inject constructor(
         if (downloads.canRead()) {
             roots.add(SftpEntry("Downloads", downloads.absolutePath, true, 0, downloads.lastModified() / 1000, ""))
         }
+        // PRoot Alpine rootfs — only surfaced when the rootfs has been
+        // installed. Lands the user in /root (the shell's home dir)
+        // rather than the rootfs top, since that's where ~/.profile,
+        // ~/README.md, ~/.ssh/, and ~/.config/haven/ live. The user
+        // can navigate up to see /etc, /usr, /var etc. if they want.
+        val prootHome = java.io.File(appContext.filesDir, "proot/rootfs/alpine/root")
+        if (prootHome.exists() && prootHome.canRead()) {
+            roots.add(
+                SftpEntry(
+                    "PRoot (~/)", prootHome.absolutePath, true, 0,
+                    prootHome.lastModified() / 1000, "",
+                ),
+            )
+        }
         roots.add(SftpEntry("App Cache", appContext.cacheDir.absolutePath, true, 0, appContext.cacheDir.lastModified() / 1000, ""))
         return roots
     }
