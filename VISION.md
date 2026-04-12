@@ -14,7 +14,7 @@ The GPL/privacy audience chooses Haven *because* it's open source. Every securit
 
 ## The three primitives
 
-A coherent OS abstraction reduces to three things: a place to keep stuff, a place to run stuff, and a way to move bits between them. Haven is organized around those three primitives.
+A coherent OS abstraction reduces to three things: a place to keep stuff, a place to run stuff, and a way to move bits between them. Haven is organized around those three primitives. Presentation — the touchable surface that lets a human operate them — is a fourth concern that cuts across all three, and it has its own rule (below).
 
 ### 1. Namespace — one filesystem across the universe
 
@@ -45,6 +45,34 @@ The **gateway** is how runtimes talk to each other and to the outside world. Hav
 - **Service publishing** — the rclone media server, the HLS streaming server, and the Wayland socket (via Shizuku) turn the phone itself into a host that other devices on the LAN can reach.
 
 You should be able to reach any service from any runtime with one configuration step, and the connection should survive network transitions without your workflow fraying.
+
+## Presentation — build where composition matters, delegate where it doesn't
+
+Every primitive needs a touchable surface, and the decision of whether Haven builds that surface or hands off to the host OS is not aesthetic — it's structural. The rule:
+
+> **Build the presentation where the user needs to compose that primitive with another one inside Haven. Delegate to the OS where the handoff is clean and the user just wants a destination.**
+
+That rule produces a sharp dividing line:
+
+**Haven builds its own presentation for:**
+
+- **The terminal** (termlib fork with touch-first gesture layer, smart clipboard, OSC 8/9/52/133 wiring, toolbar, shell-integration features). There is no Android terminal primitive, and a terminal that can't be composed with SSH sessions, port forwards, file browser actions, and Wayland tabs in the same app isn't worth much.
+- **The file browser** (Compose-based, tabbed, unified across six backends). Android has DocumentsProvider but it's fragmented, read-mostly, and doesn't support SFTP/SMB/rclone as first-class peers. Haven's file browser is where every other primitive becomes actionable — the single most important composition surface in the app.
+- **The VNC and RDP clients** (JSch-tunneled VNC with VeNCrypt, IronRDP-backed RDP). Standalone VNC/RDP apps exist but can't see Haven's SSH sessions, port forwards, or connection profiles. Composability forces them in-app.
+- **The native Wayland desktop** (labwc/wlroots compositor running in-process, GPU-composited via AHardwareBuffer). This is the most technically novel surface — there is no Android primitive for a Linux desktop. It's also the surface that lets Haven double as a workstation on big-screen outputs.
+- **The convert dialog, the port forward dialog, the preview/filter UI, the connection edit dialog.** These are pure composition surfaces — they wire two or three primitives together and only exist because the primitives live in one process.
+
+**Haven delegates to the OS for:**
+
+- **Media playback.** `ACTION_VIEW` + MIME type hands the file to VLC, MX Player, or whatever the user prefers. Android's intent contract is solid, the ecosystem is strong, and users already have opinions about players. Haven is the transport and transformation layer; playback is downstream. The rclone HTTP server URL, the local file URI, and the HLS playlist URL all survive the handoff.
+- **HTML5 HLS playback.** Chrome + hls.js via `ACTION_VIEW` on the server URL. Writing a video element wrapper in-app would buy nothing.
+- **File opening for non-media.** Tap a PDF → system PDF viewer. Tap an image → system gallery. Tap a text file → whatever the user installed. FileProvider + intent is the contract.
+- **System authentication.** BiometricPrompt for app lock; the OS credential dialog for FIDO2.
+- **Notifications, shortcuts, share targets.** All the places Android provides a standard surface.
+
+The build-vs-delegate rule has a useful test: *if the user would want to invoke a second primitive while looking at this view, we have to own the view.* You want to copy a line from a terminal into the port-forward dialog → same app. You want to open a media file in a player → different app is fine. You want to drag a file from one backend tab to another → same app. You want to watch the file → different app is fine.
+
+This is also why certain features are explicitly not going to be built (see "Scope boundaries" below): a text editor, a media player, a chat UI. Those would be presentations of nothing — they don't compose with Haven's primitives, they just duplicate work the OS already supports well.
 
 ## The integration thesis — composition is the product
 
@@ -135,9 +163,11 @@ Think of Haven as three layers, each of which must remain small and sharp:
 
 1. **Primitives** (namespace, runtime, gateway). Each has a clean Kotlin API and wraps exactly one underlying technology per function. No cross-layer leakage: the file browser doesn't know ffmpeg exists; ffmpeg doesn't know rclone exists; they meet through HTTP URLs and process stdin/stdout.
 
-2. **Composition surfaces** (terminal tab, file browser tab, desktop tab, convert dialog, port forward dialog). These are where primitives combine into workflows. The goal is that adding a new primitive — say, a new backend — lights up every composition surface for free.
+2. **Presentation surfaces** built in-app where composition demands it: the terminal (termlib fork), the file browser (Compose), the VNC/RDP clients, the native Wayland compositor, and the dialog surfaces (convert, port forward, connection edit, key deploy, preview/filter) that wire primitives together. These are where primitives combine into workflows. Adding a new primitive — say, a new backend or a new runtime — should light up every composition surface for free; if it doesn't, the primitive or the surface is wrong.
 
 3. **Identity and trust** (keystore, screen lock, TOFU, secrets hygiene). This is the cross-cutting layer that earns users' confidence in putting their credentials on the phone in the first place. Every feature must pay its security rent.
+
+Outside those three layers is the Android host, which provides media playback, PDF/image viewing, notifications, share sheet, biometric prompts, and web rendering. Haven explicitly delegates to it for anything covered by the build-vs-delegate rule above. The phone OS is a free lower layer we don't need to rebuild.
 
 A public library succeeds not by having every book, but by having the right books, organized well, in a building that's pleasant to be in. Haven's books — protocols, backends, codecs — are sufficient. The work now is in the organisation (composition surfaces, workspace profiles, cross-tab actions) and the building (touch interface polish, gesture reliability, battery-friendliness).
 
