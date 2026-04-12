@@ -33,9 +33,9 @@ private const val TAG = "McpServer"
  * Minimal Model Context Protocol (MCP) server for Haven.
  *
  * Binds to **127.0.0.1 only** (loopback) so the server is reachable
- * from local processes (a Claude Code instance running in PRoot, a
- * script, a curl test) but not from the LAN. This is the agent
- * transport that implements Haven's "shared viewport" principle:
+ * from local processes (any MCP client running in PRoot, a script,
+ * a curl test) but not from the LAN. This is the agent transport
+ * that implements Haven's "shared viewport" principle:
  * every observable state and action a human has in the UI should be
  * reachable by an agent through the same underlying ViewModels and
  * repositories.

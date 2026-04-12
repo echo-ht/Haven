@@ -26,7 +26,7 @@ Where files live is an implementation detail. Actions — convert, encrypt, stre
 
 The **runtime** is the place you actually run things. Haven exposes four kinds:
 
-- **Local shell** — a full Alpine Linux userland on the phone via PRoot, with a package manager, dev tools, and the option to run agents like Claude Code directly on the device.
+- **Local shell** — a full Alpine Linux userland on the phone via PRoot, with a package manager and dev tools. Anything that runs on Linux arm64 — language runtimes, build toolchains, AI/agent CLIs, ad-hoc scripts — runs here without Haven knowing or caring what it is.
 - **Remote shell** — SSH, Mosh, Eternal Terminal, and Reticulum transports, with session persistence via tmux/zellij/screen, auto-reconnect, session restore, and a color-coded tabbed terminal that treats all four the same way.
 - **Remote desktop** — VNC (with VeNCrypt/TLS), RDP (via IronRDP), tunneled through SSH when you want the wire encrypted.
 - **Local desktop** — a native GPU-accelerated Wayland compositor (labwc/wlroots) running in Haven's own process, GLES2-composited via AHardwareBuffer. A real Linux desktop on the phone, distinct from any remote screen.
@@ -95,19 +95,19 @@ The three primitives are not the product. What you can *do by composing them* is
 
 - Tap a 4K MKV sitting in Google Drive → ffmpeg reads it over HTTP from rclone VFS → the frame preview appears in 3 seconds → tweak brightness → pick "H.264, back to cloud" → the converted file appears in the same Drive folder without ever touching local disk.
 - SSH to the workstation → forward port 5901 → tap the VNC profile that targets `localhost:5901` → desktop opens in the same app, keyboard and clipboard shared.
-- In the local PRoot shell, run `claude --cwd /sdcard/projects/foo`. Claude reads files, runs `git push` over the SSH agent you forwarded from your laptop, and you watch it work on the same screen where the SSH tab lives.
+- In the local PRoot shell, start whatever agent CLI you use, pointed at a project directory. It reads files, runs `git push` over the SSH agent you forwarded from your laptop, and you watch it work on the same screen where the SSH tab lives.
 - Copy a log directory from an S3 bucket to an SFTP server: long-press → cut → switch tab → paste. Rclone does the server-side copy when possible; otherwise Haven streams it through.
 - Stream a video from a cloud folder to the Chromecast across the room via HLS, copy the LAN URL from the snackbar, paste it into a message to your partner's phone so they can watch too.
 
 None of these require leaving Haven, installing a second app, or running a `curl | ssh` incantation. Each of them uses two or more of the three primitives. This is the thesis.
 
-## The Claude era — agents are a first-class user
+## The agent era — agents are a first-class user
 
-LLM agents are a new class of actor, and they need the same primitives a human does: credentials, shell access, a filesystem, a network. An agent is just a very persistent process that wants to SSH, read files, run commands, and transform media — exactly what Haven already mediates for a human.
+LLM agents are a new class of actor, and they need the same primitives a human does: credentials, shell access, a filesystem, a network. An agent is just a very persistent process that wants to SSH, read files, run commands, and transform media — exactly what Haven already mediates for a human. Haven has no opinion on which agent you run: any CLI that speaks Linux conventions is as welcome as any other, and the app ships no vendor-specific integrations, installers, or brand surfaces.
 
 What this means in practice:
 
-- **Agents in the local runtime**: PRoot is a first-class place to run `claude-code`, local dev tools, language runtimes, and AI CLIs. No root, no Termux, no rebuild needed.
+- **Agents in the local runtime**: PRoot is a first-class place to run whatever AI CLI, local dev tools, and language runtimes the user wants. No root, no Termux, no rebuild needed. Haven neither knows nor advertises which CLI you're running.
 - **Agents in a remote runtime**: SSH to the workstation where your real agent lives, keep the session alive across network drops, and come back to a session that remembers what the agent was doing.
 - **Credentials that humans and agents share**: one encrypted keystore, SSH agent forwarding so the remote agent can use keys that never leave the phone, host key TOFU so a compromised gateway can't silently inject itself.
 - **Files that humans and agents both operate on**: the unified namespace means "the project folder" is one path whether the agent is running in PRoot, on the workstation, or pulling from cloud storage.
@@ -126,7 +126,7 @@ Whenever two primitives meet, there should be zero friction. Current gaps:
 
 - **SFTP/SMB media** should work through the same HTTP-streaming trick as rclone so convert/preview/stream/tap-to-play work for every backend, not just rclone + local. Building an ffmpeg-with-libssh would unlock this in one move.
 - **Agent forwarding UX** — the plumbing exists; the story of "forward my phone's keys to the remote agent and be able to trust it" needs to be a dialog, not a config file.
-- **Workspace profiles** — "Work" opens SSH tab + port forwards + SFTP sidebar + Wayland tab + Claude Code pane in one tap, resumes to the same composition next launch.
+- **Workspace profiles** — "Work" opens SSH tab + port forwards + SFTP sidebar + Wayland tab + a PRoot shell tab in one tap, resumes to the same composition next launch.
 - **Desktop ↔ file browser ↔ terminal** — cross-tab actions (drag a file from the SFTP tab into the native Wayland compositor, copy output from a terminal into the convert dialog).
 
 ### 1a. Agent transport — make the shared viewport real
@@ -137,7 +137,7 @@ The shared-viewport idea from the presentation section needs a concrete transpor
 - **Session + state inspection tools** — first-class read operations: list connections, get connection status, read current terminal scrollback, read current file-browser state, read convert dialog state, read active port forwards.
 - **Action tools** — first-class write operations mirroring the existing UI verbs: navigate, convert, stream, play, setPortForwarding, openDialog, confirmDialog. Every action appears in the UI as if a human tapped it.
 - **Audit and consent** — visible indicator when an agent is connected; per-action confirm option for destructive operations (delete, upload, publish); a log the user can scroll through to see what was done and when.
-- **Discovery** — a "copy agent endpoint" button in Settings so the user can point `claude-code` or another MCP client at Haven in one step.
+- **Discovery** — a "copy agent endpoint" button in Settings so the user can point any MCP client at Haven in one step.
 
 ### 2. The namespace as the action surface
 
@@ -152,7 +152,7 @@ The file browser is Haven's highest-leverage surface because it's where every ba
 The local PRoot rootfs is the differentiator nobody else ships. It's where an agent can run persistently on the phone without leaving Haven.
 
 - **Curated dev stacks** — one-tap Python/Node.js/Rust/Go, pre-tested.
-- **Claude-ready environment** — PRoot preset that installs node + claude-code + useful tooling, with a tab that opens directly into an `claude` prompt.
+- **Curated dev stacks** — one-tap installers for common language runtimes (Python, Node.js, Rust, Go) that the user's own tooling — agent CLIs included — can be built on top of. Haven ships the runtime, the user brings whatever runs on it.
 - **sshfs inside PRoot** — mount remote filesystems so local tools (and local agents) operate transparently on remote files.
 - **Storage management** — rootfs images grow; show disk usage, offer cleanup, support external storage.
 
@@ -182,6 +182,7 @@ A tight scope is how a small project stays coherent. Haven deliberately does not
 - **Build collaboration** — shared sessions, voice, screen sharing. Out of scope for a single-developer project and orthogonal to the identity.
 - **Optimise for tablets/desktops first** — get the phone-in-one-hand experience right before chasing form factors.
 - **Ship an AI assistant** — Haven provides the substrate agents run on; it does not ship its own model, API, or chat UI. The user brings the agent.
+- **Bundle, advertise, or name any specific vendor's agent CLI** — no "Install Claude Code" button, no "Configure OpenAI" section, no Anthropic/OpenAI/Google branding or endorsements anywhere in the app, the docs, the ROADMAP, or the README. Haven is a generic Linux environment plus a generic MCP endpoint; what you point at it is your private choice and none of the app's business. Corporate neutrality is part of the GPL/privacy identity and is non-negotiable.
 
 ## Architectural direction
 
