@@ -726,7 +726,7 @@ fun SftpScreen(
                                     { viewModel.openConvertDialog(entry) }
                                 } else null,
                                 onStream = if (!entry.isDirectory && entry.isMediaFile(mediaExtensions) &&
-                                    (viewModel.isLocalProfile() || isRclone)) {
+                                    !viewModel.isSmbProfile()) {
                                     { viewModel.streamFile(entry) }
                                 } else null,
                                 onPlay = if (isRclone && entry.isMediaFile(mediaExtensions)) {

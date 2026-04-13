@@ -1,11 +1,16 @@
 package sh.haven.app.agent
 
+import com.jcraft.jsch.SftpProgressMonitor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.haven.core.data.db.entities.ConnectionProfile
 import sh.haven.core.data.repository.ConnectionRepository
+import sh.haven.core.ffmpeg.HlsStreamServer
 import sh.haven.core.rclone.RcloneClient
 import sh.haven.core.ssh.SshSessionManager
+import sh.haven.feature.sftp.SftpStreamServer
 
 /**
  * Tool implementations for the MCP agent transport.
@@ -28,6 +33,8 @@ internal class McpTools(
     private val connectionRepository: ConnectionRepository,
     private val sshSessionManager: SshSessionManager,
     private val rcloneClient: RcloneClient,
+    private val sftpStreamServer: SftpStreamServer,
+    private val hlsStreamServer: HlsStreamServer,
 ) {
 
     /** Tool registry: name → handler. */
@@ -69,6 +76,47 @@ internal class McpTools(
                 put("required", JSONArray().put("remote"))
             },
         ) { args -> listRcloneDirectory(args) },
+
+        "list_sftp_directory" to ToolHandler(
+            description = "List files at a path on a connected SFTP profile. Requires an already-connected SSH/SFTP session for the profile.",
+            inputSchema = JSONObject().apply {
+                put("type", "object")
+                put("properties", JSONObject().apply {
+                    put("profileId", JSONObject().apply {
+                        put("type", "string")
+                        put("description", "ID of the connected SSH/SFTP profile.")
+                    })
+                    put("path", JSONObject().apply {
+                        put("type", "string")
+                        put("description", "Absolute directory path to list. Defaults to '.'")
+                    })
+                })
+                put("required", JSONArray().put("profileId"))
+            },
+        ) { args -> listSftpDirectory(args) },
+
+        "stream_sftp_file" to ToolHandler(
+            description = "Start an HLS stream for an SFTP file and return the playlist URL. Reads via a loopback HTTP bridge so no bulk download is needed. Requires a connected SSH/SFTP session. Stops any prior HLS stream.",
+            inputSchema = JSONObject().apply {
+                put("type", "object")
+                put("properties", JSONObject().apply {
+                    put("profileId", JSONObject().apply {
+                        put("type", "string")
+                        put("description", "ID of the connected SSH/SFTP profile.")
+                    })
+                    put("path", JSONObject().apply {
+                        put("type", "string")
+                        put("description", "Absolute path of the media file on the SFTP server.")
+                    })
+                })
+                put("required", JSONArray().put("profileId").put("path"))
+            },
+        ) { args -> streamSftpFile(args) },
+
+        "stop_stream" to ToolHandler(
+            description = "Stop any currently running HLS stream started by stream_sftp_file or the UI.",
+            inputSchema = emptyObjectSchema(),
+        ) { _ -> stopStream() },
     )
 
     /** Return the list of tool definitions for MCP `tools/list`. */
@@ -206,6 +254,102 @@ internal class McpTools(
             throw McpError(-32603, "Failed to list rclone remotes: ${e.message}")
         }
     }
+
+    private suspend fun listSftpDirectory(args: JSONObject): JSONObject = withContext(Dispatchers.IO) {
+        val profileId = args.optString("profileId").ifEmpty {
+            throw McpError(-32602, "Missing required argument: profileId")
+        }
+        val path = args.optString("path", ".").ifEmpty { "." }
+        val channel = sshSessionManager.openSftpForProfile(profileId)
+            ?: throw McpError(-32603, "No connected SFTP session for profile $profileId")
+        val arr = JSONArray()
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val list = channel.ls(path) as java.util.Vector<com.jcraft.jsch.ChannelSftp.LsEntry>
+            for (e in list) {
+                if (e.filename == "." || e.filename == "..") continue
+                arr.put(JSONObject().apply {
+                    put("name", e.filename)
+                    put("isDir", e.attrs.isDir)
+                    put("size", e.attrs.size)
+                    put("mtime", e.attrs.mTime.toLong())
+                    put("permissions", e.attrs.permissionsString)
+                })
+            }
+        } catch (e: Exception) {
+            throw McpError(-32603, "Failed to list $path: ${e.message}")
+        }
+        JSONObject().apply {
+            put("profileId", profileId)
+            put("path", path)
+            put("count", arr.length())
+            put("entries", arr)
+        }
+    }
+
+    private suspend fun streamSftpFile(args: JSONObject): JSONObject = withContext(Dispatchers.IO) {
+        val profileId = args.optString("profileId").ifEmpty {
+            throw McpError(-32602, "Missing required argument: profileId")
+        }
+        val path = args.optString("path").ifEmpty {
+            throw McpError(-32602, "Missing required argument: path")
+        }
+        val channel = sshSessionManager.openSftpForProfile(profileId)
+            ?: throw McpError(-32603, "No connected SFTP session for profile $profileId")
+        val size = try {
+            channel.stat(path).size
+        } catch (e: Exception) {
+            throw McpError(-32603, "Failed to stat $path: ${e.message}")
+        }
+
+        val streamPort = sftpStreamServer.start()
+        val key = sftpStreamServer.publish(
+            path = path,
+            size = size,
+            contentType = guessContentType(path),
+            opener = { offset ->
+                val ch = sshSessionManager.openSftpForProfile(profileId)
+                    ?: throw java.io.IOException("SFTP not connected for profile $profileId")
+                if (offset > 0) {
+                    ch.get(path, null as SftpProgressMonitor?, offset)
+                } else {
+                    ch.get(path)
+                }
+            },
+        )
+        val sourceUrl = "http://127.0.0.1:$streamPort/$key"
+        val hlsPort = hlsStreamServer.startFile(sourceUrl)
+        JSONObject().apply {
+            put("profileId", profileId)
+            put("path", path)
+            put("size", size)
+            put("sourceUrl", sourceUrl)
+            put("hlsPort", hlsPort)
+            put("playlistUrl", "http://127.0.0.1:$hlsPort/stream.m3u8")
+            put("playerUrl", "http://127.0.0.1:$hlsPort/")
+        }
+    }
+
+    private fun stopStream(): JSONObject {
+        hlsStreamServer.stop()
+        return JSONObject().apply { put("stopped", true) }
+    }
+
+    private fun guessContentType(name: String): String =
+        when (name.substringAfterLast('.', "").lowercase()) {
+            "mp4", "m4v" -> "video/mp4"
+            "mkv" -> "video/x-matroska"
+            "webm" -> "video/webm"
+            "mov" -> "video/quicktime"
+            "avi" -> "video/x-msvideo"
+            "ts" -> "video/mp2t"
+            "mp3" -> "audio/mpeg"
+            "m4a", "aac" -> "audio/aac"
+            "ogg", "oga", "opus" -> "audio/ogg"
+            "flac" -> "audio/flac"
+            "wav" -> "audio/wav"
+            else -> "application/octet-stream"
+        }
 
     private fun listRcloneDirectory(args: JSONObject): JSONObject {
         val remote = args.optString("remote").ifEmpty {

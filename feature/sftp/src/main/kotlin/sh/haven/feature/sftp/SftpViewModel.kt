@@ -103,6 +103,7 @@ class SftpViewModel @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
     private val ffmpegExecutor: sh.haven.core.ffmpeg.FfmpegExecutor,
     val hlsStreamServer: sh.haven.core.ffmpeg.HlsStreamServer,
+    private val sftpStreamServer: SftpStreamServer,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -306,6 +307,39 @@ class SftpViewModel @Inject constructor(
 
     private var sftpChannel: ChannelSftp? = null
     private var activeSmbClient: SmbClient? = null
+
+    /**
+     * Build an [SftpStreamServer.Opener] for [entry] on the currently
+     * active profile. The opener captures [profileId] (not a channel) so
+     * it re-resolves against whichever browse channel is live at read
+     * time — important across reconnects.
+     */
+    private fun sftpOpener(profileId: String, path: String): SftpStreamServer.Opener =
+        SftpStreamServer.Opener { offset ->
+            val channel = getOrOpenChannel(profileId)
+                ?: throw java.io.IOException("SFTP not connected")
+            if (offset > 0) {
+                channel.get(path, null as SftpProgressMonitor?, offset)
+            } else {
+                channel.get(path)
+            }
+        }
+
+    private fun guessContentType(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
+        "mp4", "m4v" -> "video/mp4"
+        "mkv" -> "video/x-matroska"
+        "webm" -> "video/webm"
+        "mov" -> "video/quicktime"
+        "avi" -> "video/x-msvideo"
+        "ts" -> "video/mp2t"
+        "mp3" -> "audio/mpeg"
+        "m4a", "aac" -> "audio/aac"
+        "ogg", "oga" -> "audio/ogg"
+        "flac" -> "audio/flac"
+        "wav" -> "audio/wav"
+        "opus" -> "audio/opus"
+        else -> "application/octet-stream"
+    }
 
     /** Tracks which active profile is SMB (vs SFTP). */
     private val _isSmbProfile = MutableStateFlow(false)
@@ -593,6 +627,7 @@ class SftpViewModel @Inject constructor(
 
     /** Whether the active profile is the local filesystem. */
     fun isLocalProfile(): Boolean = _isLocalProfile.value
+    fun isSmbProfile(): Boolean = _isSmbProfile.value
 
     /** True when the local file browser needs MANAGE_EXTERNAL_STORAGE permission. */
     val needsStoragePermission: Boolean
@@ -978,28 +1013,42 @@ class SftpViewModel @Inject constructor(
      * - **Local** files: ffmpeg reads the path directly.
      * - **Rclone** files: ffmpeg reads via the rclone HTTP media server
      *   (Range requests, VFS disk cache) — no bulk download.
-     * - **SFTP/SMB**: not supported (no HTTP serve equivalent). Would
-     *   require either downloading to cache first or piping via ssh/smb
-     *   into ffmpeg's stdin.
+     * - **SFTP** files: ffmpeg reads via the loopback [sftpStreamServer]
+     *   which fronts `ChannelSftp.get(path, skip)` with HTTP Range support.
+     * - **SMB**: not supported yet (no HTTP bridge).
      */
     fun streamFile(entry: SftpEntry) {
-        Log.w(TAG, "streamFile: ${entry.path} isLocal=${_isLocalProfile.value} isRclone=${_isRcloneProfile.value} ffmpegAvail=${ffmpegExecutor.isAvailable()}")
-        if (!_isLocalProfile.value && !_isRcloneProfile.value) {
-            _error.value = "Streaming is only available for local and cloud files"
+        Log.w(TAG, "streamFile: ${entry.path} isLocal=${_isLocalProfile.value} isRclone=${_isRcloneProfile.value} isSmb=${_isSmbProfile.value} ffmpegAvail=${ffmpegExecutor.isAvailable()}")
+        if (_isSmbProfile.value) {
+            _error.value = "Streaming is not supported for SMB yet"
             return
         }
         viewModelScope.launch {
             try {
                 // Resolve the ffmpeg input path or URL
-                val streamInput: String = if (_isLocalProfile.value) {
-                    entry.path
-                } else {
-                    val port = ensureMediaServer()
-                    val encodedPath = entry.path
-                        .trimStart('/')
-                        .split('/')
-                        .joinToString("/") { java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
-                    "http://127.0.0.1:$port/$encodedPath"
+                val streamInput: String = when {
+                    _isLocalProfile.value -> entry.path
+                    _isRcloneProfile.value -> {
+                        val port = ensureMediaServer()
+                        val encodedPath = entry.path
+                            .trimStart('/')
+                            .split('/')
+                            .joinToString("/") { java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
+                        "http://127.0.0.1:$port/$encodedPath"
+                    }
+                    else -> {
+                        // SFTP via loopback HTTP bridge
+                        val profileId = _activeProfileId.value
+                            ?: throw IllegalStateException("No active profile")
+                        val port = withContext(Dispatchers.IO) { sftpStreamServer.start() }
+                        val key = sftpStreamServer.publish(
+                            path = entry.path,
+                            size = entry.size,
+                            contentType = guessContentType(entry.name),
+                            opener = sftpOpener(profileId, entry.path),
+                        )
+                        "http://127.0.0.1:$port/$key"
+                    }
                 }
                 Log.w(TAG, "Starting HLS stream for $streamInput")
                 val port = hlsStreamServer.startFile(streamInput)
@@ -1081,28 +1130,35 @@ class SftpViewModel @Inject constructor(
                         isRemote = true
                         Log.d(TAG, "preparePreview: using rclone HTTP URL $inputSource")
                     }
-                    else -> {
-                        // SFTP/SMB — download to cache once, then reuse
+                    _isSmbProfile.value -> {
+                        // SMB — still downloads to cache; no HTTP bridge yet.
                         val cached = java.io.File(appContext.cacheDir, "ffmpeg_in_${entry.name}")
                         if (!cached.exists() || cached.length() == 0L) {
                             withContext(Dispatchers.IO) {
                                 cached.outputStream().use { out ->
-                                    if (_isSmbProfile.value) {
-                                        val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
-                                        client.download(entry.path, out) { _, _ -> }
-                                    } else {
-                                        val channel = getOrOpenChannel(profileId) ?: throw IllegalStateException("Not connected")
-                                        channel.get(entry.path, out, object : SftpProgressMonitor {
-                                            override fun init(op: Int, src: String, dest: String, max: Long) {}
-                                            override fun count(bytes: Long): Boolean = true
-                                            override fun end() {}
-                                        })
-                                    }
+                                    val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
+                                    client.download(entry.path, out) { _, _ -> }
                                 }
                             }
                         }
                         inputSource = cached.absolutePath
                         isRemote = false
+                    }
+                    else -> {
+                        // SFTP — stream via loopback HTTP so ffmpeg uses Range
+                        // requests (probe typically reads just the moov atom,
+                        // a few hundred KB) instead of downloading the whole
+                        // file to cache.
+                        val port = withContext(Dispatchers.IO) { sftpStreamServer.start() }
+                        val key = sftpStreamServer.publish(
+                            path = entry.path,
+                            size = entry.size,
+                            contentType = guessContentType(entry.name),
+                            opener = sftpOpener(profileId, entry.path),
+                        )
+                        inputSource = "http://127.0.0.1:$port/$key"
+                        isRemote = true
+                        Log.d(TAG, "preparePreview: using SFTP HTTP URL $inputSource")
                     }
                 }
                 previewInputSource = inputSource

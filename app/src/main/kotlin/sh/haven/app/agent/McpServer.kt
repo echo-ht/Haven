@@ -15,8 +15,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import sh.haven.core.data.db.entities.AgentAuditEvent
 import sh.haven.core.data.repository.ConnectionRepository
+import sh.haven.core.ffmpeg.HlsStreamServer
 import sh.haven.core.rclone.RcloneClient
 import sh.haven.core.ssh.SshSessionManager
+import sh.haven.feature.sftp.SftpStreamServer
 import java.io.BufferedReader
 import java.io.Closeable
 import java.io.IOException
@@ -71,6 +73,8 @@ class McpServer @Inject constructor(
     private val connectionRepository: ConnectionRepository,
     private val sshSessionManager: SshSessionManager,
     private val rcloneClient: RcloneClient,
+    private val sftpStreamServer: SftpStreamServer,
+    private val hlsStreamServer: HlsStreamServer,
     private val auditRecorder: AgentAuditRecorder,
 ) : Closeable {
 
@@ -134,6 +138,8 @@ class McpServer @Inject constructor(
         connectionRepository = connectionRepository,
         sshSessionManager = sshSessionManager,
         rcloneClient = rcloneClient,
+        sftpStreamServer = sftpStreamServer,
+        hlsStreamServer = hlsStreamServer,
     )
 
     /**
