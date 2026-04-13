@@ -20,10 +20,10 @@ jobs:
         with:
           submodules: recursive
 
-      # The build pulls JDK + Python + Android SDK + NDK + Go + gomobile +
-      # Rust + Chaquopy pip packages and fills the runner disk. Free the
-      # ~25GB of preinstalled software we don't use before any tooling is
-      # installed, so we don't delete anything we just set up.
+      # The build pulls JDK + Android SDK + NDK + Go + gomobile + Rust
+      # and fills the runner disk. Free the ~25GB of preinstalled
+      # software we don't use before any tooling is installed, so we
+      # don't delete anything we just set up.
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -40,11 +40,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4

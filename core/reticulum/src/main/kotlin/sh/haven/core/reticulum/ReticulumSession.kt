@@ -12,9 +12,7 @@ private const val TAG = "ReticulumSession"
  *
  * Parallel to [sh.haven.core.ssh.TerminalSession]. Consumes the
  * [RnshShellSession] Flow-based output and delivers data via
- * [onDataReceived]. Supports both the legacy Chaquopy bridge (via
- * [ChaquopyReticulumTransport]) and the native Kotlin bridge (via
- * [NativeReticulumTransport]) transparently.
+ * [onDataReceived].
  */
 class ReticulumSession(
     val sessionId: String,

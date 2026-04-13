@@ -29,9 +29,9 @@ private const val TAG = "NativeReticulumTransport"
 
 /**
  * Native Kotlin implementation of [ReticulumTransport] backed by
- * reticulum-kt + rnsh-kt. Replaces the Chaquopy/Python stack.
+ * reticulum-kt + rnsh-kt.
  *
- * Supports two init modes (matching the legacy Python bridge):
+ * Supports two init modes:
  * - Sideband shared-instance client (localhost:37428)
  * - Direct TCP gateway to a remote host
  */

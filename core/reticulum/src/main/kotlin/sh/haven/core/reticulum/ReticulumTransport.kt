@@ -7,14 +7,10 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * Coroutines-first interface for Reticulum/rnsh transport.
  *
- * Replaces the blocking [ReticulumBridge] interface shaped by Chaquopy's
- * limitations. Implementations:
- * - [NativeReticulumTransport]: rnsh-kt + reticulum-kt (target)
- * - [ChaquopyReticulumTransport]: adapter over the legacy Python bridge
- *
- * This interface collapses the session lifecycle into a single
- * [openSession] call that resolves the destination, establishes the
- * Link, performs the version handshake, and returns a [RnshShellSession].
+ * Backed by [NativeReticulumTransport] (rnsh-kt + reticulum-kt).
+ * Collapses the session lifecycle into a single [openSession] call
+ * that resolves the destination, establishes the Link, performs the
+ * version handshake, and returns a [RnshShellSession].
  */
 interface ReticulumTransport {
 

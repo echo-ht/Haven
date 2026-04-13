@@ -17,9 +17,8 @@ private const val TAG = "ReticulumSessionManager"
  * Parallel to [sh.haven.core.ssh.SshSessionManager] but without
  * reconnect, SFTP, or session manager (tmux/zellij) logic.
  *
- * Uses the coroutines-first [ReticulumTransport] interface, which
- * works with both the Chaquopy Python bridge and the native Kotlin
- * rnsh-kt bridge transparently.
+ * Uses the coroutines-first [ReticulumTransport] interface backed by
+ * the native rnsh-kt bridge.
  */
 @Singleton
 class ReticulumSessionManager @Inject constructor(
