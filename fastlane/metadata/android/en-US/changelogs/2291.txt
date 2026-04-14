@@ -1,0 +1,15 @@
+v5.5.1: Eternal Terminal works in release builds
+
+Same shape as #82, #93, and the v5.4.5 Reticulum sweep. The
+proguard rule covering the et-kotlin submodule was scoped to
+`sh.haven.et.protocol.**` only, leaving `sh.haven.et.transport`,
+`sh.haven.et.crypto`, and the top-level `EtLogger` exposed to R8.
+The v5.5.0 release mapping shows EtTransport renamed to h5.b
+and the ET infrastructure classes stripped or inlined.
+
+Broadened the keep rule to `sh.haven.et.**`, mirroring the
+`sh.haven.mosh.**` rule that already covers the mosh submodule.
+Verified against the rebuilt v5.5.1 mapping: all 11 et-kotlin
+classes (EtLogger, NoOpEtLogger, StdEtLogger, EtCrypto,
+EtProtocol, EtTransport, EtTransportKt, plus three nested
+classes) are preserved under their source names.
