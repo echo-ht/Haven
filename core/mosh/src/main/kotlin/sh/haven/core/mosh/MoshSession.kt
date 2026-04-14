@@ -72,6 +72,7 @@ class MoshSession(
         // smkx`. See the DECCKM_ON companion for the full causal chain.
         if (!closed) {
             onDataReceived(DECCKM_ON, 0, DECCKM_ON.size)
+            Log.d(TAG, "Pushed DECCKM_ON (${DECCKM_ON.size} bytes) to emulator for $sessionId")
         }
 
         val t = MoshTransport(

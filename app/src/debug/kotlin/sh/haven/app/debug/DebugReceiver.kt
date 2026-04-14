@@ -75,6 +75,19 @@ class DebugReceiver : BroadcastReceiver() {
             host = host,
             port = port,
             username = username,
+            // Password auth — debug-only path used by ADB-driven integration tests.
+            // Never shipped in release builds (this whole file is src/debug/).
+            sshPassword = intent.getStringExtra("sshPassword"),
+            // Transport toggles. Needed so ADB-driven tests can reproduce
+            // issues that only manifest over mosh or Eternal Terminal,
+            // rather than being limited to plain SSH. Added for Haven#73.
+            useMosh = intent.getBooleanExtra("useMosh", false),
+            useEternalTerminal = intent.getBooleanExtra("useEternalTerminal", false),
+            // Session manager for the terminal (tmux/zellij/screen/null).
+            // Null means "run a plain shell" which is what we want for
+            // terminal-state regression tests that care about the exact
+            // raw byte stream rather than a multiplexer re-render.
+            sessionManager = intent.getStringExtra("sessionManager"),
             destinationHash = intent.getStringExtra("destinationHash"),
             reticulumHost = intent.getStringExtra("reticulumHost") ?: "127.0.0.1",
             reticulumPort = if (intent.hasExtra("reticulumPort"))
