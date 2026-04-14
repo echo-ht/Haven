@@ -54,6 +54,18 @@
 -keep class dagger.hilt.** { *; }
 -keep class javax.inject.** { *; }
 
+# Keep JNA Structure subclasses — IronRDP (UniFFI-generated sh.haven.rdp.**)
+# uses @Structure.FieldOrder("capacity", "len", ...) string literals that
+# JNA resolves reflectively at runtime. R8 renames the @JvmField properties
+# to single letters, Structure.deriveLayout() can't find them, and every
+# RDP connection fails with "unknown or zero size (ensure all fields are
+# public)" — issue #93.
+-keep class * extends com.sun.jna.Structure {
+    <fields>;
+    <init>(...);
+}
+-keep class sh.haven.rdp.** { *; }
+
 # Keep Shizuku API — Haven calls Shizuku only via reflection
 # (Class.forName("rikka.shizuku.Shizuku").getMethod("pingBinder") etc).
 # Without this, R8 prunes pingBinder / addBinderReceivedListenerSticky /
