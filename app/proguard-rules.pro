@@ -53,3 +53,13 @@
 # Keep Hilt generated classes
 -keep class dagger.hilt.** { *; }
 -keep class javax.inject.** { *; }
+
+# Keep Shizuku API — Haven calls Shizuku only via reflection
+# (Class.forName("rikka.shizuku.Shizuku").getMethod("pingBinder") etc).
+# Without this, R8 prunes pingBinder / addBinderReceivedListenerSticky /
+# checkSelfPermission / requestPermission / newProcess, and the reflection
+# lookups throw NoSuchMethodException at runtime — issue #82.
+-keep class rikka.shizuku.** { *; }
+-keep interface rikka.shizuku.** { *; }
+-keep class moe.shizuku.** { *; }
+-keep interface moe.shizuku.** { *; }
