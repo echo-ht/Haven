@@ -120,6 +120,7 @@ fun TerminalScreen(
     mouseInputEnabled: Boolean = true,
     terminalRightClick: Boolean = false,
     allowStandardKeyboard: Boolean = false,
+    interceptCtrlShiftV: Boolean = true,
     showTabBar: Boolean = true,
     onNavigateToConnections: () -> Unit = {},
     onNavigateToVnc: (host: String, port: Int, password: String?, sshForward: Boolean, sshSessionId: String?) -> Unit = { _, _, _, _, _ -> },
@@ -604,6 +605,28 @@ fun TerminalScreen(
                             onPauseOrDispose {}
                         }
 
+                        // Hardware Ctrl+Shift+V: read the (real, non-smart)
+                        // system clipboard and feed it through the same paste
+                        // path the toolbar button uses, including bracketed-paste
+                        // wrapping when the remote app has mode 2004 active.
+                        // Null when the user has turned the shortcut off, so the
+                        // V key passes through to the shell unchanged.
+                        val pasteShortcut: (() -> Unit)? = if (interceptCtrlShiftV) {
+                            {
+                                val text = realClipboard.getText()?.text
+                                if (!text.isNullOrEmpty()) {
+                                    val payload = if (isBracketPaste) {
+                                        "\u001b[200~$text\u001b[201~"
+                                    } else {
+                                        text
+                                    }
+                                    activeTab.sendInput(payload.toByteArray())
+                                }
+                            }
+                        } else {
+                            null
+                        }
+
                         CompositionLocalProvider(LocalClipboardManager provides smartClipboard) {
                             Terminal(
                                 terminalEmulator = activeTab.emulator,
@@ -615,6 +638,7 @@ fun TerminalScreen(
                                 foregroundColor = Color(colorScheme.foreground),
                                 focusRequester = focusRequester,
                                 modifierManager = modifierManager,
+                                onPasteShortcut = pasteShortcut,
                                 onSelectionControllerAvailable = { selectionController = it },
                                 onTerminalDoubleTap = {
                                     val window = (view.context as? Activity)?.window ?: return@Terminal

@@ -40,6 +40,7 @@ class UserPreferencesRepository @Inject constructor(
     private val mouseInputEnabledKey = booleanPreferencesKey("mouse_input_enabled")
     private val terminalRightClickKey = booleanPreferencesKey("terminal_right_click")
     private val allowStandardKeyboardKey = booleanPreferencesKey("allow_standard_keyboard")
+    private val interceptCtrlShiftVKey = booleanPreferencesKey("intercept_ctrl_shift_v")
     private val showTerminalTabBarKey = booleanPreferencesKey("show_terminal_tab_bar")
     private val reorderHintShownKey = booleanPreferencesKey("reorder_hint_shown")
     private val screenOrderKey = stringPreferencesKey("screen_order")
@@ -142,6 +143,21 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setAllowStandardKeyboard(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[allowStandardKeyboardKey] = enabled
+        }
+    }
+
+    /**
+     * Intercept Ctrl+Shift+V from a hardware keyboard as "paste from Android
+     * clipboard". When off, the key combo is forwarded to the remote shell
+     * unchanged — useful if a remote app binds Ctrl+Shift+V itself.
+     */
+    val interceptCtrlShiftV: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[interceptCtrlShiftVKey] ?: true
+    }
+
+    suspend fun setInterceptCtrlShiftV(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[interceptCtrlShiftVKey] = enabled
         }
     }
 

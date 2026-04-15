@@ -1,10 +1,14 @@
 package sh.haven.feature.vnc
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +44,7 @@ class VncViewModel @Inject constructor(
     private val sshSessionManager: SshSessionManager,
     private val moshSessionManager: MoshSessionManager,
     private val etSessionManager: EtSessionManager,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     private val _frame = MutableStateFlow<Bitmap?>(null)
@@ -157,7 +162,14 @@ class VncViewModel @Inject constructor(
                 _connected.value = false
             }
             onRemoteClipboard = { text ->
-                Log.d(TAG, "Remote clipboard: ${text.take(100)}")
+                if (text.isNotEmpty()) {
+                    try {
+                        val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("VNC", text))
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to copy remote clipboard to system", e)
+                    }
+                }
             }
         }
         val c = VncClient(config)

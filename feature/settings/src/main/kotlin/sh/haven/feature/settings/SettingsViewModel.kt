@@ -134,6 +134,9 @@ class SettingsViewModel @Inject constructor(
     val allowStandardKeyboard: StateFlow<Boolean> = preferencesRepository.allowStandardKeyboard
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val interceptCtrlShiftV: StateFlow<Boolean> = preferencesRepository.interceptCtrlShiftV
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val showTerminalTabBar: StateFlow<Boolean> = preferencesRepository.showTerminalTabBar
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
@@ -281,6 +284,12 @@ class SettingsViewModel @Inject constructor(
     fun setAllowStandardKeyboard(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setAllowStandardKeyboard(enabled)
+        }
+    }
+
+    fun setInterceptCtrlShiftV(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setInterceptCtrlShiftV(enabled)
         }
     }
 

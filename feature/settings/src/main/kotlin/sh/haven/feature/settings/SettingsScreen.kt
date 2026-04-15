@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.filled.DesktopWindows
@@ -125,6 +126,7 @@ import sh.haven.core.data.preferences.UserPreferencesRepository
 @Composable
 fun SettingsScreen(
     openToolbarConfig: Boolean = false,
+    onToolbarConfigConsumed: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val biometricEnabled by viewModel.biometricEnabled.collectAsState()
@@ -149,6 +151,7 @@ fun SettingsScreen(
     val mouseInputEnabled by viewModel.mouseInputEnabled.collectAsState()
     val terminalRightClick by viewModel.terminalRightClick.collectAsState()
     val allowStandardKeyboard by viewModel.allowStandardKeyboard.collectAsState()
+    val interceptCtrlShiftV by viewModel.interceptCtrlShiftV.collectAsState()
     val showTerminalTabBar by viewModel.showTerminalTabBar.collectAsState()
     val backupStatus by viewModel.backupStatus.collectAsState()
     val waylandShellCommand by viewModel.waylandShellCommand.collectAsState()
@@ -165,7 +168,14 @@ fun SettingsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     var showToolbarConfigDialog by remember { mutableStateOf(false) }
     LaunchedEffect(openToolbarConfig) {
-        if (openToolbarConfig) showToolbarConfigDialog = true
+        if (openToolbarConfig) {
+            showToolbarConfigDialog = true
+            // Tell the host the request has been consumed so it can clear
+            // its flag. Doing it from inside the effect (after the state
+            // write) avoids the race where a sibling reset would cancel
+            // this LaunchedEffect before the body had a chance to run.
+            onToolbarConfigConsumed()
+        }
     }
     var showBackupPasswordDialog by remember { mutableStateOf<BackupAction?>(null) }
     var showLockTimeoutDialog by remember { mutableStateOf(false) }
@@ -355,6 +365,13 @@ fun SettingsScreen(
             subtitle = stringResource(R.string.settings_standard_keyboard_subtitle),
             checked = allowStandardKeyboard,
             onCheckedChange = viewModel::setAllowStandardKeyboard,
+        )
+        SettingsToggleItem(
+            icon = Icons.Filled.ContentPaste,
+            title = "Ctrl+Shift+V pastes",
+            subtitle = "Hardware keyboard Ctrl+Shift+V pastes from the Android clipboard. Off forwards the keys to the remote shell.",
+            checked = interceptCtrlShiftV,
+            onCheckedChange = viewModel::setInterceptCtrlShiftV,
         )
         SettingsToggleItem(
             icon = Icons.Filled.ListAlt,
