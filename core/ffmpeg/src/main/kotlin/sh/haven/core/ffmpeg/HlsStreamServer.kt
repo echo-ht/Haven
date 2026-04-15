@@ -90,8 +90,15 @@ class HlsStreamServer @Inject constructor(
                     add("-an")
                 }
                 add("-c:v"); add("libx264")
-                add("-preset"); add("ultrafast")
-                add("-tune"); add("zerolatency")
+                // `ultrafast` disables CABAC + 8x8dct + weight_p and makes
+                // libx264 write "Constrained Baseline" into the SPS regardless
+                // of `-profile:v main`. Chrome's MSE rejects Constrained
+                // Baseline > 720p, so 1080p inputs silently fail with
+                // MEDIA_ERR_SRC_NOT_SUPPORTED. `veryfast` is the cheapest
+                // preset that actually honours Main profile. The `zerolatency`
+                // tune is dropped because it's a live-streaming knob with no
+                // benefit in a VOD pipeline and it bloats output ~2.7x.
+                add("-preset"); add("veryfast")
                 add("-profile:v"); add("main")
                 add("-level"); add("4.0")
                 add("-pix_fmt"); add("yuv420p")
