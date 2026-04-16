@@ -1235,6 +1235,14 @@ class SftpViewModel @Inject constructor(
         audioFilters: List<sh.haven.core.ffmpeg.AudioFilter> = emptyList(),
         downloadFirst: Boolean = false,
         destination: ConvertDestination = ConvertDestination.DOWNLOADS,
+        /** User-chosen quality (CRF); 0 means "let the encoder default decide". */
+        crf: Int = 0,
+        /** libx264/libx265 speed preset (ultrafast..veryslow). Ignored by VP9. */
+        preset: String? = null,
+        /** Target output height in pixels, or null to keep source resolution. */
+        scaleHeight: Int? = null,
+        /** Audio bitrate like "192k", or null for the encoder default. */
+        audioBitrate: String? = null,
     ) {
         val profileId = _activeProfileId.value ?: return
         viewModelScope.launch {
@@ -1307,18 +1315,34 @@ class SftpViewModel @Inject constructor(
                 val cmd = sh.haven.core.ffmpeg.TranscodeCommand(ffmpegInput, cacheOutput.absolutePath)
                 if (videoEncoder != null) {
                     cmd.videoCodec(videoEncoder)
-                    // Sensible defaults for common encoders
-                    when (videoEncoder) {
-                        "libx264" -> cmd.crf(23).preset("medium")
-                        "libx265" -> cmd.crf(28).preset("medium")
-                        "libvpx-vp9" -> cmd.crf(31).extra("-b:v", "0")
+                    // Apply user-chosen quality if present, else fall back to
+                    // encoder defaults. For VP9 we keep the -b:v 0 trick so CRF
+                    // is honoured as a quality ceiling.
+                    val effectiveCrf = if (crf > 0) crf else when (videoEncoder) {
+                        "libx264" -> 23; "libx265" -> 28; "libvpx-vp9" -> 31
+                        else -> 0
                     }
+                    val effectivePreset = preset ?: when (videoEncoder) {
+                        "libx264", "libx265" -> "medium"
+                        else -> null
+                    }
+                    if (effectiveCrf > 0 && videoEncoder != "copy") cmd.crf(effectiveCrf)
+                    if (effectivePreset != null && (videoEncoder == "libx264" || videoEncoder == "libx265")) {
+                        cmd.preset(effectivePreset)
+                    }
+                    if (videoEncoder == "libvpx-vp9") cmd.extra("-b:v", "0")
+                    // Scale preserving aspect ratio; -2 keeps the derived
+                    // dimension even so H.264/H.265 encoders don't complain.
+                    scaleHeight?.let { h -> cmd.scale("-2:$h") }
                 } else {
                     cmd.extra("-vn")
                 }
                 cmd.audioCodec(audioEncoder)
                     .videoFilters(videoFilters)
                     .audioFilters(audioFilters)
+                if (audioBitrate != null && audioEncoder != "copy" && audioEncoder != "flac") {
+                    cmd.audioBitrate(audioBitrate)
+                }
 
                 // Probe input duration for accurate progress (uses HTTP Range
                 // requests when input is a URL — typically only reads ~200KB)

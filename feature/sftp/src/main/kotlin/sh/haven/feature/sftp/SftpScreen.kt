@@ -1235,6 +1235,7 @@ fun SftpScreen(
         var selectedVideoEnc by rememberSaveable { mutableStateOf("copy") }
         var selectedAudioEnc by rememberSaveable { mutableStateOf("copy") }
         val filterState = rememberSaveable(saver = FilterState.Saver) { FilterState() }
+        val compressionState = rememberSaveable(saver = CompressionState.Saver) { CompressionState() }
         val isAudioOnly = isAudioOnlyInput
         var previewSeek by rememberSaveable { mutableFloatStateOf(0f) }
         var previewStale by rememberSaveable { mutableStateOf(false) }
@@ -1261,6 +1262,13 @@ fun SftpScreen(
                     else -> "mp3"
                 }
             }
+        }
+
+        // When the user changes video encoder, re-seed the CRF to that
+        // encoder's neutral default so the slider position stays meaningful
+        // (CRF 23 means something very different for x264 vs VP9).
+        LaunchedEffect(selectedVideoEnc) {
+            if (selectedVideoEnc != "copy") compressionState.rebaseForEncoder(selectedVideoEnc)
         }
 
         // Set initial seek to 10% once duration is known
@@ -1486,6 +1494,20 @@ fun SftpScreen(
                         Spacer(Modifier.height(8.dp))
                     }
 
+                    // Compression section (collapsible) — visible when the
+                    // user is actually re-encoding. The copy encoder does a
+                    // remux and takes no quality / scale flags, so we hide
+                    // the whole panel to avoid misleading users.
+                    if (selectedVideoEnc != "copy" || selectedAudioEnc != "copy") {
+                        CompressionSection(
+                            state = compressionState,
+                            audioOnly = isAudioOnly || selectedVideoEnc == "copy",
+                            videoEncoder = selectedVideoEnc,
+                            onChanged = { previewStale = true },
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+
                     // Filter section (collapsible)
                     FilterSection(
                         state = filterState,
@@ -1560,15 +1582,29 @@ fun SftpScreen(
                         filterState.stabilize, filterState.autoColor,
                         filterState.speed, filterState.rotation,
                         filterState.volume, filterState.normalizeAudio,
+                        compressionState.crf, compressionState.preset,
+                        compressionState.scaleHeight, compressionState.audioBitrate,
                     ) {
                         val cmd = sh.haven.core.ffmpeg.TranscodeCommand("input", "output.$selectedContainer")
                         if (!isAudioOnly) {
                             cmd.videoCodec(selectedVideoEnc)
+                            if (selectedVideoEnc != "copy") {
+                                if (compressionState.crf > 0) cmd.crf(compressionState.crf)
+                                if (selectedVideoEnc == "libx264" || selectedVideoEnc == "libx265") {
+                                    cmd.preset(compressionState.preset)
+                                }
+                                if (selectedVideoEnc == "libvpx-vp9") cmd.extra("-b:v", "0")
+                                compressionState.scaleHeight?.let { cmd.scale("-2:$it") }
+                            }
                         } else {
                             cmd.extra("-vn")
                         }
                         cmd.audioCodec(selectedAudioEnc)
-                            .videoFilters(filterState.buildVideoFilters())
+                        if (compressionState.audioBitrate != null &&
+                            selectedAudioEnc != "copy" && selectedAudioEnc != "flac") {
+                            cmd.audioBitrate(compressionState.audioBitrate!!)
+                        }
+                        cmd.videoFilters(filterState.buildVideoFilters())
                             .audioFilters(filterState.buildAudioFilters())
                         "ffmpeg " + cmd.build().joinToString(" ") { arg ->
                             if (arg.contains(',') || arg.contains('=')) "\"$arg\"" else arg
@@ -1609,6 +1645,10 @@ fun SftpScreen(
                         } else {
                             ConvertDestination.DOWNLOADS
                         },
+                        crf = compressionState.crf,
+                        preset = compressionState.preset,
+                        scaleHeight = compressionState.scaleHeight,
+                        audioBitrate = compressionState.audioBitrate,
                     )
                 }) { Text(stringResource(R.string.sftp_convert)) }
             },
