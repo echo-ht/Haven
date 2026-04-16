@@ -313,6 +313,10 @@ class SftpViewModel @Inject constructor(
     private val _editorSaving = MutableStateFlow(false)
     val editorSaving: StateFlow<Boolean> = _editorSaving.asStateFlow()
 
+    val terminalColorScheme: StateFlow<UserPreferencesRepository.TerminalColorScheme> =
+        preferencesRepository.terminalColorScheme
+            .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferencesRepository.TerminalColorScheme.HAVEN)
+
     private var editorEntry: SftpEntry? = null
 
     fun openInEditor(entry: SftpEntry) {

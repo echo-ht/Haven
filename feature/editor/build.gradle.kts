@@ -28,6 +28,7 @@ dependencies {
     implementation(project(":core:ui"))
 
     implementation(libs.sora.editor)
+    implementation(libs.sora.editor.textmate)
 
     implementation(libs.activity.compose)
     implementation(libs.hilt.android)

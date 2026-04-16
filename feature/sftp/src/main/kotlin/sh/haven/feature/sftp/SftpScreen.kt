@@ -173,6 +173,7 @@ fun SftpScreen(
     val previewIsRemote by viewModel.previewIsRemote.collectAsState()
     val editorFile by viewModel.editorFile.collectAsState()
     val editorSaving by viewModel.editorSaving.collectAsState()
+    val termColorScheme by viewModel.terminalColorScheme.collectAsState()
     val editorOpen = editorFile !is SftpViewModel.EditorFileState.Closed
     LaunchedEffect(editorOpen) { onEditorOpenChanged(editorOpen) }
 
@@ -312,6 +313,8 @@ fun SftpScreen(
             },
             wordWrap = editorWordWrap,
             saving = editorSaving,
+            terminalBackground = termColorScheme.background.toInt(),
+            terminalForeground = termColorScheme.foreground.toInt(),
             onToggleWordWrap = { editorWordWrap = !editorWordWrap },
             onSave = { content -> viewModel.saveEditorContent(content) },
             onBack = { viewModel.closeEditor() },

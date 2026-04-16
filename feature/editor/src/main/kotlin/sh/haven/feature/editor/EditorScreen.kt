@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,6 +66,8 @@ fun EditorScreen(
     state: EditorState,
     wordWrap: Boolean,
     saving: Boolean = false,
+    terminalBackground: Int = 0xFF1A1A2E.toInt(),
+    terminalForeground: Int = 0xFF00E676.toInt(),
     onToggleWordWrap: () -> Unit,
     onSave: ((String) -> Unit)? = null,
     onBack: () -> Unit,
@@ -198,8 +201,11 @@ fun EditorScreen(
                     is EditorState.Loaded -> {
                         EditorContent(
                             content = current.content,
+                            fileName = current.fileName,
                             wordWrap = wordWrap,
                             editable = onSave != null,
+                            terminalBackground = terminalBackground,
+                            terminalForeground = terminalForeground,
                             onEditorCreated = { editorRef = it },
                             onCursorChange = { line, col ->
                                 cursorLine = line
@@ -341,18 +347,16 @@ private fun FindReplaceBar(
 @Composable
 private fun EditorContent(
     content: String,
+    fileName: String,
     wordWrap: Boolean,
     editable: Boolean,
+    terminalBackground: Int,
+    terminalForeground: Int,
     onEditorCreated: (CodeEditor) -> Unit,
     onCursorChange: (line: Int, column: Int) -> Unit,
     onContentChanged: () -> Unit,
 ) {
-    val bgColor = MaterialTheme.colorScheme.surface.toArgb()
-    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
-    val lineNumColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
-    val selectionColor = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val cursorColor = MaterialTheme.colorScheme.primary.toArgb()
-    val lineHighlightColor = MaterialTheme.colorScheme.surfaceVariant.toArgb()
 
     var editorRef by remember { mutableStateOf<CodeEditor?>(null) }
 
@@ -367,28 +371,27 @@ private fun EditorContent(
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { ctx ->
+            TextMateSupport.init(ctx)
+
             CodeEditor(ctx).apply {
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 )
 
+                TextMateSupport.applyTheme(this, terminalBackground, terminalForeground)
+
                 val scheme = colorScheme
-                scheme.setColor(EditorColorScheme.WHOLE_BACKGROUND, bgColor)
-                scheme.setColor(EditorColorScheme.TEXT_NORMAL, textColor)
-                scheme.setColor(EditorColorScheme.LINE_NUMBER, lineNumColor)
-                scheme.setColor(EditorColorScheme.LINE_NUMBER_BACKGROUND, bgColor)
-                scheme.setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, selectionColor)
                 scheme.setColor(EditorColorScheme.SELECTION_INSERT, cursorColor)
                 scheme.setColor(EditorColorScheme.SELECTION_HANDLE, cursorColor)
-                scheme.setColor(EditorColorScheme.CURRENT_LINE, lineHighlightColor)
-                scheme.setColor(EditorColorScheme.LINE_DIVIDER, lineNumColor)
 
                 setTextSize(14f)
                 isEditable = editable
                 setWordwrap(wordWrap)
                 isLineNumberEnabled = true
                 setText(content)
+
+                TextMateSupport.applyLanguage(this, fileName)
 
                 subscribeEvent(SelectionChangeEvent::class.java) { event, _ ->
                     val cursor = event.editor.cursor

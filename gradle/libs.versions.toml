@@ -74,6 +74,9 @@ termlib = { group = "org.connectbot", name = "termlib", version.ref = "termlib" 
 # JNA (for UniFFI-generated bindings — keep in sync with rdp-kotlin/build.gradle.kts)
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
 
+# Desugaring
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version = "2.1.4" }
+
 # Editor
 sora-editor = { group = "io.github.Rosemoe.sora-editor", name = "editor", version.ref = "sora-editor" }
 sora-editor-textmate = { group = "io.github.Rosemoe.sora-editor", name = "language-textmate", version.ref = "sora-editor" }
