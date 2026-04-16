@@ -96,6 +96,8 @@
     <string name="sftp_download">Download</string>
     <string name="sftp_convert">Convert</string>
     <string name="sftp_stream">Stream</string>
+    <string name="sftp_play_in_browser">Play in browser</string>
+    <string name="sftp_stream_to_network">Stream to network</string>
     <string name="sftp_streaming">Streaming on %s</string>
     <string name="sftp_stream_stop">Stop</string>
     <string name="sftp_convert_title">Convert media</string>

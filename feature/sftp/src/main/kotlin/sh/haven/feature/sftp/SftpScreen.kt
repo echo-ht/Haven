@@ -774,6 +774,10 @@ fun SftpScreen(
                                 onMediaSheet = if (!entry.isDirectory && entry.isMediaFile(mediaExtensions)) {
                                     { viewModel.openMediaSheet(entry) }
                                 } else null,
+                                onPlayInBrowser = if (!entry.isDirectory && entry.isMediaFile(mediaExtensions) &&
+                                    !viewModel.isSmbProfile()) {
+                                    { viewModel.playInBrowser(entry) }
+                                } else null,
                                 onStream = if (!entry.isDirectory && entry.isMediaFile(mediaExtensions) &&
                                     !viewModel.isSmbProfile()) {
                                     { viewModel.streamFile(entry) }
@@ -1695,6 +1699,7 @@ private fun FileListItem(
     onPlay: (() -> Unit)? = null,
     onSync: (() -> Unit)? = null,
     onMediaSheet: (() -> Unit)? = null,
+    onPlayInBrowser: (() -> Unit)? = null,
     onStream: (() -> Unit)? = null,
     onStreamFolder: (() -> Unit)? = null,
     onRename: () -> Unit = {},
@@ -1764,9 +1769,16 @@ private fun FileListItem(
                     onClick = { showMenu = false; onMediaSheet() },
                 )
             }
+            if (onPlayInBrowser != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sftp_play_in_browser)) },
+                    leadingIcon = { Icon(Icons.Filled.PlayArrow, null) },
+                    onClick = { showMenu = false; onPlayInBrowser() },
+                )
+            }
             if (onStream != null) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.sftp_stream)) },
+                    text = { Text(stringResource(R.string.sftp_stream_to_network)) },
                     leadingIcon = { Icon(Icons.Filled.CastConnected, null) },
                     onClick = { showMenu = false; onStream() },
                 )

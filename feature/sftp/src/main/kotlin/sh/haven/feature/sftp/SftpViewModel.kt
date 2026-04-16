@@ -1575,8 +1575,14 @@ class SftpViewModel @Inject constructor(
      *   which fronts `ChannelSftp.get(path, skip)` with HTTP Range support.
      * - **SMB**: not supported yet (no HTTP bridge).
      */
-    fun streamFile(entry: SftpEntry) {
-        Log.w(TAG, "streamFile: ${entry.path} isLocal=${_isLocalProfile.value} isRclone=${_isRcloneProfile.value} isSmb=${_isSmbProfile.value} ffmpegAvail=${ffmpegExecutor.isAvailable()}")
+    /**
+     * Play a media file in the device's browser via loopback-only HLS.
+     * The server binds to 127.0.0.1 so it's not reachable from the network.
+     */
+    fun playInBrowser(entry: SftpEntry) = streamFile(entry, localOnly = true)
+
+    fun streamFile(entry: SftpEntry, localOnly: Boolean = false) {
+        Log.w(TAG, "streamFile: ${entry.path} localOnly=$localOnly isLocal=${_isLocalProfile.value} isRclone=${_isRcloneProfile.value} isSmb=${_isSmbProfile.value} ffmpegAvail=${ffmpegExecutor.isAvailable()}")
         if (_isSmbProfile.value) {
             _error.value = "Streaming is not supported for SMB yet"
             return
@@ -1614,29 +1620,42 @@ class SftpViewModel @Inject constructor(
                         "http://127.0.0.1:$port$urlPath"
                     }
                 }
-                Log.w(TAG, "Starting HLS stream for $streamInput")
-                appendLog("streamFile: input=$streamInput")
+                Log.w(TAG, "Starting HLS stream for $streamInput (localOnly=$localOnly)")
+                appendLog("streamFile: input=$streamInput localOnly=$localOnly")
                 hlsStreamServer.onStderr = { line -> appendLog("ffmpeg: $line") }
-                val port = hlsStreamServer.startFile(streamInput)
-                // Get the device's LAN IP so the URL is shareable with other
-                // devices on the same network. Falls back to 127.0.0.1 if we
-                // can't detect a usable interface (e.g. no WiFi/cellular).
-                val ip = withContext(Dispatchers.IO) {
-                    java.net.NetworkInterface.getNetworkInterfaces()?.toList()
-                        ?.filter { it.isUp && !it.isLoopback }
-                        ?.flatMap { it.inetAddresses.toList() }
-                        ?.firstOrNull { !it.isLoopbackAddress && it is java.net.Inet4Address }
-                        ?.hostAddress ?: "127.0.0.1"
+                val port = hlsStreamServer.startFile(streamInput, localOnly = localOnly)
+
+                val url: String
+                if (localOnly) {
+                    // Wait for ffmpeg to produce the m3u8 before handing the
+                    // URL to Chrome — otherwise the player fetches a 404 on
+                    // the manifest and gives up with MEDIA_ERR_SRC_NOT_SUPPORTED.
+                    val m3u8 = java.io.File(appContext.cacheDir, "hls_stream/stream.m3u8")
+                    withContext(Dispatchers.IO) {
+                        var waited = 0
+                        while (!m3u8.exists() && waited < 10_000) {
+                            Thread.sleep(100)
+                            waited += 100
+                        }
+                    }
+                    url = "http://127.0.0.1:$port/"
+                    _message.value = "Playing in browser (loopback only)"
+                } else {
+                    val ip = withContext(Dispatchers.IO) {
+                        java.net.NetworkInterface.getNetworkInterfaces()?.toList()
+                            ?.filter { it.isUp && !it.isLoopback }
+                            ?.flatMap { it.inetAddresses.toList() }
+                            ?.firstOrNull { !it.isLoopbackAddress && it is java.net.Inet4Address }
+                            ?.hostAddress ?: "127.0.0.1"
+                    }
+                    url = "http://$ip:$port/"
+                    val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE)
+                        as? android.content.ClipboardManager
+                    clipboard?.setPrimaryClip(
+                        android.content.ClipData.newPlainText("Haven stream URL", url)
+                    )
+                    _message.value = "Streaming on $url (copied to clipboard)"
                 }
-                val url = "http://$ip:$port/"
-                // Copy to the system clipboard so the user can paste it into
-                // another device easily
-                val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE)
-                    as? android.content.ClipboardManager
-                clipboard?.setPrimaryClip(
-                    android.content.ClipData.newPlainText("Haven stream URL", url)
-                )
-                _message.value = "Streaming on $url (copied to clipboard)"
                 appendLog("streaming at $url")
                 logMediaEvent(entry, "\u25B6 Stream", ConnectionLog.Status.CONNECTED, startTime, logBuffer.toString(), url)
                 // Open the shareable URL in the browser — the address bar will

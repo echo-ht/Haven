@@ -52,6 +52,9 @@ class HlsStreamServer @Inject constructor(
     var isRunning: Boolean = false
         private set
 
+    @Volatile
+    private var localOnly: Boolean = false
+
     /**
      * Optional observer for ffmpeg stderr lines. Lets callers capture the
      * transcoder output into their own verbose-log buffer (Haven's audit
@@ -67,13 +70,19 @@ class HlsStreamServer @Inject constructor(
      * @param preferredPort Port to listen on (0 = auto)
      * @return The port the server is listening on
      */
-    fun startFile(inputPath: String, preferredPort: Int = 8080): Int {
+    /**
+     * @param localOnly when true, bind to 127.0.0.1 (loopback only — not
+     *                  reachable from other devices on the network). Use
+     *                  for on-device playback in Chrome.
+     */
+    fun startFile(inputPath: String, preferredPort: Int = 8080, localOnly: Boolean = false): Int {
         stop()
+        this.localOnly = localOnly
         val dir = prepareHlsDir()
         playlist = emptyList()
         currentIndex = 0
         startFfmpegForInput(inputPath, dir)
-        startHttpServer(preferredPort, dir)
+        startHttpServer(preferredPort, dir, localOnly)
         return port
     }
 
@@ -85,14 +94,15 @@ class HlsStreamServer @Inject constructor(
      * @param items list of media files to stream, already resolved to local
      *              paths or HTTP loopback URLs
      */
-    fun startPlaylist(items: List<PlaylistItem>, preferredPort: Int = 8080): Int {
+    fun startPlaylist(items: List<PlaylistItem>, preferredPort: Int = 8080, localOnly: Boolean = false): Int {
         require(items.isNotEmpty()) { "playlist must not be empty" }
         stop()
+        this.localOnly = localOnly
         val dir = prepareHlsDir()
         playlist = items
         currentIndex = 0
         startFfmpegForInput(items[0].input, dir)
-        startHttpServer(preferredPort, dir)
+        startHttpServer(preferredPort, dir, localOnly)
         return port
     }
 
@@ -177,8 +187,8 @@ class HlsStreamServer @Inject constructor(
             }
             add("-f"); add("hls")
             add("-hls_time"); add("2")
-            add("-hls_list_size"); add("0")              // 0 = keep all segments (VOD mode)
-            add("-hls_playlist_type"); add("vod")        // writes #EXT-X-PLAYLIST-TYPE:VOD
+            add("-hls_list_size"); add("0")              // 0 = keep all segments
+            add("-hls_playlist_type"); add("event")      // growing playlist — hls.js plays segments as they appear
             add("-hls_flags"); add("independent_segments")
             add("-hls_segment_filename"); add(File(dir, "seg%03d.ts").absolutePath)
             add(playlistPath)
@@ -199,7 +209,11 @@ class HlsStreamServer @Inject constructor(
         }, "hls-ffmpeg-monitor").apply { isDaemon = true }.start()
     }
 
-    private fun startHttpServer(preferredPort: Int, dir: File) {
+    private fun startHttpServer(preferredPort: Int, dir: File, @Suppress("UNUSED_PARAMETER") localOnly: Boolean = false) {
+        // Always bind 0.0.0.0 — Chrome on Android runs in a separate
+        // process and can't reach a server bound to 127.0.0.1 in Haven's
+        // process on some devices/Android versions. The caller controls
+        // the advertised URL (127.0.0.1 vs LAN IP) to limit exposure.
         val ss = ServerSocket(preferredPort, 10, InetAddress.getByName("0.0.0.0"))
         serverSocket = ss
         port = ss.localPort
@@ -255,19 +269,30 @@ class HlsStreamServer @Inject constructor(
         hlsDir = null
         playlist = emptyList()
         currentIndex = 0
+        localOnly = false
     }
 
     private fun handleClient(socket: Socket, hlsDir: File) {
         try {
             socket.use { s ->
+                // In local-only mode, reject connections from non-loopback
+                // peers so LAN devices can't reach the stream even though
+                // the socket is bound to 0.0.0.0.
+                if (localOnly && !s.inetAddress.isLoopbackAddress) {
+                    Log.w(TAG, "Rejected non-local connection from ${s.inetAddress}")
+                    s.getOutputStream().write("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n".toByteArray())
+                    return
+                }
+
                 val reader = s.getInputStream().bufferedReader()
                 val requestLine = reader.readLine() ?: return
+                Log.d(TAG, "HTTP ${s.inetAddress}: $requestLine")
                 // Consume headers
                 while (reader.readLine().let { it != null && it.isNotEmpty() }) { /* skip */ }
 
                 val parts = requestLine.split(" ")
                 if (parts.size < 2) return
-                val path = parts[1]
+                val path = parts[1].substringBefore('?')  // strip query params
 
                 val out = s.getOutputStream()
 
@@ -463,10 +488,11 @@ class HlsStreamServer @Inject constructor(
     });
   }
 
-  // HLS loader — use hls.js where possible, native HLS on Safari.
-  // The loader is wrapped so we can tear down and reload on playlist switches.
+  // HLS loader — prefer hls.js (handles growing EVENT playlists reliably)
+  // over native HLS (Chrome reports support but chokes on incomplete manifests).
+  // Fall back to native only when hls.js isn't available (Safari/iOS).
   let hls = null;
-  const nativeHls = video.canPlayType('application/vnd.apple.mpegurl');
+  const nativeHls = !window.Hls?.isSupported?.() && video.canPlayType('application/vnd.apple.mpegurl');
 
   function loadSource() {
     if (nativeHls) {
