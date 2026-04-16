@@ -608,7 +608,11 @@ fun SftpScreen(
 
                 // Storage permission banner for local file browser
                 if (viewModel.needsStoragePermission) {
-                    Surface(tonalElevation = 2.dp, color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -619,15 +623,27 @@ fun SftpScreen(
                                     )
                                     context.startActivity(intent)
                                 }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                            Spacer(Modifier.width(12.dp))
+                            Icon(
+                                Icons.Filled.Folder,
+                                null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(28.dp),
+                            )
+                            Spacer(Modifier.width(14.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Storage access needed", style = MaterialTheme.typography.bodyMedium)
-                                Text("Tap to grant access to all files", style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
+                                Text(
+                                    "Storage access required",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                                Text(
+                                    "Tap to grant access to local files — media features, browsing, and transfers need this permission.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                                )
                             }
                         }
                     }
