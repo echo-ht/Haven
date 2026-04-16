@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -169,6 +170,7 @@ fun ConnectionEditDialog(
     var rnsPort by rememberSaveable { mutableStateOf(existing?.reticulumPort?.toString() ?: "4242") }
     var rnsNetworkName by rememberSaveable { mutableStateOf(existing?.reticulumNetworkName ?: "") }
     var rnsPassphrase by rememberSaveable { mutableStateOf(existing?.reticulumPassphrase ?: "") }
+    var fileTransport by rememberSaveable { mutableStateOf(existing?.fileTransport ?: "AUTO") }
 
     val isEdit = existing != null
     val title = if (isEdit) "Edit Connection" else "New Connection"
@@ -1284,6 +1286,46 @@ fun ConnectionEditDialog(
                         )
                     }
 
+                    // File transport picker — Auto / SFTP / SCP (legacy)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "File transport",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        "How the Files tab moves data to/from this server.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        listOf(
+                            Triple("AUTO", "Auto", "Try SFTP, fall back to SCP if the sftp-server subsystem is unavailable."),
+                            Triple("SFTP", "SFTP only", "Force the modern SFTP subsystem. Fails if it's disabled server-side."),
+                            Triple("SCP", "SCP (legacy)", "Force legacy scp -t/-f and shell ls. Use on hardened or embedded servers."),
+                        ).forEach { (value, label, sub) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { fileTransport = value }
+                                    .padding(vertical = 4.dp),
+                            ) {
+                                RadioButton(
+                                    selected = fileTransport == value,
+                                    onClick = { fileTransport = value },
+                                )
+                                Column(modifier = Modifier.padding(start = 8.dp)) {
+                                    Text(label, style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        sub,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // Alternate screen buffer toggle
                     Spacer(Modifier.height(4.dp))
                     FilterChip(
@@ -1664,6 +1706,7 @@ fun ConnectionEditDialog(
                             useMosh = selectedTransport == "MOSH",
                             useEternalTerminal = selectedTransport == "ET",
                             etPort = etPortInt,
+                            fileTransport = fileTransport,
                             colorTag = colorTag,
                             groupId = groupId,
                         )

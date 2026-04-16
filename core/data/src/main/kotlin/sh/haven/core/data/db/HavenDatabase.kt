@@ -22,7 +22,7 @@ import sh.haven.core.data.db.entities.SshKey
         PortForwardRule::class,
         AgentAuditEvent::class,
     ],
-    version = 33,
+    version = 34,
     exportSchema = true,
 )
 abstract class HavenDatabase : RoomDatabase() {
@@ -289,6 +289,12 @@ abstract class HavenDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_audit_events_timestamp` ON `agent_audit_events` (`timestamp`)")
+            }
+        }
+
+        val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE connection_profiles ADD COLUMN fileTransport TEXT NOT NULL DEFAULT 'AUTO'")
             }
         }
     }

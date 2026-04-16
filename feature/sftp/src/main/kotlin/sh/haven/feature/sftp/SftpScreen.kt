@@ -163,6 +163,7 @@ fun SftpScreen(
     val extractAudioDialogEntry by viewModel.extractAudioDialogEntry.collectAsState()
     val contactSheetDialogEntry by viewModel.contactSheetDialogEntry.collectAsState()
     val mediaInfoState by viewModel.mediaInfoState.collectAsState()
+    val activeTransportLabel by viewModel.activeTransportLabel.collectAsState()
     val showFullscreenPreview by viewModel.showFullscreenPreview.collectAsState()
     val audioPreviewState by viewModel.audioPreviewState.collectAsState()
     val inputHasVideo by viewModel.inputHasVideo.collectAsState()
@@ -310,12 +311,33 @@ fun SftpScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
-                        Text(
-                            currentPath,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.clickable { editingPath = true },
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                currentPath,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .clickable { editingPath = true },
+                            )
+                            // Show a transport badge when SCP is active so
+                            // users always know why browsing is shell-based
+                            // and uploads go through spool files.
+                            if (activeTransportLabel == "SCP") {
+                                Spacer(Modifier.width(8.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = MaterialTheme.shapes.small,
+                                ) {
+                                    Text(
+                                        "SCP",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
                 navigationIcon = {

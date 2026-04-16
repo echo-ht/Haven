@@ -104,6 +104,7 @@ class SftpViewModel @Inject constructor(
     private val repository: ConnectionRepository,
     private val connectionLogRepository: ConnectionLogRepository,
     private val preferencesRepository: UserPreferencesRepository,
+    private val transportSelector: sh.haven.feature.sftp.transport.TransportSelector,
     private val ffmpegExecutor: sh.haven.core.ffmpeg.FfmpegExecutor,
     val hlsStreamServer: sh.haven.core.ffmpeg.HlsStreamServer,
     private val sftpStreamServer: SftpStreamServer,
@@ -187,6 +188,14 @@ class SftpViewModel @Inject constructor(
     /** Entry currently shown in the convert dialog — stored in ViewModel to survive rotation. */
     private val _convertDialogEntry = MutableStateFlow<SftpEntry?>(null)
     val convertDialogEntry: StateFlow<SftpEntry?> = _convertDialogEntry.asStateFlow()
+
+    /**
+     * Label of the transport currently servicing the active SSH profile —
+     * `"SFTP"`, `"SCP"`, or null while non-SSH backends are active. Shown
+     * as a badge in the path bar so users always know what they're on.
+     */
+    private val _activeTransportLabel = MutableStateFlow<String?>(null)
+    val activeTransportLabel: StateFlow<String?> = _activeTransportLabel.asStateFlow()
 
     fun openConvertDialog(entry: SftpEntry) { _convertDialogEntry.value = entry }
     fun dismissConvertDialog() { _convertDialogEntry.value = null; clearPreview() }
@@ -722,11 +731,13 @@ class SftpViewModel @Inject constructor(
             try {
                 _loading.value = true
                 _transferProgress.value = TransferProgress(entry.name, entry.size, 0)
-                withContext(Dispatchers.IO) {
-                    val outputStream: OutputStream = appContext.contentResolver.openOutputStream(destinationUri)
+                val outputStream: OutputStream = withContext(Dispatchers.IO) {
+                    appContext.contentResolver.openOutputStream(destinationUri)
                         ?: throw IllegalStateException("Cannot open output stream")
-                    outputStream.use { out ->
-                        if (_isRcloneProfile.value) {
+                }
+                outputStream.use { out ->
+                    if (_isRcloneProfile.value) {
+                        withContext(Dispatchers.IO) {
                             val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
                             val tempFile = java.io.File(appContext.cacheDir, "rclone_dl_${entry.name}")
                             try {
@@ -736,34 +747,18 @@ class SftpViewModel @Inject constructor(
                             } finally {
                                 tempFile.delete()
                             }
-                        } else if (_isSmbProfile.value) {
+                        }
+                    } else if (_isSmbProfile.value) {
+                        withContext(Dispatchers.IO) {
                             val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
                             client.download(entry.path, out) { transferred, total ->
                                 _transferProgress.value = TransferProgress(entry.name, total, transferred)
                             }
-                        } else {
-                            val channel = getOrOpenChannel(profileId) ?: throw IllegalStateException("Not connected")
-                            val monitor = object : SftpProgressMonitor {
-                                private var total = 0L
-                                private var transferred = 0L
-
-                                override fun init(op: Int, src: String, dest: String, max: Long) {
-                                    total = if (max == SftpProgressMonitor.UNKNOWN_SIZE) entry.size else max
-                                    transferred = 0
-                                    _transferProgress.value = TransferProgress(entry.name, total, 0)
-                                }
-
-                                override fun count(bytes: Long): Boolean {
-                                    transferred += bytes
-                                    _transferProgress.value = TransferProgress(entry.name, total, transferred)
-                                    return true
-                                }
-
-                                override fun end() {
-                                    _transferProgress.value = TransferProgress(entry.name, total, total)
-                                }
-                            }
-                            channel.get(entry.path, out, monitor)
+                        }
+                    } else {
+                        val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                        transport.download(entry.path, out, entry.size) { transferred, total ->
+                            _transferProgress.value = TransferProgress(entry.name, total, transferred)
                         }
                     }
                 }
@@ -1979,28 +1974,10 @@ class SftpViewModel @Inject constructor(
                                 _transferProgress.value = TransferProgress(fileName, total, transferred)
                             }
                         } else {
-                            val channel = getOrOpenChannel(profileId) ?: throw IllegalStateException("Not connected")
-                            val monitor = object : SftpProgressMonitor {
-                                private var total = 0L
-                                private var transferred = 0L
-
-                                override fun init(op: Int, src: String, dest: String, max: Long) {
-                                    total = if (max == SftpProgressMonitor.UNKNOWN_SIZE) fileSize else max
-                                    transferred = 0
-                                    _transferProgress.value = TransferProgress(fileName, total, 0)
-                                }
-
-                                override fun count(bytes: Long): Boolean {
-                                    transferred += bytes
-                                    _transferProgress.value = TransferProgress(fileName, total, transferred)
-                                    return true
-                                }
-
-                                override fun end() {
-                                    _transferProgress.value = TransferProgress(fileName, total, total)
-                                }
+                            val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                            transport.upload(input, fileSize, destPath) { transferred, total ->
+                                _transferProgress.value = TransferProgress(fileName, total, transferred)
                             }
-                            channel.put(input, destPath, monitor)
                         }
                     }
                     Log.d(TAG, "Upload complete: '$destPath'")
@@ -2022,25 +1999,29 @@ class SftpViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _loading.value = true
-                withContext(Dispatchers.IO) {
-                    if (_isRcloneProfile.value) {
+                if (_isLocalProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val f = java.io.File(entry.path)
+                        val ok = if (entry.isDirectory) f.deleteRecursively() else f.delete()
+                        if (!ok) throw java.io.IOException("Could not delete ${entry.path}")
+                    }
+                } else if (_isRcloneProfile.value) {
+                    withContext(Dispatchers.IO) {
                         val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
                         if (entry.isDirectory) {
                             rcloneClient.deleteDir(remote, entry.path)
                         } else {
                             rcloneClient.deleteFile(remote, entry.path)
                         }
-                    } else if (_isSmbProfile.value) {
+                    }
+                } else if (_isSmbProfile.value) {
+                    withContext(Dispatchers.IO) {
                         val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
                         client.delete(entry.path, entry.isDirectory)
-                    } else {
-                        val channel = getOrOpenChannel(profileId) ?: throw IllegalStateException("Not connected")
-                        if (entry.isDirectory) {
-                            channel.rmdir(entry.path)
-                        } else {
-                            channel.rm(entry.path)
-                        }
                     }
+                } else {
+                    val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                    transport.delete(entry.path, entry.isDirectory)
                 }
                 _message.value = "Deleted ${entry.name}"
                 refresh()
@@ -2061,8 +2042,13 @@ class SftpViewModel @Inject constructor(
                 val parentPath = _currentPath.value
                 val newPath = if (parentPath.isEmpty() || parentPath == "/") newName
                     else "${parentPath.trimEnd('/')}/$newName"
-                withContext(Dispatchers.IO) {
-                    if (_isRcloneProfile.value) {
+                if (_isLocalProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val ok = java.io.File(entry.path).renameTo(java.io.File(newPath))
+                        if (!ok) throw java.io.IOException("Could not rename ${entry.path}")
+                    }
+                } else if (_isRcloneProfile.value) {
+                    withContext(Dispatchers.IO) {
                         val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
                         if (entry.isDirectory) {
                             val config = SyncConfig(
@@ -2082,13 +2068,15 @@ class SftpViewModel @Inject constructor(
                         } else {
                             rcloneClient.moveFile(remote, entry.path, remote, newPath)
                         }
-                    } else if (_isSmbProfile.value) {
+                    }
+                } else if (_isSmbProfile.value) {
+                    withContext(Dispatchers.IO) {
                         val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
                         client.rename(entry.path, newPath)
-                    } else {
-                        val channel = getOrOpenChannel(profileId) ?: throw IllegalStateException("Not connected")
-                        channel.rename(entry.path, newPath)
                     }
+                } else {
+                    val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                    transport.rename(entry.path, newPath)
                 }
                 _message.value = "Renamed to $newName"
                 refresh()
@@ -2267,17 +2255,25 @@ class SftpViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _loading.value = true
-                withContext(Dispatchers.IO) {
-                    if (_isRcloneProfile.value) {
+                if (_isLocalProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        if (!java.io.File(fullPath).mkdirs() && !java.io.File(fullPath).isDirectory) {
+                            throw java.io.IOException("Could not create $fullPath")
+                        }
+                    }
+                } else if (_isRcloneProfile.value) {
+                    withContext(Dispatchers.IO) {
                         val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
                         rcloneClient.mkdir(remote, fullPath)
-                    } else if (_isSmbProfile.value) {
+                    }
+                } else if (_isSmbProfile.value) {
+                    withContext(Dispatchers.IO) {
                         val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
                         client.mkdir(fullPath)
-                    } else {
-                        val channel = getOrOpenChannel(profileId) ?: throw IllegalStateException("Not connected")
-                        channel.mkdir(fullPath)
                     }
+                } else {
+                    val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                    transport.mkdir(fullPath)
                 }
                 _message.value = "Created $name"
                 refresh()
@@ -2431,7 +2427,7 @@ class SftpViewModel @Inject constructor(
             // Upload from temp to destination
             when (destType) {
                 BackendType.LOCAL -> {
-                    tempFile.copyTo(java.io.File(destPath), overwrite = true)
+                    writeLocalFileWithMediaStoreFallback(tempFile, destPath)
                 }
                 BackendType.RCLONE -> {
                     rcloneClient.copyFile(tempFile.parent!!, tempFile.name, destRemote!!, destPath)
@@ -2449,6 +2445,76 @@ class SftpViewModel @Inject constructor(
         } finally {
             tempFile.delete()
         }
+    }
+
+    /**
+     * Write [source] to [destPath] on the local filesystem. If a direct
+     * write fails (typically because the destination is a MediaStore-owned
+     * file under /storage/emulated/0/Download/ that the app can no longer
+     * delete on Android Q+), fall back to writing via the MediaStore
+     * Downloads collection — deleting the existing row through the content
+     * resolver first.
+     */
+    // Caller is expected to be on Dispatchers.IO — crossCopyFile is not a
+    // suspend function and already runs inside a withContext(Dispatchers.IO)
+    // block at its caller (pasteFromClipboard).
+    private fun writeLocalFileWithMediaStoreFallback(source: java.io.File, destPath: String) {
+        val destFile = java.io.File(destPath)
+        // Try streaming copy — this avoids Kotlin's File.copyTo, which
+        // calls target.delete() under the hood.
+        try {
+            destFile.parentFile?.mkdirs()
+            java.io.FileOutputStream(destFile, false).use { out ->
+                source.inputStream().use { it.copyTo(out) }
+            }
+            return
+        } catch (e: java.io.IOException) {
+            Log.w(TAG, "Direct write to $destPath failed (${e.message}); trying MediaStore", e)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Direct write to $destPath denied; trying MediaStore", e)
+        }
+
+        // MediaStore fallback — only applies under Download/.
+        val downloads = "/storage/emulated/0/Download/"
+        if (!destFile.absolutePath.startsWith(downloads)) {
+            throw java.io.IOException("Cannot write to $destPath and path is not under Downloads/")
+        }
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+            throw java.io.IOException("Cannot overwrite $destPath on this Android version")
+        }
+
+        val resolver = appContext.contentResolver
+        val displayName = destFile.name
+        // Delete any pre-existing entry under Downloads with this display name.
+        // Scoped storage + MediaStore ownership means a direct File.delete()
+        // fails, but the content-resolver path works for files the app owns.
+        val queryUri = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        resolver.query(
+            queryUri,
+            arrayOf(android.provider.MediaStore.Downloads._ID),
+            "${android.provider.MediaStore.Downloads.DISPLAY_NAME} = ?",
+            arrayOf(displayName),
+            null,
+        )?.use { cursor ->
+            val idCol = cursor.getColumnIndex(android.provider.MediaStore.Downloads._ID)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val existing = android.content.ContentUris.withAppendedId(queryUri, id)
+                try {
+                    resolver.delete(existing, null, null)
+                } catch (_: Exception) { /* keep going */ }
+            }
+        }
+
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.Downloads.DISPLAY_NAME, displayName)
+            put(android.provider.MediaStore.Downloads.MIME_TYPE, guessContentType(displayName))
+        }
+        val newUri = resolver.insert(queryUri, values)
+            ?: throw java.io.IOException("Failed to create MediaStore entry for $displayName")
+        resolver.openOutputStream(newUri)?.use { out ->
+            source.inputStream().use { it.copyTo(out) }
+        } ?: throw java.io.IOException("Failed to open output stream for $newUri")
     }
 
     /** Recursively copy a directory between backends. */
@@ -2565,33 +2631,75 @@ class SftpViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (!pasteInProgress.get()) _loading.value = true
-                withContext(Dispatchers.IO) {
-                    val channel = sessionManager.openSftpForProfile(profileId)
+
+                // All JSch calls below open or write to channels over the
+                // network, so they must run off the Main dispatcher.
+                //
+                // Probe for a home directory: SFTP exposes it cheaply via
+                // channel.home; when SFTP is unavailable (SCP-only servers)
+                // we shell out to `echo "$HOME"` over exec instead. Fall
+                // back to "/" as a last resort.
+                val home: String = withContext(Dispatchers.IO) {
+                    val sftpChannelForHome = sessionManager.openSftpForProfile(profileId)
                         ?: openMoshSftpChannel(profileId)
-                        ?: throw IllegalStateException("Session not connected")
-                    sftpChannel = channel
-                    // Navigate to home directory on first connect
-                    val home = channel.home
-                    _currentPath.value = home
-                    loadEntries(channel, home)
+                    if (sftpChannelForHome != null) {
+                        sftpChannel = sftpChannelForHome
+                        sftpChannelForHome.home
+                    } else {
+                        val ssh = sessionManager.getSshClientForProfile(profileId)
+                            ?: throw IllegalStateException("Session not connected")
+                        val probe = ssh.execCommand("echo \"\$HOME\"")
+                        probe.stdout.trim().ifEmpty { "/" }
+                    }
                 }
+
+                _currentPath.value = home
+                val transport = currentSshTransport() ?: throw IllegalStateException("Session not connected")
+                val results = transport.list(home)
+                _allEntries.value = sortEntries(results, _sortMode.value)
+                applyFilter()
             } catch (e: Exception) {
                 Log.e(TAG, "SFTP open failed", e)
-                _error.value = "SFTP failed: ${e.message}"
+                _error.value = "File browser failed: ${e.message}"
             } finally {
                 if (!pasteInProgress.get()) _loading.value = false
             }
         }
     }
 
+    /**
+     * Pick a transport (SFTP or SCP) for the active SSH profile, honouring
+     * the per-profile `fileTransport` preference plus Auto fallback. Emits
+     * the one-shot snackbar announcement on first fallback and updates
+     * [activeTransportLabel] so the UI can show a badge.
+     *
+     * Returns null when:
+     *  - no profile is active
+     *  - the profile cannot be loaded from the DB
+     *  - neither SFTP nor SCP can be opened (no connected SSH session)
+     */
+    private suspend fun currentSshTransport(): sh.haven.feature.sftp.transport.RemoteFileTransport? {
+        val profileId = _activeProfileId.value ?: return null
+        // Do the DB read AND the channel-opening on IO — transportSelector.resolve
+        // calls into JSch which blocks a socket to open the SFTP channel, so
+        // it must not run on the Main dispatcher.
+        val resolution = withContext(Dispatchers.IO) {
+            val profile = repository.getById(profileId) ?: return@withContext null
+            transportSelector.resolve(profile)
+        } ?: return null
+        resolution.announceFallback?.let { _message.value = it }
+        _activeTransportLabel.value = resolution.transport.label
+        return resolution.transport
+    }
+
     private fun listDirectory(profileId: String, path: String) {
         viewModelScope.launch {
             try {
                 if (!pasteInProgress.get()) _loading.value = true
-                withContext(Dispatchers.IO) {
-                    val channel = getOrOpenChannel(profileId) ?: throw IllegalStateException("Not connected")
-                    loadEntries(channel, path)
-                }
+                val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                val results = transport.list(path)
+                _allEntries.value = sortEntries(results, _sortMode.value)
+                applyFilter()
             } catch (e: Exception) {
                 Log.e(TAG, "List directory failed: path='$path'", e)
                 _error.value = "Failed to list: ${e.message}"

@@ -70,11 +70,24 @@ data class ConnectionProfile(
     val postLoginCommand: String? = null,
     /** When true, post-login command runs before the session manager (default); when false, runs inside it. */
     val postLoginBeforeSessionManager: Boolean = true,
+    /**
+     * Preferred file-transfer transport for SSH profiles. "AUTO" (default)
+     * tries SFTP and falls back to legacy SCP when the sftp-server subsystem
+     * is unavailable; "SFTP" forces SFTP; "SCP" forces legacy scp -t/-f.
+     * Ignored for non-SSH profiles.
+     */
+    val fileTransport: String = "AUTO",
 ) {
     enum class AuthType {
         PASSWORD,
         KEY,
     }
+
+    /** Typed view of [fileTransport]. Unknown values fall back to [FileTransport.AUTO]. */
+    enum class FileTransport { AUTO, SFTP, SCP }
+
+    val fileTransportEnum: FileTransport
+        get() = runCatching { FileTransport.valueOf(fileTransport) }.getOrDefault(FileTransport.AUTO)
 
     val isSsh: Boolean get() = connectionType == "SSH"
     val isReticulum: Boolean get() = connectionType == "RETICULUM"

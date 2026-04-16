@@ -222,6 +222,29 @@ class SshSessionManager @Inject constructor(
         return channel
     }
 
+    /**
+     * Find a connected [SshClient] for this profile. Used by file-transfer
+     * code paths that need shell exec (SCP, shell-ls browsing) — i.e. the
+     * legacy transport for servers without an SFTP subsystem.
+     */
+    fun getSshClientForProfile(profileId: String): SshClient? {
+        return _sessions.value.values
+            .firstOrNull { it.profileId == profileId && it.status == SessionState.Status.CONNECTED }
+            ?.client
+    }
+
+    /**
+     * Create an [ScpClient] bound to the connected JSch session for
+     * [profileId]. Each call produces a new façade — the session itself is
+     * shared, but SCP opens a fresh exec channel per operation so there is
+     * no caching to do here.
+     */
+    fun openScpForProfile(profileId: String): ScpClient? {
+        val client = getSshClientForProfile(profileId) ?: return null
+        val jschSession = client.jschSession ?: return null
+        return ScpClient(jschSession)
+    }
+
     fun attachTerminalSession(sessionId: String, terminalSession: TerminalSession) {
         _sessions.update { map ->
             val existing = map[sessionId] ?: return@update map
