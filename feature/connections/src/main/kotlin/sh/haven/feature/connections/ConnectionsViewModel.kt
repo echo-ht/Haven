@@ -1198,6 +1198,7 @@ class ConnectionsViewModel @Inject constructor(
 
             // Track whether we auto-created the jump session (for cleanup on failure)
             var autoCreatedJumpSessionId: String? = null
+            var isFidoAuth = false
             try {
                 // If profile has a jump host, establish that connection first
                 val jumpProfileId = profile.jumpProfileId
@@ -1213,6 +1214,7 @@ class ConnectionsViewModel @Inject constructor(
 
                 val sshSessionMgr = withContext(Dispatchers.IO) {
                     val authMethod = resolveAuthMethod(profile, password)
+                    isFidoAuth = authMethod is ConnectionConfig.AuthMethod.FidoKey
                     val config = ConnectionConfig(
                         host = profile.host,
                         port = profile.port,
@@ -1328,11 +1330,17 @@ class ConnectionsViewModel @Inject constructor(
                     msg.contains("authentication", ignoreCase = true) ||
                     msg.contains("publickey", ignoreCase = true)
                 )
-                if (isAuthError) {
+                if (isFidoAuth && (isAuthError || (keyOnly && !isNetworkError))) {
+                    val fidoDetail = fidoAuthenticator.lastAssertionError
+                    _error.value = if (fidoDetail != null) {
+                        "Security key: $fidoDetail"
+                    } else {
+                        msg.ifBlank { "Security key authentication failed" }
+                    }
+                } else if (isAuthError) {
                     Log.d(TAG, "Auth failed, showing password fallback for ${profile.label}")
                     _passwordFallback.value = profile
                 } else if (keyOnly && !isNetworkError && msg.isBlank()) {
-                    // Unknown error with key auth — try password
                     _passwordFallback.value = profile
                 } else {
                     _error.value = msg.ifBlank { "Connection failed" }
@@ -1405,10 +1413,12 @@ class ConnectionsViewModel @Inject constructor(
             val verboseEnabled = preferencesRepository.verboseLoggingEnabled.first()
             val verboseLogger = if (verboseEnabled) SshVerboseLogger() else null
 
+            var isFidoAuth = false
             try {
                 // Phase 1: SSH bootstrap — connect, verify host key
                 val client = withContext(Dispatchers.IO) {
                     val authMethod = resolveAuthMethod(profile, password)
+                    isFidoAuth = authMethod is ConnectionConfig.AuthMethod.FidoKey
                     val config = ConnectionConfig(
                         host = profile.host,
                         port = profile.port,
@@ -1493,7 +1503,11 @@ class ConnectionsViewModel @Inject constructor(
                         msg.contains("authentication", ignoreCase = true) ||
                         msg.contains("publickey", ignoreCase = true)
                     )
-                if (isAuthError || (keyOnly && msg.isBlank())) {
+                if (isFidoAuth && (isAuthError || (keyOnly && msg.isBlank()))) {
+                    val fidoDetail = fidoAuthenticator.lastAssertionError
+                    _error.value = if (fidoDetail != null) "Security key: $fidoDetail"
+                    else msg.ifBlank { "Security key authentication failed" }
+                } else if (isAuthError || (keyOnly && msg.isBlank())) {
                     _passwordFallback.value = profile
                 } else {
                     _error.value = msg.ifBlank { "Eternal Terminal connection failed" }
@@ -1523,10 +1537,12 @@ class ConnectionsViewModel @Inject constructor(
             val verboseEnabled = preferencesRepository.verboseLoggingEnabled.first()
             val verboseLogger = if (verboseEnabled) SshVerboseLogger() else null
 
+            var isFidoAuth = false
             try {
                 // Phase 1: SSH bootstrap — connect, resolve session manager, list sessions
                 val client = withContext(Dispatchers.IO) {
                     val authMethod = resolveAuthMethod(profile, password)
+                    isFidoAuth = authMethod is ConnectionConfig.AuthMethod.FidoKey
                     val config = ConnectionConfig(
                         host = profile.host,
                         port = profile.port,
@@ -1612,7 +1628,11 @@ class ConnectionsViewModel @Inject constructor(
                         msg.contains("authentication", ignoreCase = true) ||
                         msg.contains("publickey", ignoreCase = true)
                     )
-                if (isAuthError || (keyOnly && msg.isBlank())) {
+                if (isFidoAuth && (isAuthError || (keyOnly && msg.isBlank()))) {
+                    val fidoDetail = fidoAuthenticator.lastAssertionError
+                    _error.value = if (fidoDetail != null) "Security key: $fidoDetail"
+                    else msg.ifBlank { "Security key authentication failed" }
+                } else if (isAuthError || (keyOnly && msg.isBlank())) {
                     _passwordFallback.value = profile
                 } else if (msg.contains("mosh-server not found", ignoreCase = true) ||
                     msg.contains("command not found", ignoreCase = true) && msg.contains("mosh", ignoreCase = true)

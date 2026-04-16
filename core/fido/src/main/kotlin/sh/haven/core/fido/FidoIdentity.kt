@@ -57,12 +57,17 @@ class FidoIdentity(
 
         // Block the JSch thread while waiting for FIDO2 hardware response.
         // This is intentional — JSch's auth is synchronous.
-        val result = runBlocking {
-            authenticator.getAssertion(
-                rpId = skKeyData.application,
-                message = data,
-                credentialId = skKeyData.credentialId,
-            )
+        val result = try {
+            runBlocking {
+                authenticator.getAssertion(
+                    rpId = skKeyData.application,
+                    message = data,
+                    credentialId = skKeyData.credentialId,
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "FIDO2 assertion failed: ${e.javaClass.simpleName}: ${e.message}")
+            throw e
         }
 
         Log.d(TAG, "FIDO2 assertion received: sig=${result.signature.size}b, " +

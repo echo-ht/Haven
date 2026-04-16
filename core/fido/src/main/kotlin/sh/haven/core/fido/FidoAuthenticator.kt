@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.lang.ref.WeakReference
 import java.security.MessageDigest
@@ -29,6 +30,7 @@ import javax.inject.Singleton
 
 private const val TAG = "FidoAuthenticator"
 private const val ACTION_USB_PERMISSION = "sh.haven.core.fido.USB_PERMISSION"
+private const val USB_PERMISSION_TIMEOUT_MS = 30_000L
 
 data class FidoAssertionResult(
     val signature: ByteArray,
@@ -94,6 +96,9 @@ class FidoAuthenticator @Inject constructor(
      */
     val touchPrompt: StateFlow<FidoTouchPrompt?> = _touchPrompt.asStateFlow()
 
+    /** Last assertion error message, readable by the ViewModel for user-facing display. */
+    @Volatile var lastAssertionError: String? = null
+
     /**
      * Publish the foreground activity from `Activity.onResume`. Required to
      * enable NFC reader mode during [getAssertion]; USB-only flows work
@@ -132,6 +137,7 @@ class FidoAuthenticator @Inject constructor(
         message: ByteArray,
         credentialId: ByteArray,
     ): FidoAssertionResult = withContext(Dispatchers.IO) {
+        lastAssertionError = null
         Log.d(TAG, "FIDO2 assertion requested: rpId=$rpId, message=${message.size}b, credId=${credentialId.size}b")
 
         val clientDataHash = MessageDigest.getInstance("SHA-256").digest(message)
@@ -295,14 +301,15 @@ class FidoAuthenticator @Inject constructor(
 
         // Request USB permission if needed
         if (!usbManager.hasPermission(device)) {
-            Log.d(TAG, "Requesting USB permission for ${device.productName ?: "(unknown product)"}")
+            val deviceName = device.productName ?: "(unknown product)"
+            Log.d(TAG, "Requesting USB permission for $deviceName")
             val permDeferred = CompletableDeferred<Boolean>()
             val permReceiver = object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context, intent: Intent) {
                     if (intent.action == ACTION_USB_PERMISSION) {
-                        permDeferred.complete(
-                            intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
-                        )
+                        val g = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+                        Log.d(TAG, "USB permission callback: granted=$g")
+                        permDeferred.complete(g)
                     }
                 }
             }
@@ -318,11 +325,22 @@ class FidoAuthenticator @Inject constructor(
                 device,
                 PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), flags),
             )
-            val granted = permDeferred.await()
-            try {
-                context.unregisterReceiver(permReceiver)
-            } catch (_: IllegalArgumentException) {}
-            if (!granted) throw IOException("USB permission denied")
+            val granted = try {
+                withTimeoutOrNull(USB_PERMISSION_TIMEOUT_MS) { permDeferred.await() }
+            } finally {
+                try { context.unregisterReceiver(permReceiver) } catch (_: IllegalArgumentException) {}
+            }
+            if (granted == null) {
+                Log.e(TAG, "USB permission timed out for $deviceName")
+                throw IOException("USB permission timed out — no response from system dialog")
+            }
+            if (!granted) {
+                Log.e(TAG, "USB permission denied for $deviceName")
+                throw IOException("USB permission denied")
+            }
+            Log.d(TAG, "USB permission granted for $deviceName")
+        } else {
+            Log.d(TAG, "USB permission already held for ${device.productName}")
         }
 
         // Find HID interface and endpoints
@@ -345,18 +363,26 @@ class FidoAuthenticator @Inject constructor(
             ?: throw IOException("Failed to open USB device")
         connection.claimInterface(hidInterface, true)
 
-        CtapHidTransport(connection, endpointIn, endpointOut).use { transport ->
-            transport.init()
+        try {
+            CtapHidTransport(connection, endpointIn, endpointOut).use { transport ->
+                Log.d(TAG, "CTAPHID init...")
+                transport.init()
+                Log.d(TAG, "CTAPHID init complete, sending GetAssertion (rpId=$rpId)")
 
-            val command = Ctap2Cbor.encodeGetAssertionCommand(rpId, clientDataHash, credentialId)
-            val response = transport.sendCborCommand(command) {
-                // Authenticator says STATUS_UPNEEDED — it is *right now*
-                // waiting for the user to physically touch the key. Idempotent
-                // re-assert (the state was already TouchKey from getAssertion).
-                _touchPrompt.value = FidoTouchPrompt.TouchKey
+                val command = Ctap2Cbor.encodeGetAssertionCommand(rpId, clientDataHash, credentialId)
+                val response = transport.sendCborCommand(command) {
+                    _touchPrompt.value = FidoTouchPrompt.TouchKey
+                }
+
+                Log.d(TAG, "CTAP response: ${response.size} bytes, status=0x${
+                    if (response.isNotEmpty()) "%02x".format(response[0]) else "empty"
+                }")
+                return parseCtap2Response(response)
             }
-
-            return parseCtap2Response(response)
+        } catch (e: Exception) {
+            Log.e(TAG, "USB FIDO assertion failed: ${e.javaClass.simpleName}: ${e.message}")
+            lastAssertionError = e.message
+            throw e
         }
     }
 
