@@ -14,8 +14,8 @@ android {
         applicationId = "sh.haven.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 244
-        versionName = "5.11.1"
+        versionCode = 245
+        versionName = "5.12.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -127,6 +127,7 @@ dependencies {
     implementation(project(":feature:keys"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:editor"))
+    implementation(project(":feature:imagetools"))
     implementation(project(":feature:vnc"))
     implementation(project(":feature:rdp"))
 

@@ -131,6 +131,7 @@ fun SftpScreen(
     pendingSmbProfileId: String? = null,
     pendingRcloneProfileId: String? = null,
     onEditorOpenChanged: (Boolean) -> Unit = {},
+    onImageToolOpenChanged: (Boolean) -> Unit = {},
     viewModel: SftpViewModel = hiltViewModel(),
 ) {
     val connectedProfiles by viewModel.connectedProfiles.collectAsState()
@@ -176,6 +177,11 @@ fun SftpScreen(
     val termColorScheme by viewModel.terminalColorScheme.collectAsState()
     val editorOpen = editorFile !is SftpViewModel.EditorFileState.Closed
     LaunchedEffect(editorOpen) { onEditorOpenChanged(editorOpen) }
+
+    val imageToolFile by viewModel.imageToolFile.collectAsState()
+    val imageToolSaving by viewModel.imageToolSaving.collectAsState()
+    val imageToolOpen = imageToolFile !is SftpViewModel.ImageToolFileState.Closed
+    LaunchedEffect(imageToolOpen) { onImageToolOpenChanged(imageToolOpen) }
 
     val fileFilter by viewModel.fileFilter.collectAsState()
     val filterMode by viewModel.filterMode.collectAsState()
@@ -318,6 +324,32 @@ fun SftpScreen(
             onToggleWordWrap = { editorWordWrap = !editorWordWrap },
             onSave = { content -> viewModel.saveEditorContent(content) },
             onBack = { viewModel.closeEditor() },
+        )
+        return
+    }
+
+    if (imageToolOpen) {
+        androidx.activity.compose.BackHandler { viewModel.closeImageTools() }
+        sh.haven.feature.imagetools.ImageToolsScreen(
+            state = when (val it = imageToolFile) {
+                is SftpViewModel.ImageToolFileState.Loading -> sh.haven.feature.imagetools.ImageToolState.Loading
+                is SftpViewModel.ImageToolFileState.Open -> sh.haven.feature.imagetools.ImageToolState.Loaded(
+                    it.bitmap, it.cachePath, it.fileName, it.bitmap.width, it.bitmap.height,
+                )
+                is SftpViewModel.ImageToolFileState.Processing -> sh.haven.feature.imagetools.ImageToolState.Processing(it.label)
+                is SftpViewModel.ImageToolFileState.Preview -> sh.haven.feature.imagetools.ImageToolState.Preview(
+                    it.originalBitmap, it.resultBitmap, it.resultCachePath, it.fileName,
+                )
+                is SftpViewModel.ImageToolFileState.Error -> sh.haven.feature.imagetools.ImageToolState.Error(it.message)
+                else -> sh.haven.feature.imagetools.ImageToolState.Idle
+            },
+            saving = imageToolSaving,
+            onApplyPerspective = { corners, w, h -> viewModel.applyPerspective(corners, w, h) },
+            onApplyCrop = { l, t, r, b, w, h -> viewModel.applyCrop(l, t, r, b, w, h) },
+            onApplyRotate = { deg, w, h -> viewModel.applyRotate(deg, w, h) },
+            onSave = { viewModel.saveImageToolResult() },
+            onReset = { viewModel.resetImageTool() },
+            onBack = { viewModel.closeImageTools() },
         )
         return
     }
@@ -894,6 +926,9 @@ fun SftpScreen(
                                 } else null,
                                 onOpenInEditor = if (!entry.isDirectory) {
                                     { viewModel.openInEditor(entry) }
+                                } else null,
+                                onOpenInImageTools = if (!entry.isDirectory && isImageFile(entry.name)) {
+                                    { viewModel.openInImageTools(entry) }
                                 } else null,
                             )
                         }
@@ -1803,6 +1838,7 @@ private fun FileListItem(
     onShareLink: (() -> Unit)? = null,
     onFolderSize: (() -> Unit)? = null,
     onOpenInEditor: (() -> Unit)? = null,
+    onOpenInImageTools: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
@@ -1865,6 +1901,13 @@ private fun FileListItem(
                     text = { Text(stringResource(sh.haven.feature.editor.R.string.editor_open_in_editor)) },
                     leadingIcon = { Icon(Icons.Filled.Description, null) },
                     onClick = { showMenu = false; onOpenInEditor() },
+                )
+            }
+            if (onOpenInImageTools != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(sh.haven.feature.imagetools.R.string.imagetools_open)) },
+                    leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                    onClick = { showMenu = false; onOpenInImageTools() },
                 )
             }
             if (onMediaSheet != null) {
@@ -2043,4 +2086,13 @@ private fun formatTimestamp(seconds: Double): String {
     val s = totalSec % 60
     return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s)
     else String.format(Locale.US, "%d:%02d", m, s)
+}
+
+private val IMAGE_EXTENSIONS = setOf(
+    "jpg", "jpeg", "png", "bmp", "webp", "tiff", "tif", "heic", "heif",
+)
+
+private fun isImageFile(fileName: String): Boolean {
+    val ext = fileName.substringAfterLast('.', "").lowercase()
+    return ext in IMAGE_EXTENSIONS
 }

@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "sh.haven.feature.sftp"
+    namespace = "sh.haven.feature.imagetools"
     compileSdk = 36
 
     defaultConfig {
@@ -19,10 +19,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
-
     buildFeatures {
         compose = true
     }
@@ -30,17 +26,9 @@ android {
 
 dependencies {
     implementation(project(":core:ui"))
-    implementation(project(":core:ssh"))
-    implementation(project(":feature:editor"))
-    implementation(project(":feature:imagetools"))
-    implementation(project(":core:mosh"))
-    implementation(project(":core:et"))
-    implementation(project(":core:data"))
-    implementation(project(":core:smb"))
-    implementation(project(":core:rclone"))
     implementation(project(":core:ffmpeg"))
 
-    implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation(libs.activity.compose)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)

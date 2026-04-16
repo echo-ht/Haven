@@ -99,6 +99,7 @@ include(":core:ffmpeg")
 
 include(":feature:settings")
 include(":feature:editor")
+include(":feature:imagetools")
 include(":feature:vnc")
 include(":feature:rdp")
 

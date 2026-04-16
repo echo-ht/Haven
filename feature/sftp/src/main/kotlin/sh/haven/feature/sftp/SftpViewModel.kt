@@ -412,6 +412,256 @@ class SftpViewModel @Inject constructor(
         editorEntry = null
     }
 
+    /** Image tools overlay state. */
+    sealed class ImageToolFileState {
+        data object Closed : ImageToolFileState()
+        data object Loading : ImageToolFileState()
+        data class Open(
+            val fileName: String,
+            val filePath: String,
+            val cachePath: String,
+            val bitmap: android.graphics.Bitmap,
+        ) : ImageToolFileState()
+        data class Preview(
+            val fileName: String,
+            val originalBitmap: android.graphics.Bitmap,
+            val resultBitmap: android.graphics.Bitmap,
+            val resultCachePath: String,
+        ) : ImageToolFileState()
+        data class Processing(val label: String) : ImageToolFileState()
+        data class Error(val message: String) : ImageToolFileState()
+    }
+    private val _imageToolFile = MutableStateFlow<ImageToolFileState>(ImageToolFileState.Closed)
+    val imageToolFile: StateFlow<ImageToolFileState> = _imageToolFile.asStateFlow()
+
+    private val _imageToolSaving = MutableStateFlow(false)
+    val imageToolSaving: StateFlow<Boolean> = _imageToolSaving.asStateFlow()
+
+    private var imageToolEntry: SftpEntry? = null
+
+    fun openInImageTools(entry: SftpEntry) {
+        if (entry.isDirectory) return
+        imageToolEntry = entry
+        _imageToolFile.value = ImageToolFileState.Loading
+        viewModelScope.launch {
+            try {
+                val cachePath = java.io.File(appContext.cacheDir, "imgtools_${entry.name}").absolutePath
+                val bytes = java.io.ByteArrayOutputStream()
+                if (_isLocalProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        java.io.File(entry.path).inputStream().use { it.copyTo(bytes) }
+                    }
+                } else if (_isRcloneProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
+                        val tempFile = java.io.File(cachePath)
+                        rcloneClient.copyFile(remote, entry.path, tempFile.parent!!, tempFile.name)
+                        tempFile.inputStream().use { it.copyTo(bytes) }
+                    }
+                } else if (_isSmbProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
+                        client.download(entry.path, bytes) { _, _ -> }
+                    }
+                } else {
+                    val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                    transport.download(entry.path, bytes, entry.size) { _, _ -> }
+                }
+                val data = bytes.toByteArray()
+                withContext(Dispatchers.IO) {
+                    java.io.File(cachePath).writeBytes(data)
+                }
+                val bitmap = withContext(Dispatchers.IO) {
+                    val opts = android.graphics.BitmapFactory.Options()
+                    opts.inJustDecodeBounds = true
+                    android.graphics.BitmapFactory.decodeByteArray(data, 0, data.size, opts)
+                    val maxDim = 2048
+                    var sampleSize = 1
+                    while (opts.outWidth / sampleSize > maxDim || opts.outHeight / sampleSize > maxDim) {
+                        sampleSize *= 2
+                    }
+                    val decodeOpts = android.graphics.BitmapFactory.Options()
+                    decodeOpts.inSampleSize = sampleSize
+                    android.graphics.BitmapFactory.decodeByteArray(data, 0, data.size, decodeOpts)
+                        ?: throw IllegalStateException("Cannot decode image")
+                }
+                _imageToolFile.value = ImageToolFileState.Open(
+                    entry.name, entry.path, cachePath, bitmap,
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load image for tools", e)
+                _imageToolFile.value = ImageToolFileState.Error(e.message ?: "Failed to load image")
+            }
+        }
+    }
+
+    fun applyPerspective(corners: List<androidx.compose.ui.geometry.Offset>, imgWidth: Int, imgHeight: Int) {
+        val current = _imageToolFile.value
+        if (current !is ImageToolFileState.Open) return
+        _imageToolFile.value = ImageToolFileState.Processing("Applying perspective…")
+        viewModelScope.launch {
+            try {
+                val c = corners
+                val filter = sh.haven.core.ffmpeg.VideoFilter.Perspective(
+                    x0 = c[0].x * imgWidth, y0 = c[0].y * imgHeight,
+                    x1 = c[1].x * imgWidth, y1 = c[1].y * imgHeight,
+                    x2 = c[2].x * imgWidth, y2 = c[2].y * imgHeight,
+                    x3 = c[3].x * imgWidth, y3 = c[3].y * imgHeight,
+                )
+                val ext = current.fileName.substringAfterLast('.', "jpg").lowercase()
+                val outPath = java.io.File(appContext.cacheDir, "imgtools_result_${current.fileName}").absolutePath
+                val result = withContext(Dispatchers.IO) {
+                    ffmpegExecutor.execute(
+                        listOf(
+                            "-y", "-i", current.cachePath,
+                            "-vf", filter.toFfmpeg(),
+                            "-frames:v", "1",
+                            "-q:v", "2",
+                            outPath,
+                        )
+                    )
+                }
+                if (result.exitCode != 0) {
+                    throw IllegalStateException("FFmpeg failed (exit ${result.exitCode})")
+                }
+                val resultBitmap = withContext(Dispatchers.IO) {
+                    android.graphics.BitmapFactory.decodeFile(outPath)
+                        ?: throw IllegalStateException("Cannot decode result")
+                }
+                _imageToolFile.value = ImageToolFileState.Preview(
+                    current.fileName, current.bitmap, resultBitmap, outPath,
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Perspective transform failed", e)
+                _imageToolFile.value = ImageToolFileState.Error(e.message ?: "Transform failed")
+            }
+        }
+    }
+
+    fun applyCrop(left: Float, top: Float, right: Float, bottom: Float, imgWidth: Int, imgHeight: Int) {
+        val current = _imageToolFile.value
+        if (current !is ImageToolFileState.Open) return
+        _imageToolFile.value = ImageToolFileState.Processing("Cropping…")
+        viewModelScope.launch {
+            try {
+                val x = (left * imgWidth).toInt().coerceAtLeast(0)
+                val y = (top * imgHeight).toInt().coerceAtLeast(0)
+                val w = ((right - left) * imgWidth).toInt().coerceAtLeast(1)
+                val h = ((bottom - top) * imgHeight).toInt().coerceAtLeast(1)
+                val filter = sh.haven.core.ffmpeg.VideoFilter.Crop(w, h, x, y)
+                val outPath = java.io.File(appContext.cacheDir, "imgtools_result_${current.fileName}").absolutePath
+                val result = withContext(Dispatchers.IO) {
+                    ffmpegExecutor.execute(listOf("-y", "-i", current.cachePath, "-vf", filter.toFfmpeg(), "-frames:v", "1", "-q:v", "2", outPath))
+                }
+                if (result.exitCode != 0) throw IllegalStateException("FFmpeg failed (exit ${result.exitCode})")
+                val resultBitmap = withContext(Dispatchers.IO) {
+                    android.graphics.BitmapFactory.decodeFile(outPath) ?: throw IllegalStateException("Cannot decode result")
+                }
+                _imageToolFile.value = ImageToolFileState.Preview(current.fileName, current.bitmap, resultBitmap, outPath)
+            } catch (e: Exception) {
+                Log.e(TAG, "Crop failed", e)
+                _imageToolFile.value = ImageToolFileState.Error(e.message ?: "Crop failed")
+            }
+        }
+    }
+
+    fun applyRotate(degrees: Float, imgWidth: Int, imgHeight: Int) {
+        val current = _imageToolFile.value
+        if (current !is ImageToolFileState.Open) return
+        _imageToolFile.value = ImageToolFileState.Processing("Rotating…")
+        viewModelScope.launch {
+            try {
+                val filter = sh.haven.core.ffmpeg.VideoFilter.Rotate(degrees)
+                val outPath = java.io.File(appContext.cacheDir, "imgtools_result_${current.fileName}").absolutePath
+                val result = withContext(Dispatchers.IO) {
+                    ffmpegExecutor.execute(listOf("-y", "-i", current.cachePath, "-vf", filter.toFfmpeg(), "-frames:v", "1", "-q:v", "2", outPath))
+                }
+                if (result.exitCode != 0) throw IllegalStateException("FFmpeg failed (exit ${result.exitCode})")
+                val resultBitmap = withContext(Dispatchers.IO) {
+                    android.graphics.BitmapFactory.decodeFile(outPath) ?: throw IllegalStateException("Cannot decode result")
+                }
+                _imageToolFile.value = ImageToolFileState.Preview(current.fileName, current.bitmap, resultBitmap, outPath)
+            } catch (e: Exception) {
+                Log.e(TAG, "Rotate failed", e)
+                _imageToolFile.value = ImageToolFileState.Error(e.message ?: "Rotate failed")
+            }
+        }
+    }
+
+    fun resetImageTool() {
+        val current = _imageToolFile.value
+        if (current is ImageToolFileState.Preview) {
+            val open = _imageToolFile.value
+            // Reload from the original cached file
+            viewModelScope.launch {
+                try {
+                    val entry = imageToolEntry ?: return@launch
+                    val cachePath = java.io.File(appContext.cacheDir, "imgtools_${entry.name}").absolutePath
+                    val bitmap = withContext(Dispatchers.IO) {
+                        android.graphics.BitmapFactory.decodeFile(cachePath)
+                            ?: throw IllegalStateException("Cannot reload image")
+                    }
+                    _imageToolFile.value = ImageToolFileState.Open(
+                        entry.name, entry.path, cachePath, bitmap,
+                    )
+                } catch (e: Exception) {
+                    _imageToolFile.value = ImageToolFileState.Error(e.message ?: "Reset failed")
+                }
+            }
+        }
+    }
+
+    fun saveImageToolResult() {
+        val current = _imageToolFile.value
+        if (current !is ImageToolFileState.Preview) return
+        val entry = imageToolEntry ?: return
+        _imageToolSaving.value = true
+        viewModelScope.launch {
+            try {
+                val data = withContext(Dispatchers.IO) {
+                    java.io.File(current.resultCachePath).readBytes()
+                }
+                if (_isLocalProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        java.io.File(entry.path).writeBytes(data)
+                    }
+                } else if (_isRcloneProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
+                        rcloneClient.copyFile(
+                            java.io.File(current.resultCachePath).parent!!, java.io.File(current.resultCachePath).name,
+                            remote, entry.path,
+                        )
+                    }
+                } else if (_isSmbProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
+                        java.io.ByteArrayInputStream(data).use { input ->
+                            client.upload(input, entry.path, data.size.toLong()) { _, _ -> }
+                        }
+                    }
+                } else {
+                    val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                    java.io.ByteArrayInputStream(data).use { input ->
+                        transport.upload(input, data.size.toLong(), entry.path) { _, _ -> }
+                    }
+                }
+                _message.value = "Saved ${entry.name}"
+                closeImageTools()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save image tool result", e)
+                _error.value = "Save failed: ${e.message}"
+            } finally {
+                _imageToolSaving.value = false
+            }
+        }
+    }
+
+    fun closeImageTools() {
+        _imageToolFile.value = ImageToolFileState.Closed
+        imageToolEntry = null
+    }
+
     /** DLNA server state. */
     private val _dlnaServerRunning = MutableStateFlow(false)
     val dlnaServerRunning: StateFlow<Boolean> = _dlnaServerRunning.asStateFlow()

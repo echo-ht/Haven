@@ -97,6 +97,26 @@ sealed class VideoFilter {
         override fun toFfmpeg() = "transpose=$dir"
     }
 
+    /**
+     * Perspective (projective) transform.
+     * Coordinates are pixel positions in the source image for each corner.
+     * Maps the quadrilateral defined by these 4 corners onto the full output rectangle.
+     */
+    data class Perspective(
+        val x0: Float, val y0: Float,
+        val x1: Float, val y1: Float,
+        val x2: Float, val y2: Float,
+        val x3: Float, val y3: Float,
+    ) : VideoFilter() {
+        override fun toFfmpeg() =
+            "perspective=" +
+            "x0=${fmt(x0)}:y0=${fmt(y0)}:" +
+            "x1=${fmt(x1)}:y1=${fmt(y1)}:" +
+            "x2=${fmt(x2)}:y2=${fmt(y2)}:" +
+            "x3=${fmt(x3)}:y3=${fmt(y3)}:" +
+            "interpolation=linear"
+    }
+
     // --- Time / speed ---
 
     /** Fade in from black. Duration in seconds. */
