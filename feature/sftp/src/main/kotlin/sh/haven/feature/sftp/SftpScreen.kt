@@ -128,6 +128,7 @@ import java.util.Locale
 fun SftpScreen(
     pendingSmbProfileId: String? = null,
     pendingRcloneProfileId: String? = null,
+    onEditorOpenChanged: (Boolean) -> Unit = {},
     viewModel: SftpViewModel = hiltViewModel(),
 ) {
     val connectedProfiles by viewModel.connectedProfiles.collectAsState()
@@ -168,6 +169,9 @@ fun SftpScreen(
     val audioPreviewState by viewModel.audioPreviewState.collectAsState()
     val inputHasVideo by viewModel.inputHasVideo.collectAsState()
     val previewIsRemote by viewModel.previewIsRemote.collectAsState()
+    val editorFile by viewModel.editorFile.collectAsState()
+    val editorOpen = editorFile !is SftpViewModel.EditorFileState.Closed
+    LaunchedEffect(editorOpen) { onEditorOpenChanged(editorOpen) }
 
     var showRenameDialog by remember { mutableStateOf<SftpEntry?>(null) }
 
@@ -288,6 +292,23 @@ fun SftpScreen(
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var showSortMenu by remember { mutableStateOf(false) }
+
+    if (editorOpen) {
+        var editorWordWrap by rememberSaveable { mutableStateOf(true) }
+        androidx.activity.compose.BackHandler { viewModel.closeEditor() }
+        sh.haven.feature.editor.EditorScreen(
+            state = when (val ef = editorFile) {
+                is SftpViewModel.EditorFileState.Loading -> sh.haven.feature.editor.EditorState.Loading
+                is SftpViewModel.EditorFileState.Open -> sh.haven.feature.editor.EditorState.Loaded(ef.content, ef.fileName, ef.filePath)
+                is SftpViewModel.EditorFileState.Error -> sh.haven.feature.editor.EditorState.Error(ef.message)
+                else -> sh.haven.feature.editor.EditorState.Idle
+            },
+            wordWrap = editorWordWrap,
+            onToggleWordWrap = { editorWordWrap = !editorWordWrap },
+            onBack = { viewModel.closeEditor() },
+        )
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -797,6 +818,9 @@ fun SftpScreen(
                                 } else null,
                                 onFolderSize = if (isRclone && entry.isDirectory) {
                                     { viewModel.calculateFolderSize(entry) }
+                                } else null,
+                                onOpenInEditor = if (!entry.isDirectory) {
+                                    { viewModel.openInEditor(entry) }
                                 } else null,
                             )
                         }
@@ -1705,6 +1729,7 @@ private fun FileListItem(
     onRename: () -> Unit = {},
     onShareLink: (() -> Unit)? = null,
     onFolderSize: (() -> Unit)? = null,
+    onOpenInEditor: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
@@ -1760,6 +1785,13 @@ private fun FileListItem(
                     text = { Text(stringResource(R.string.sftp_download)) },
                     leadingIcon = { Icon(Icons.Filled.Download, null) },
                     onClick = { showMenu = false; onDownload() },
+                )
+            }
+            if (onOpenInEditor != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(sh.haven.feature.editor.R.string.editor_open_in_editor)) },
+                    leadingIcon = { Icon(Icons.Filled.Description, null) },
+                    onClick = { showMenu = false; onOpenInEditor() },
                 )
             }
             if (onMediaSheet != null) {

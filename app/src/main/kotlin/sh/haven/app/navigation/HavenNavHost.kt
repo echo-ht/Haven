@@ -171,6 +171,8 @@ fun HavenNavHost(
     var desktopFullscreen by remember { mutableStateOf(false) }
     // Disable pager swipe when VNC/RDP is connected (pinch-to-zoom conflicts)
     var desktopConnected by remember { mutableStateOf(false) }
+    // Disable pager swipe when SFTP text editor is open
+    var sftpEditorOpen by remember { mutableStateOf(false) }
 
     // Nav bar drag-to-reorder state
     var navDragIndex by remember { mutableIntStateOf(-1) }
@@ -190,7 +192,7 @@ fun HavenNavHost(
     val pagerContent: @Composable (Modifier) -> Unit = { modifier ->
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = !desktopFullscreen && !desktopConnected && !terminalSelectionActive,
+            userScrollEnabled = !desktopFullscreen && !desktopConnected && !terminalSelectionActive && !sftpEditorOpen,
             modifier = modifier,
         ) { page ->
             when (screens[page]) {
@@ -328,6 +330,7 @@ fun HavenNavHost(
                     SftpScreen(
                         pendingSmbProfileId = pendingSmbProfileId,
                         pendingRcloneProfileId = pendingRcloneProfileId,
+                        onEditorOpenChanged = { sftpEditorOpen = it },
                     )
                     LaunchedEffect(pendingSmbProfileId) {
                         if (pendingSmbProfileId != null) {

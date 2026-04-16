@@ -294,6 +294,59 @@ class SftpViewModel @Inject constructor(
     val folderSizeLoading: StateFlow<Boolean> = _folderSizeLoading.asStateFlow()
     fun dismissFolderSize() { _folderSizeResult.value = null }
 
+    /** Editor overlay state: file content loaded for viewing. */
+    sealed class EditorFileState {
+        data object Closed : EditorFileState()
+        data object Loading : EditorFileState()
+        data class Open(val fileName: String, val filePath: String, val content: String) : EditorFileState()
+        data class Error(val message: String) : EditorFileState()
+    }
+    private val _editorFile = MutableStateFlow<EditorFileState>(EditorFileState.Closed)
+    val editorFile: StateFlow<EditorFileState> = _editorFile.asStateFlow()
+
+    fun openInEditor(entry: SftpEntry) {
+        if (entry.isDirectory) return
+        _editorFile.value = EditorFileState.Loading
+        viewModelScope.launch {
+            try {
+                val bytes = java.io.ByteArrayOutputStream()
+                if (_isLocalProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        java.io.File(entry.path).inputStream().use { it.copyTo(bytes) }
+                    }
+                } else if (_isRcloneProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val remote = activeRcloneRemote ?: throw IllegalStateException("Rclone not connected")
+                        val tempFile = java.io.File(appContext.cacheDir, "editor_${entry.name}")
+                        try {
+                            rcloneClient.copyFile(remote, entry.path, tempFile.parent!!, tempFile.name)
+                            tempFile.inputStream().use { it.copyTo(bytes) }
+                        } finally {
+                            tempFile.delete()
+                        }
+                    }
+                } else if (_isSmbProfile.value) {
+                    withContext(Dispatchers.IO) {
+                        val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
+                        client.download(entry.path, bytes) { _, _ -> }
+                    }
+                } else {
+                    val transport = currentSshTransport() ?: throw IllegalStateException("Not connected")
+                    transport.download(entry.path, bytes, entry.size) { _, _ -> }
+                }
+                val content = bytes.toByteArray().toString(Charsets.UTF_8)
+                _editorFile.value = EditorFileState.Open(entry.name, entry.path, content)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load file for editor", e)
+                _editorFile.value = EditorFileState.Error(e.message ?: "Failed to load file")
+            }
+        }
+    }
+
+    fun closeEditor() {
+        _editorFile.value = EditorFileState.Closed
+    }
+
     /** DLNA server state. */
     private val _dlnaServerRunning = MutableStateFlow(false)
     val dlnaServerRunning: StateFlow<Boolean> = _dlnaServerRunning.asStateFlow()

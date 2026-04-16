@@ -98,6 +98,7 @@ include(":core:wayland")
 include(":core:ffmpeg")
 
 include(":feature:settings")
+include(":feature:editor")
 include(":feature:vnc")
 include(":feature:rdp")
 

@@ -10,6 +10,7 @@ biometric = "1.2.0-alpha05"
 jsch = "2.28.0"
 smbj = "0.13.0"
 termlib = "0.0.22"
+sora-editor = "0.23.4"
 bouncycastle = "1.79"
 jna = "5.14.0"
 coroutines = "1.10.1"
@@ -72,6 +73,10 @@ termlib = { group = "org.connectbot", name = "termlib", version.ref = "termlib" 
 
 # JNA (for UniFFI-generated bindings — keep in sync with rdp-kotlin/build.gradle.kts)
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
+
+# Editor
+sora-editor = { group = "io.github.Rosemoe.sora-editor", name = "editor", version.ref = "sora-editor" }
+sora-editor-textmate = { group = "io.github.Rosemoe.sora-editor", name = "language-textmate", version.ref = "sora-editor" }
 
 # Coroutines
 coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }

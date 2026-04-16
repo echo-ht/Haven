@@ -14,8 +14,8 @@ android {
         applicationId = "sh.haven.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 240
-        versionName = "5.8.5"
+        versionCode = 241
+        versionName = "5.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -125,6 +125,7 @@ dependencies {
     implementation(project(":feature:sftp"))
     implementation(project(":feature:keys"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:editor"))
     implementation(project(":feature:vnc"))
     implementation(project(":feature:rdp"))
 
