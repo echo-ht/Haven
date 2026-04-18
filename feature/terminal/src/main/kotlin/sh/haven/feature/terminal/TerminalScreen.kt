@@ -89,7 +89,8 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.core.view.WindowInsetsCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.connectbot.terminal.ModifierManager
-import org.connectbot.terminal.Terminal
+import sh.haven.core.terminal.HavenKeyboardMode
+import sh.haven.core.terminal.HavenTerminal
 import sh.haven.core.data.preferences.ToolbarLayout
 import sh.haven.core.data.preferences.UserPreferencesRepository
 
@@ -630,8 +631,13 @@ fun TerminalScreen(
                             null
                         }
 
+                        val keyboardMode = when {
+                            rawKeyboardMode -> HavenKeyboardMode.Raw
+                            allowStandardKeyboard -> HavenKeyboardMode.Standard
+                            else -> HavenKeyboardMode.Secure
+                        }
                         CompositionLocalProvider(LocalClipboardManager provides smartClipboard) {
-                            Terminal(
+                            HavenTerminal(
                                 terminalEmulator = activeTab.emulator,
                                 modifier = Modifier.fillMaxSize(),
                                 initialFontSize = fontSize.sp,
@@ -644,7 +650,7 @@ fun TerminalScreen(
                                 onPasteShortcut = pasteShortcut,
                                 onSelectionControllerAvailable = { selectionController = it },
                                 onTerminalDoubleTap = {
-                                    val window = (view.context as? Activity)?.window ?: return@Terminal
+                                    val window = (view.context as? Activity)?.window ?: return@HavenTerminal
                                     val controller = WindowCompat.getInsetsController(window, view)
                                     val rootView = window.decorView
                                     val imeShowing = androidx.core.view.ViewCompat
@@ -665,8 +671,7 @@ fun TerminalScreen(
                                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))
                                 },
                                 gestureCallback = gestureCallback,
-                                allowStandardKeyboard = allowStandardKeyboard,
-                                rawKeyboardMode = rawKeyboardMode,
+                                keyboardMode = keyboardMode,
                             )
                         }
 

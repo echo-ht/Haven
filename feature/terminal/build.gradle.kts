@@ -31,6 +31,7 @@ android {
 
 dependencies {
     implementation(project(":core:ui"))
+    implementation(project(":core:terminal-haven"))
     implementation(project(":core:toolbar"))
     implementation(project(":core:data"))
     implementation(project(":core:ssh"))
