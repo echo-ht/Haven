@@ -42,8 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -62,7 +64,10 @@ import sh.haven.app.desktop.DesktopViewModel
 import sh.haven.feature.connections.ConnectionsScreen
 import sh.haven.feature.keys.KeysScreen
 import sh.haven.feature.settings.SettingsScreen
+import androidx.compose.ui.unit.dp
 import sh.haven.feature.sftp.SftpScreen
+import sh.haven.feature.sftp.SftpViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import sh.haven.feature.terminal.TerminalScreen
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -341,11 +346,39 @@ fun HavenNavHost(
                     )
                 }
                 Screen.Sftp -> {
+                    // Share one SftpViewModel instance between the flick
+                    // handler (which needs to read currentPath + call
+                    // navigateUp) and the SftpScreen itself. hiltViewModel()
+                    // returns the same instance within a composition scope.
+                    val sftpViewModel: SftpViewModel = hiltViewModel()
+                    val sftpCurrentPath by sftpViewModel.currentPath.collectAsState()
+                    val sftpSelectedPaths by sftpViewModel.selectedPaths.collectAsState()
+                    val sftpModifier = Modifier
+                        .fillMaxSize()
+                        .pagerSwipeOverride(
+                            pagerState = pagerState,
+                            scope = coroutineScope,
+                            isSelectionActive = { sftpSelectedPaths.isNotEmpty() || sftpEditorOpen || sftpImageToolOpen },
+                            onFlick = { rightward ->
+                                // Fast rightward flick inside a subdirectory
+                                // navigates up one level instead of switching
+                                // tabs (#89).
+                                val path = sftpCurrentPath
+                                if (rightward && path != "/" && path.isNotEmpty()) {
+                                    sftpViewModel.navigateUp()
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                        )
                     SftpScreen(
                         pendingSmbProfileId = pendingSmbProfileId,
                         pendingRcloneProfileId = pendingRcloneProfileId,
                         onEditorOpenChanged = { sftpEditorOpen = it },
                         onImageToolOpenChanged = { sftpImageToolOpen = it },
+                        sftpModifier = sftpModifier,
+                        viewModel = sftpViewModel,
                     )
                     LaunchedEffect(pendingSmbProfileId) {
                         if (pendingSmbProfileId != null) {
@@ -541,23 +574,45 @@ private fun Modifier.pagerSwipeOverride(
     pagerState: PagerState,
     scope: CoroutineScope,
     isSelectionActive: () -> Boolean = { false },
+    /**
+     * Optional per-page flick handler. Called at gesture release if the
+     * horizontal drag qualifies as a fast flick (velocity past the
+     * internal threshold). Return true if the flick was handled
+     * (e.g. SFTP navigated up one directory): the pager will snap back
+     * to its current page instead of page-switching.
+     *
+     * `rightward = true` when totalX > 0 (drag went left→right).
+     */
+    onFlick: (rightward: Boolean) -> Boolean = { false },
 ): Modifier = pointerInput(pagerState) {
     val touchSlopPx = viewConfiguration.touchSlop
+    val flickVelocityPx = with(density) { 200.dp.toPx() }
     awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
         var totalX = 0f
         var totalY = 0f
         var decided = false
         var isHorizontal = false
 
+        // Anchor the gesture to the page we started on. During the drag we
+        // call dispatchRawDelta, which moves the pager progressively and
+        // may tick pagerState.currentPage over to the next page before the
+        // finger lifts. Computing the release target from currentPage would
+        // then cause a two-page jump. Use startPage as the stable anchor.
+        val startPage = pagerState.currentPage
         var selectionInterrupted = false
+        val velocityTracker = VelocityTracker().also {
+            it.addPosition(down.uptimeMillis, down.position)
+        }
 
+        var change: PointerInputChange? = down
         do {
             val event = awaitPointerEvent(PointerEventPass.Initial)
-            val change = event.changes.firstOrNull() ?: break
+            change = event.changes.firstOrNull() ?: break
             val delta = change.positionChange()
             totalX += delta.x
             totalY += delta.y
+            velocityTracker.addPosition(change.uptimeMillis, change.position)
 
             if (!decided && totalX * totalX + totalY * totalY > touchSlopPx * touchSlopPx) {
                 decided = true
@@ -583,19 +638,33 @@ private fun Modifier.pagerSwipeOverride(
                     pagerState.dispatchRawDelta(-delta.x)
                 }
             }
-        } while (change.pressed)
+        } while (change?.pressed == true)
 
         if (isHorizontal && !selectionInterrupted && !isSelectionActive()) {
-            val threshold = size.width / 4
-            val target = when {
-                totalX < -threshold -> pagerState.currentPage + 1
-                totalX > threshold -> pagerState.currentPage - 1
-                else -> pagerState.currentPage
-            }.coerceIn(0, pagerState.pageCount - 1)
-            scope.launch { pagerState.animateScrollToPage(target) }
+            // Release decision — fast flick first (per-page hook gets a
+            // chance to claim it), then fall back to standard page-threshold
+            // behaviour.
+            val releaseVelocity = velocityTracker.calculateVelocity().x
+            val isFlick = abs(releaseVelocity) >= flickVelocityPx
+            val flickHandled = if (isFlick) onFlick(totalX > 0) else false
+
+            if (flickHandled) {
+                // Caller took over — snap pager back to the page we
+                // started on (we forwarded some delta to it during the
+                // drag, so currentPage may already have ticked over).
+                scope.launch { pagerState.animateScrollToPage(startPage) }
+            } else {
+                val threshold = size.width / 4
+                val target = when {
+                    totalX < -threshold -> startPage + 1
+                    totalX > threshold -> startPage - 1
+                    else -> startPage
+                }.coerceIn(0, pagerState.pageCount - 1)
+                scope.launch { pagerState.animateScrollToPage(target) }
+            }
         } else if (selectionInterrupted) {
-            // Ensure pager settles on current page
-            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage) }
+            // Ensure pager settles on the page we started on
+            scope.launch { pagerState.animateScrollToPage(startPage) }
         }
     }
 }
