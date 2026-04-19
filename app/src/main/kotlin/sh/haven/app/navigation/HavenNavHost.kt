@@ -59,6 +59,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import sh.haven.core.data.preferences.UserPreferencesRepository
 import sh.haven.core.data.repository.ConnectionRepository
+import androidx.activity.compose.LocalActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import sh.haven.app.desktop.DesktopViewModel
 import sh.haven.feature.connections.ConnectionsScreen
@@ -193,7 +194,8 @@ fun HavenNavHost(
     // signal for switching to a side rail.  This avoids triggering the rail on narrow
     // landscape phones where it would eat more width than it saves, while also opting
     // wide-enough portrait tablets into the rail.
-    val windowSizeClass = calculateWindowSizeClass(LocalContext.current as android.app.Activity)
+    val activity = LocalActivity.current ?: return
+    val windowSizeClass = calculateWindowSizeClass(activity)
     val useSideNavigation =
         windowSizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 
