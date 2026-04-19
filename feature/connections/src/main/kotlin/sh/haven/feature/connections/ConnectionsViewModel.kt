@@ -380,19 +380,25 @@ class ConnectionsViewModel @Inject constructor(
      */
     private val keyboardInteractivePrompter = KeyboardInteractivePrompter { challenge ->
         val deferred = CompletableDeferred<List<String>?>()
+        android.util.Log.d("HavenKI", "VM prompter: set pending challenge prompts=${challenge.prompts.size} first='${challenge.prompts.firstOrNull()?.text}'")
         _keyboardInteractiveAuth.value = PendingKeyboardInteractiveAuth(challenge, deferred)
         try {
-            deferred.await()
+            deferred.await().also {
+                android.util.Log.d("HavenKI", "VM prompter: deferred resumed with ${if (it == null) "null" else "${it.size} responses"}")
+            }
         } finally {
             _keyboardInteractiveAuth.value = null
         }
     }
 
     fun submitKeyboardInteractiveResponses(responses: List<String>) {
-        _keyboardInteractiveAuth.value?.submit(responses)
+        val pending = _keyboardInteractiveAuth.value
+        android.util.Log.d("HavenKI", "VM submit called: responses=${responses.size} lens=${responses.map{it.length}} pending=${pending != null}")
+        pending?.submit(responses)
     }
 
     fun cancelKeyboardInteractive() {
+        android.util.Log.d("HavenKI", "VM cancel called")
         _keyboardInteractiveAuth.value?.cancel()
     }
 

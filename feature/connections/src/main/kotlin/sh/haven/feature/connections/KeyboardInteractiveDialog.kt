@@ -11,6 +11,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -39,10 +41,27 @@ fun KeyboardInteractiveDialog(
     onCancel: () -> Unit,
 ) {
     val responses = remember(challenge) {
+        android.util.Log.d(
+            "HavenKI",
+            "Dialog: remember(challenge) → NEW responses list for prompts=${challenge.prompts.size} first='${challenge.prompts.firstOrNull()?.text}'",
+        )
         mutableStateListOf<String>().apply { addAll(List(challenge.prompts.size) { "" }) }
     }
 
-    val submit: () -> Unit = { onSubmit(responses.toList()) }
+    DisposableEffect(challenge) {
+        android.util.Log.d("HavenKI", "Dialog: ENTER challenge prompts=${challenge.prompts.size} first='${challenge.prompts.firstOrNull()?.text}'")
+        onDispose {
+            android.util.Log.d("HavenKI", "Dialog: LEAVE challenge first='${challenge.prompts.firstOrNull()?.text}'")
+        }
+    }
+
+    val submit: () -> Unit = {
+        android.util.Log.d(
+            "HavenKI",
+            "Dialog: submit tapped, responses=${responses.toList().map { it.length }}",
+        )
+        onSubmit(responses.toList())
+    }
 
     val title = when {
         challenge.name.isNotBlank() -> challenge.name

@@ -1,8 +1,11 @@
 package sh.haven.core.ssh
 
+import android.util.Log
 import com.jcraft.jsch.UIKeyboardInteractive
 import com.jcraft.jsch.UserInfo
 import kotlinx.coroutines.runBlocking
+
+private const val KI_TAG = "HavenKI"
 
 /**
  * Bridges JSch's synchronous [UIKeyboardInteractive] callback (invoked on
@@ -57,6 +60,11 @@ internal class KeyboardInteractiveUserInfo(
                 echo = echo?.getOrNull(i) ?: true,
             )
         }
+        Log.d(
+            KI_TAG,
+            "promptKeyboardInteractive name='$name' instruction='$instruction' " +
+                "prompts=${prompts.map { "${it.text}(echo=${it.echo})" }}",
+        )
 
         // Single-prompt password-style round with a saved password: answer
         // silently and let the user see a dialog only for the things they
@@ -66,6 +74,7 @@ internal class KeyboardInteractiveUserInfo(
             !prompts[0].echo &&
             prompts[0].text.contains("password", ignoreCase = true)
         ) {
+            Log.d(KI_TAG, "  fallback: answering with saved password (len=${fallbackPassword.size})")
             return arrayOf(String(fallbackPassword))
         }
 
@@ -75,10 +84,13 @@ internal class KeyboardInteractiveUserInfo(
             instruction = instruction ?: "",
             prompts = prompts,
         )
-        // JSch calls us synchronously on its IO thread; bridge into the
-        // suspending prompter. The prompter is expected to suspend until
-        // the user responds, then resume with the collected strings.
+        Log.d(KI_TAG, "  dispatching to prompter")
         val responses = runBlocking { prompter.prompt(challenge) }
+        Log.d(
+            KI_TAG,
+            "  prompter returned: ${if (responses == null) "null (cancel)" else "${responses.size} responses, " +
+                "lengths=${responses.map { it.length }}"}",
+        )
         return responses?.toTypedArray()
     }
 }
