@@ -4,7 +4,7 @@ Each release needs **three pieces of release-note content** written before the t
 
 | Surface | Location | Limit |
 |---|---|---|
-| F-Droid / Play Store | `fastlane/metadata/android/en-US/changelogs/<arm64VersionCode>.txt` | ~500 chars |
+| F-Droid | `fastlane/metadata/android/en-US/changelogs/<arm64VersionCode>.txt` | ~500 chars |
 | GitHub release body | Written below via `gh release edit` (or the UI) at tag time | no limit |
 | Commit message body | Second line + body of the bump commit | keep short |
 
@@ -21,7 +21,7 @@ versionName = "<x.y.z>"
 
 ## 2. Write the changelog
 
-Create `fastlane/metadata/android/en-US/changelogs/<arm64VersionCode>.txt` — the short release note that F-Droid and Google Play display. Aim for one short summary line followed by a paragraph or two of what actually changed. Keep under ~500 bytes.
+Create `fastlane/metadata/android/en-US/changelogs/<arm64VersionCode>.txt` — the short release note that F-Droid displays. Aim for one short summary line followed by a paragraph or two of what actually changed. Keep under ~500 bytes.
 
 Every tag must have one. F-Droid will publish with the previous version's text if you forget.
 
@@ -49,25 +49,15 @@ gh release edit v<x.y.z> --repo GlassOnTin/Haven --notes-file fastlane/metadata/
 
 Or open the release on GitHub and paste the notes into the body field.
 
-## 5. Download Play Store bundle
-
-```bash
-mkdir -p releases/v<x.y.z>
-gh release download v<x.y.z> --repo GlassOnTin/Haven --pattern '*.aab' -D releases/v<x.y.z>/
-```
-
-Upload the AAB to Google Play Console.
-
-## 6. F-Droid
+## 5. F-Droid
 
 F-Droid auto-detects new tags via `AutoUpdateMode: Version` + `UpdateCheckMode: Tags`. The bot opens an update MR against `fdroid/fdroiddata`; linsui merges after the build succeeds. The fastlane changelog you wrote in step 2 is the text the F-Droid client displays.
 
-## 7. Verify
+## 6. Verify
 
 - [ ] GitHub release page has APK and a non-empty body
 - [ ] `fastlane/.../changelogs/<code>.txt` exists and is committed
 - [ ] CI workflow passes (lint + tests)
-- [ ] Play Store bundle uploaded (if applicable)
 
 ## Signing
 
