@@ -22,7 +22,13 @@ class TunnelProxy(private val tunnel: Tunnel) : Proxy {
     private var connection: TunneledConnection? = null
 
     override fun connect(factory: SocketFactory?, host: String, port: Int, timeout: Int) {
-        connection = tunnel.dial(host, port, timeout)
+        // Tunnels need more headroom than a direct TCP SYN — peer session
+        // setup (WireGuard handshake, magicsock NAT punch, DERP fallback,
+        // MagicDNS lookups) can burn 1-2 s before application traffic
+        // flows. JSch's default 10 s connect timeout often isn't enough
+        // on first dial to a cold peer. Clamp to at least 30 s.
+        val effectiveTimeout = maxOf(timeout, TUNNEL_MIN_DIAL_TIMEOUT_MS)
+        connection = tunnel.dial(host, port, effectiveTimeout)
     }
 
     override fun getInputStream(): InputStream =
@@ -36,5 +42,9 @@ class TunnelProxy(private val tunnel: Tunnel) : Proxy {
     override fun close() {
         connection?.close()
         connection = null
+    }
+
+    private companion object {
+        const val TUNNEL_MIN_DIAL_TIMEOUT_MS = 30_000
     }
 }

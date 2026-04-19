@@ -54,13 +54,36 @@ class TunnelViewModel @Inject constructor(
             _error.value = "Config text is required"
             return
         }
+        save(label, TunnelConfigType.WIREGUARD, configText.toByteArray())
+    }
+
+    /**
+     * Create a Tailscale tunnel config. The authkey joins the tailnet on
+     * first use; tsnet persists node state under a per-config dir so
+     * subsequent starts don't re-consume it.
+     */
+    fun addTailscaleConfig(label: String, authKey: String) {
+        if (label.isBlank()) {
+            _error.value = "Label is required"
+            return
+        }
+        if (authKey.isBlank()) {
+            _error.value = "Auth key is required"
+            return
+        }
+        // Strip any leading/trailing whitespace paste artifacts — authkeys
+        // are a single token with no internal spaces.
+        save(label, TunnelConfigType.TAILSCALE, authKey.trim().toByteArray())
+    }
+
+    private fun save(label: String, type: TunnelConfigType, bytes: ByteArray) {
         viewModelScope.launch {
             try {
                 repository.save(
                     TunnelConfig(
                         label = label.trim(),
-                        type = TunnelConfigType.WIREGUARD.name,
-                        configText = configText.toByteArray(),
+                        type = type.name,
+                        configText = bytes,
                     ),
                 )
                 _message.value = "Tunnel \"${label.trim()}\" saved"

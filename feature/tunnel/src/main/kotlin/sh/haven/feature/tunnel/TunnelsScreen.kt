@@ -122,8 +122,12 @@ fun TunnelsScreen(
     if (showAddDialog) {
         AddTunnelDialog(
             onDismiss = { showAddDialog = false },
-            onSubmit = { label, configText ->
+            onSubmitWireguard = { label, configText ->
                 viewModel.addWireguardConfig(label, configText)
+                showAddDialog = false
+            },
+            onSubmitTailscale = { label, authKey ->
+                viewModel.addTailscaleConfig(label, authKey)
                 showAddDialog = false
             },
         )
@@ -215,10 +219,13 @@ private fun TunnelRow(
 @Composable
 private fun AddTunnelDialog(
     onDismiss: () -> Unit,
-    onSubmit: (label: String, configText: String) -> Unit,
+    onSubmitWireguard: (label: String, configText: String) -> Unit,
+    onSubmitTailscale: (label: String, authKey: String) -> Unit,
 ) {
+    var type by remember { mutableStateOf(sh.haven.core.data.db.entities.TunnelConfigType.WIREGUARD) }
     var label by remember { mutableStateOf("") }
     var configText by remember { mutableStateOf("") }
+    var authKey by remember { mutableStateOf("") }
     val context = LocalContext.current
 
     // Use OpenDocument (SAF) rather than GetContent so the user can pick
@@ -261,14 +268,24 @@ private fun AddTunnelDialog(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "Add WireGuard tunnel",
+                "Add tunnel",
                 style = MaterialTheme.typography.headlineSmall,
             )
-            Text(
-                "Paste a wg-quick style config or load a .conf file. Only [Interface] and [Peer] fields are read; unknown keys (PostUp, Table, MTU) are ignored.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+            // Type picker — FilterChip row over the two backends. Each
+            // toggles the fields below; label persists across flips.
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                sh.haven.core.data.db.entities.TunnelConfigType.entries.forEach { t ->
+                    androidx.compose.material3.FilterChip(
+                        selected = type == t,
+                        onClick = { type = t },
+                        label = {
+                            Text(t.name.lowercase().replaceFirstChar { it.titlecase() })
+                        },
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it },
@@ -276,44 +293,82 @@ private fun AddTunnelDialog(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedButton(
-                onClick = {
-                    fileLauncher.launch(arrayOf("*/*"))
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.FileOpen, contentDescription = null)
-                Text("  Load from file…")
-            }
-            OutlinedTextField(
-                value = configText,
-                onValueChange = { configText = it },
-                label = { Text("WireGuard config") },
-                placeholder = {
+
+            when (type) {
+                sh.haven.core.data.db.entities.TunnelConfigType.WIREGUARD -> {
                     Text(
-                        "[Interface]\nPrivateKey = …\nAddress = 10.0.0.2/32\n\n[Peer]\nPublicKey = …\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
+                        "Paste a wg-quick style config or load a .conf file. Only [Interface] and [Peer] fields are read; unknown keys (PostUp, Table, MTU) are ignored. Hostname endpoints and DNS names are resolved at tunnel start.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                },
-                singleLine = false,
-                minLines = 10,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                textStyle = MaterialTheme.typography.bodySmall.copy(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                ),
-            )
+                    OutlinedButton(
+                        onClick = { fileLauncher.launch(arrayOf("*/*")) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Filled.FileOpen, contentDescription = null)
+                        Text("  Load from file…")
+                    }
+                    OutlinedTextField(
+                        value = configText,
+                        onValueChange = { configText = it },
+                        label = { Text("WireGuard config") },
+                        placeholder = {
+                            Text(
+                                "[Interface]\nPrivateKey = …\nAddress = 10.0.0.2/32\n\n[Peer]\nPublicKey = …\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                            )
+                        },
+                        singleLine = false,
+                        minLines = 10,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp,
+                        ),
+                    )
+                }
+                sh.haven.core.data.db.entities.TunnelConfigType.TAILSCALE -> {
+                    Text(
+                        "Generate an authkey in the Tailscale admin console (Settings → Keys). Haven joins your tailnet on first use and reuses the node state after that, so a one-time key is fine. Reusable keys let you reconnect after reinstall.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedTextField(
+                        value = authKey,
+                        onValueChange = { authKey = it },
+                        label = { Text("Auth key (tskey-auth-…)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                        ),
+                    )
+                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             ) {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
+                val canSubmit = label.isNotBlank() && when (type) {
+                    sh.haven.core.data.db.entities.TunnelConfigType.WIREGUARD -> configText.isNotBlank()
+                    sh.haven.core.data.db.entities.TunnelConfigType.TAILSCALE -> authKey.isNotBlank()
+                }
                 Button(
-                    onClick = { onSubmit(label, configText) },
-                    enabled = label.isNotBlank() && configText.isNotBlank(),
+                    onClick = {
+                        when (type) {
+                            sh.haven.core.data.db.entities.TunnelConfigType.WIREGUARD ->
+                                onSubmitWireguard(label, configText)
+                            sh.haven.core.data.db.entities.TunnelConfigType.TAILSCALE ->
+                                onSubmitTailscale(label, authKey)
+                        }
+                    },
+                    enabled = canSubmit,
                 ) { Text("Save") }
             }
         }

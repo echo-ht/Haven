@@ -50,7 +50,7 @@
 - **Files** — Unified browser for SFTP/SCP, SMB, and 60+ cloud providers. Multi-select, built-in editor, image tools, chmod, cross-filesystem copy/move.
 - **Media** — Transcode and stream on-device with FFmpeg 8.0; HLS streaming to the LAN; DLNA server for cloud media.
 - **Keys** — On-device Ed25519/RSA/ECDSA generation, FIDO2/SK hardware keys (NFC + USB), deploy-key helper.
-- **Connections** — Host-key TOFU, port forwarding (-L/-R/-D/-J), SOCKS/HTTP proxies, Tor, ProxyJump.
+- **Connections** — Host-key TOFU, port forwarding (-L/-R/-D/-J), SOCKS/HTTP proxies, Tor, ProxyJump, **per-app WireGuard and Tailscale tunnels** (userspace, no system VPN slot — each profile can route through its own tunnel without affecting other apps).
 - **Local shell** — Alpine Linux via PRoot (no root, any Android 8+ device).
 - **Reticulum** — rnsh over Reticulum mesh networks, pure Kotlin.
 - **Security** — Biometric lock, no telemetry, encrypted backup/restore (AES-256-GCM).
