@@ -36,6 +36,8 @@ import sh.haven.core.ssh.ConnectionConfig
 import sh.haven.core.ssh.HostKeyAuthFailure
 import sh.haven.core.ssh.HostKeyResult
 import sh.haven.core.ssh.HostKeyVerifier
+import sh.haven.core.ssh.KeyboardInteractiveChallenge
+import sh.haven.core.ssh.KeyboardInteractivePrompter
 import sh.haven.core.ssh.KnownHostEntry
 import sh.haven.core.ssh.SshClient
 import sh.haven.core.ssh.SshConnectionService
@@ -346,6 +348,52 @@ class ConnectionsViewModel @Inject constructor(
         (_hostKeyPrompt.value as? HostKeyPrompt.NewHost)?.deferred?.complete(false)
         (_hostKeyPrompt.value as? HostKeyPrompt.KeyChanged)?.deferred?.complete(false)
         _hostKeyPrompt.value = null
+    }
+
+    /**
+     * In-flight keyboard-interactive auth round. When non-null the UI should
+     * render [KeyboardInteractiveDialog] to collect responses (typically a
+     * 2FA / TOTP code after the password) and call either [submit] or
+     * [cancel]. Cancelling returns `null` to JSch, which aborts the KI
+     * auth attempt. See #100.
+     */
+    class PendingKeyboardInteractiveAuth(
+        val challenge: KeyboardInteractiveChallenge,
+        private val deferred: CompletableDeferred<List<String>?>,
+    ) {
+        fun submit(responses: List<String>) {
+            deferred.complete(responses)
+        }
+        fun cancel() {
+            deferred.complete(null)
+        }
+    }
+
+    private val _keyboardInteractiveAuth = MutableStateFlow<PendingKeyboardInteractiveAuth?>(null)
+    val keyboardInteractiveAuth: StateFlow<PendingKeyboardInteractiveAuth?> =
+        _keyboardInteractiveAuth.asStateFlow()
+
+    /**
+     * Shared prompter for every SSH connect path. Suspends in the JSch IO
+     * thread (via [KeyboardInteractiveUserInfo]'s `runBlocking`) until the
+     * user submits or cancels the dialog.
+     */
+    private val keyboardInteractivePrompter = KeyboardInteractivePrompter { challenge ->
+        val deferred = CompletableDeferred<List<String>?>()
+        _keyboardInteractiveAuth.value = PendingKeyboardInteractiveAuth(challenge, deferred)
+        try {
+            deferred.await()
+        } finally {
+            _keyboardInteractiveAuth.value = null
+        }
+    }
+
+    fun submitKeyboardInteractiveResponses(responses: List<String>) {
+        _keyboardInteractiveAuth.value?.submit(responses)
+    }
+
+    fun cancelKeyboardInteractive() {
+        _keyboardInteractiveAuth.value?.cancel()
     }
 
     /**
@@ -1234,7 +1282,11 @@ class ConnectionsViewModel @Inject constructor(
                     }
                     Log.d(TAG, "Connecting to ${config.host}:${config.port} (proxy=${proxy != null})")
                     try {
-                        val hostKeyEntry = client.connect(config, proxy = proxy)
+                        val hostKeyEntry = client.connect(
+                            config,
+                            proxy = proxy,
+                            keyboardInteractivePrompter = keyboardInteractivePrompter,
+                        )
                         runTofuVerification(hostKeyEntry, clientToDisconnectOnReject = client)
                     } catch (e: HostKeyAuthFailure) {
                         // KEX succeeded but auth failed — still run the TOFU
@@ -1443,7 +1495,11 @@ class ConnectionsViewModel @Inject constructor(
                     }
 
                     try {
-                        val hostKeyEntry = sshClient.connect(config, proxy = proxy)
+                        val hostKeyEntry = sshClient.connect(
+                            config,
+                            proxy = proxy,
+                            keyboardInteractivePrompter = keyboardInteractivePrompter,
+                        )
                         runTofuVerification(hostKeyEntry, clientToDisconnectOnReject = sshClient)
                     } catch (e: HostKeyAuthFailure) {
                         runTofuVerification(e.hostKey, clientToDisconnectOnReject = null)
@@ -1567,7 +1623,11 @@ class ConnectionsViewModel @Inject constructor(
                     }
 
                     try {
-                        val hostKeyEntry = sshClient.connect(config, proxy = proxy)
+                        val hostKeyEntry = sshClient.connect(
+                            config,
+                            proxy = proxy,
+                            keyboardInteractivePrompter = keyboardInteractivePrompter,
+                        )
                         runTofuVerification(hostKeyEntry, clientToDisconnectOnReject = sshClient)
                     } catch (e: HostKeyAuthFailure) {
                         runTofuVerification(e.hostKey, clientToDisconnectOnReject = null)
@@ -1679,7 +1739,12 @@ class ConnectionsViewModel @Inject constructor(
                     val configPair = sshSessionManager.getConnectionConfigForProfile(profileId) ?: break
                     val (config, _) = configPair
                     val newClient = withContext(Dispatchers.IO) {
-                        SshClient().apply { connectBlocking(config) }
+                        SshClient().apply {
+                            connectBlocking(
+                                config,
+                                keyboardInteractivePrompter = keyboardInteractivePrompter,
+                            )
+                        }
                     }
                     val newSessionId = sshSessionManager.registerSession(profileId, profile.label, newClient)
                     val manager = sel.manager
@@ -1931,7 +1996,10 @@ class ConnectionsViewModel @Inject constructor(
             )
             Log.d(TAG, "Jump host SSH connecting...")
             try {
-                val hostKeyEntry = jumpClient.connect(config)
+                val hostKeyEntry = jumpClient.connect(
+                    config,
+                    keyboardInteractivePrompter = keyboardInteractivePrompter,
+                )
                 Log.d(TAG, "Jump host SSH connected, verifying host key...")
                 runTofuVerification(
                     hostKeyEntry,

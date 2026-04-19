@@ -57,6 +57,7 @@ class SshClient : Closeable {
         config: ConnectionConfig,
         connectTimeoutMs: Int = 10_000,
         proxy: Proxy? = null,
+        keyboardInteractivePrompter: KeyboardInteractivePrompter? = null,
     ): KnownHostEntry = withContext(Dispatchers.IO) {
         disconnect()
         verboseLogger?.let { jsch.setInstanceLogger(it) }
@@ -71,9 +72,15 @@ class SshClient : Closeable {
         sess.serverAliveInterval = 15_000
         sess.serverAliveCountMax = 3
 
+        var fallbackKiPassword: CharArray? = null
         when (val auth = config.authMethod) {
             is ConnectionConfig.AuthMethod.Password -> {
                 sess.setPassword(charsToUtf8Bytes(auth.password))
+                // Silently satisfy single-prompt "Password:" KI rounds —
+                // servers that advertise keyboard-interactive before
+                // password auth route the password through the KI channel,
+                // and we shouldn't make the user retype a saved password.
+                fallbackKiPassword = auth.password
             }
             is ConnectionConfig.AuthMethod.PrivateKey -> {
                 jsch.addIdentity(
@@ -99,6 +106,14 @@ class SshClient : Closeable {
                     if (currentAlgs.isNotEmpty()) "$skAlgs,$currentAlgs" else skAlgs)
                 Log.d(TAG, "PubkeyAcceptedAlgorithms: ${sess.getConfig("PubkeyAcceptedAlgorithms")}")
             }
+        }
+
+        if (keyboardInteractivePrompter != null) {
+            sess.userInfo = KeyboardInteractiveUserInfo(
+                destination = "${config.username}@${config.host}:${config.port}",
+                prompter = keyboardInteractivePrompter,
+                fallbackPassword = fallbackKiPassword,
+            )
         }
 
         // Apply user SSH options (overrides defaults above)
@@ -202,7 +217,12 @@ class SshClient : Closeable {
      * Same as [connect] but without the coroutine wrapper.
      * Returns the host key as a [KnownHostEntry] for TOFU verification.
      */
-    fun connectBlocking(config: ConnectionConfig, connectTimeoutMs: Int = 10_000, proxy: Proxy? = null): KnownHostEntry {
+    fun connectBlocking(
+        config: ConnectionConfig,
+        connectTimeoutMs: Int = 10_000,
+        proxy: Proxy? = null,
+        keyboardInteractivePrompter: KeyboardInteractivePrompter? = null,
+    ): KnownHostEntry {
         disconnect()
         verboseLogger?.let { jsch.setInstanceLogger(it) }
 
@@ -214,9 +234,11 @@ class SshClient : Closeable {
         sess.serverAliveInterval = 15_000
         sess.serverAliveCountMax = 3
 
+        var fallbackKiPassword: CharArray? = null
         when (val auth = config.authMethod) {
             is ConnectionConfig.AuthMethod.Password -> {
                 sess.setPassword(charsToUtf8Bytes(auth.password))
+                fallbackKiPassword = auth.password
             }
             is ConnectionConfig.AuthMethod.PrivateKey -> {
                 jsch.addIdentity(
@@ -241,6 +263,14 @@ class SshClient : Closeable {
                 sess.setConfig("PubkeyAcceptedAlgorithms",
                     if (currentAlgs.isNotEmpty()) "$skAlgs,$currentAlgs" else skAlgs)
             }
+        }
+
+        if (keyboardInteractivePrompter != null) {
+            sess.userInfo = KeyboardInteractiveUserInfo(
+                destination = "${config.username}@${config.host}:${config.port}",
+                prompter = keyboardInteractivePrompter,
+                fallbackPassword = fallbackKiPassword,
+            )
         }
 
         config.sshOptions.forEach { (key, value) -> sess.setConfig(key, value) }

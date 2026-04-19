@@ -182,6 +182,7 @@ fun ConnectionsScreen(
     val passwordFallback by viewModel.passwordFallback.collectAsState()
     val hostKeyPrompt by viewModel.hostKeyPrompt.collectAsState()
     val fidoTouchPrompt by viewModel.fidoTouchPrompt.collectAsState()
+    val keyboardInteractiveAuth by viewModel.keyboardInteractiveAuth.collectAsState()
     val globalSessionManagerLabel by viewModel.globalSessionManagerLabel.collectAsState()
     val newSessionProfileId by viewModel.newSessionProfileId.collectAsState()
     val subnetScanning by viewModel.subnetScanning.collectAsState()
@@ -605,6 +606,14 @@ fun ConnectionsScreen(
 
     fidoTouchPrompt?.let { prompt ->
         FidoTouchPromptDialog(prompt = prompt)
+    }
+
+    keyboardInteractiveAuth?.let { pending ->
+        KeyboardInteractiveDialog(
+            challenge = pending.challenge,
+            onSubmit = { viewModel.submitKeyboardInteractiveResponses(it) },
+            onCancel = { viewModel.cancelKeyboardInteractive() },
+        )
     }
 
     deployingProfile?.let { profile ->
