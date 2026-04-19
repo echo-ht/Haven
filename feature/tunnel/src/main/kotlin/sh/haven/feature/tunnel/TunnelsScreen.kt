@@ -1,8 +1,12 @@
 package sh.haven.feature.tunnel
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -12,13 +16,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -34,8 +41,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import sh.haven.core.data.db.entities.TunnelConfig
 import sh.haven.core.data.db.entities.typeEnum
@@ -207,52 +219,103 @@ private fun AddTunnelDialog(
 ) {
     var label by remember { mutableStateOf("") }
     var configText by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add WireGuard tunnel") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    "Paste a wg-quick style config. Only [Interface] and [Peer] fields are read; unknown keys (PostUp, Table, MTU) are ignored.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    value = label,
-                    onValueChange = { label = it },
-                    label = { Text("Label") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = configText,
-                    onValueChange = { configText = it },
-                    label = { Text("WireGuard config") },
-                    placeholder = {
-                        Text(
-                            "[Interface]\nPrivateKey = …\nAddress = 10.0.0.2/32\n\n[Peer]\nPublicKey = …\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 180.dp, max = 320.dp),
-                    textStyle = MaterialTheme.typography.bodySmall,
-                )
+    // Use OpenDocument (SAF) rather than GetContent so the user can pick
+    // the file from any provider — Drive, NextCloud, Files app, etc.
+    // Filtering to text/* and */* because .conf files often show up as
+    // application/octet-stream depending on the provider.
+    val fileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        try {
+            val text = context.contentResolver.openInputStream(uri)?.use {
+                it.readBytes().toString(Charsets.UTF_8)
+            } ?: return@rememberLauncherForActivityResult
+            configText = text
+            if (label.isBlank()) {
+                // Best-effort label from filename. DocumentsContract gives us
+                // a _display_name via query; for simplicity, extract from the
+                // URI's last path segment and strip .conf suffix.
+                val last = uri.lastPathSegment?.substringAfterLast('/').orEmpty()
+                val guessed = last.substringAfterLast(':').removeSuffix(".conf")
+                if (guessed.isNotBlank()) label = guessed
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSubmit(label, configText) },
-                enabled = label.isNotBlank() && configText.isNotBlank(),
-            ) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-    )
+        } catch (_: Throwable) {
+            // Surface via snackbar? For MVP, keep the dialog open and let
+            // the user notice nothing populated.
+        }
+    }
+
+    // Use a full-size Dialog rather than AlertDialog so the config editor
+    // gets real screen width instead of the AlertDialog's narrow column.
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                "Add WireGuard tunnel",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                "Paste a wg-quick style config or load a .conf file. Only [Interface] and [Peer] fields are read; unknown keys (PostUp, Table, MTU) are ignored.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = label,
+                onValueChange = { label = it },
+                label = { Text("Label") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedButton(
+                onClick = {
+                    fileLauncher.launch(arrayOf("*/*"))
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.FileOpen, contentDescription = null)
+                Text("  Load from file…")
+            }
+            OutlinedTextField(
+                value = configText,
+                onValueChange = { configText = it },
+                label = { Text("WireGuard config") },
+                placeholder = {
+                    Text(
+                        "[Interface]\nPrivateKey = …\nAddress = 10.0.0.2/32\n\n[Peer]\nPublicKey = …\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                    )
+                },
+                singleLine = false,
+                minLines = 10,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                textStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                ),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Button(
+                    onClick = { onSubmit(label, configText) },
+                    enabled = label.isNotBlank() && configText.isNotBlank(),
+                ) { Text("Save") }
+            }
+        }
+    }
 }

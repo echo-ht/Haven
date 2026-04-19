@@ -212,6 +212,15 @@ func parseConfig(text string) (*parsedConfig, error) {
 					addresses = append(addresses, ip)
 				}
 			case "dns":
+				// wg-quick allows hostname DNS entries (e.g. "fritz.box"
+				// for a local Fritz!Box router). The userspace netstack
+				// only understands IP addresses — it has no bootstrap
+				// resolver to turn a hostname into an IP at tunnel-start
+				// time, and the system resolver would either defeat the
+				// tunnel (DNS leak) or fail for remote users. Skip
+				// unparseable entries rather than reject the whole
+				// config; users who need in-tunnel name resolution can
+				// add /etc/hosts or use IP addresses directly.
 				for _, a := range strings.Split(val, ",") {
 					a = strings.TrimSpace(a)
 					if a == "" {
@@ -219,7 +228,8 @@ func parseConfig(text string) (*parsedConfig, error) {
 					}
 					ip, err := netip.ParseAddr(a)
 					if err != nil {
-						return nil, fmt.Errorf("interface DNS %q: %w", a, err)
+						// Silently drop; useful DNS entries still work.
+						continue
 					}
 					dns = append(dns, ip)
 				}
@@ -260,12 +270,16 @@ func parseConfig(text string) (*parsedConfig, error) {
 		if endpoint == "" {
 			return nil, fmt.Errorf("peer %d: missing Endpoint", i)
 		}
+		resolvedEndpoint, err := resolveEndpoint(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("peer %d Endpoint %q: %w", i, endpoint, err)
+		}
 		pubHex, err := base64ToHex(pubB64)
 		if err != nil {
 			return nil, fmt.Errorf("peer %d PublicKey: %w", i, err)
 		}
 		uapi.WriteString("public_key=" + pubHex + "\n")
-		uapi.WriteString("endpoint=" + endpoint + "\n")
+		uapi.WriteString("endpoint=" + resolvedEndpoint + "\n")
 		if psk := peer["presharedkey"]; psk != "" {
 			pskHex, err := base64ToHex(psk)
 			if err != nil {
@@ -320,4 +334,64 @@ func base64ToHex(b64 string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+// endpointResolver is indirection for testing. In production it's
+// [net.DefaultResolver.LookupHost]; tests replace it to avoid hitting
+// the network.
+var endpointResolver = func(host string) ([]string, error) {
+	return net.LookupHost(host)
+}
+
+// resolveEndpoint turns a wg-quick style "host:port" Endpoint into the
+// "ip:port" shape wireguard-go's UAPI demands. Real wg-quick does the
+// same via the system resolver before calling `wg`. For dynamic-DNS
+// WireGuard servers (e.g. myfritz.net) this resolution is unavoidable —
+// we have to find the peer's current IP before we can hand shake.
+//
+// Prefers IPv4 over IPv6 because many home networks have flaky IPv6
+// reachability to the WireGuard peer even when AAAA records exist.
+func resolveEndpoint(endpoint string) (string, error) {
+	host, port, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("invalid host:port: %w", err)
+	}
+	// Already an IP — no resolution needed.
+	if addr, err := netip.ParseAddr(host); err == nil {
+		return netip.AddrPortFrom(addr, parsePort(port)).String(), nil
+	}
+	addrs, err := endpointResolver(host)
+	if err != nil {
+		return "", fmt.Errorf("resolve %q: %w", host, err)
+	}
+	if len(addrs) == 0 {
+		return "", fmt.Errorf("resolve %q: no addresses", host)
+	}
+	// Prefer the first IPv4 if present; otherwise take the first overall.
+	var chosen netip.Addr
+	for _, a := range addrs {
+		parsed, err := netip.ParseAddr(a)
+		if err != nil {
+			continue
+		}
+		if parsed.Is4() {
+			chosen = parsed
+			break
+		}
+		if !chosen.IsValid() {
+			chosen = parsed
+		}
+	}
+	if !chosen.IsValid() {
+		return "", fmt.Errorf("resolve %q: no parseable addresses in %v", host, addrs)
+	}
+	return netip.AddrPortFrom(chosen, parsePort(port)).String(), nil
+}
+
+func parsePort(p string) uint16 {
+	v, err := strconv.ParseUint(p, 10, 16)
+	if err != nil {
+		return 0
+	}
+	return uint16(v)
 }

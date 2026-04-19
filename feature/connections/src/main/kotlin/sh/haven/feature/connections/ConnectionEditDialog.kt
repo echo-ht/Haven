@@ -1056,24 +1056,30 @@ fun ConnectionEditDialog(
                         }
                     }
 
-                    // Proxy configuration
+                    // Route through — unified picker for proxy AND WireGuard
+                    // tunnel. Mutually exclusive at the UI layer: picking
+                    // any tunnel clears proxy fields; picking any proxy
+                    // clears tunnelConfigId. The underlying data model
+                    // allows both but the VM's connect path picks tunnel
+                    // > jump > proxy, and showing both on the same profile
+                    // is confusing.
                     Spacer(Modifier.height(4.dp))
                     var proxyExpanded by remember { mutableStateOf(false) }
-                    val proxyOptions = listOf(
-                        null to "None (direct)",
-                        "SOCKS5" to "SOCKS5",
-                        "SOCKS4" to "SOCKS4",
-                        "HTTP" to "HTTP",
-                    )
+                    val selectedTunnel = tunnelConfigs.firstOrNull { it.id == tunnelConfigId }
+                    val selectedLabel = when {
+                        selectedTunnel != null -> "Tunnel: ${selectedTunnel.label}"
+                        proxyType != null -> proxyType!!
+                        else -> "None (direct)"
+                    }
                     ExposedDropdownMenuBox(
                         expanded = proxyExpanded,
                         onExpandedChange = { proxyExpanded = it },
                     ) {
                         OutlinedTextField(
-                            value = proxyOptions.firstOrNull { it.first == proxyType }?.second ?: "None (direct)",
+                            value = selectedLabel,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Proxy") },
+                            label = { Text("Route through") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = proxyExpanded) },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1083,19 +1089,69 @@ fun ConnectionEditDialog(
                             expanded = proxyExpanded,
                             onDismissRequest = { proxyExpanded = false },
                         ) {
-                            proxyOptions.forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text("None (direct)") },
+                                onClick = {
+                                    proxyType = null
+                                    proxyHost = ""
+                                    tunnelConfigId = null
+                                    proxyExpanded = false
+                                },
+                            )
+                            listOf("SOCKS5", "SOCKS4", "HTTP").forEach { kind ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    text = { Text(kind) },
                                     onClick = {
-                                        proxyType = value
-                                        if (value == null) {
-                                            proxyHost = ""
-                                        } else if (value == "HTTP" && proxyPort == "1080") {
+                                        proxyType = kind
+                                        tunnelConfigId = null
+                                        if (kind == "HTTP" && proxyPort == "1080") {
                                             proxyPort = "8080"
-                                        } else if (value != "HTTP" && proxyPort == "8080") {
+                                        } else if (kind != "HTTP" && proxyPort == "8080") {
                                             proxyPort = "1080"
                                         }
                                         proxyExpanded = false
+                                    },
+                                )
+                            }
+                            if (tunnelConfigs.isNotEmpty()) {
+                                HorizontalDivider()
+                                tunnelConfigs.forEach { tunnel ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text("Tunnel: ${tunnel.label}")
+                                                Text(
+                                                    runCatching {
+                                                        sh.haven.core.data.db.entities.TunnelConfigType
+                                                            .fromStorage(tunnel.type).name
+                                                    }.getOrDefault(tunnel.type),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            tunnelConfigId = tunnel.id
+                                            proxyType = null
+                                            proxyHost = ""
+                                            proxyExpanded = false
+                                        },
+                                    )
+                                }
+                            }
+                            if (onManageTunnels != null) {
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            if (tunnelConfigs.isEmpty()) "Add WireGuard tunnel…"
+                                            else "Manage tunnels…",
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    },
+                                    onClick = {
+                                        proxyExpanded = false
+                                        onManageTunnels()
                                     },
                                 )
                             }
@@ -1412,76 +1468,6 @@ fun ConnectionEditDialog(
                         }
                     }
 
-                    // Tunnel picker — route this profile through a saved
-                    // WireGuard config (#102). The "Manage tunnels..."
-                    // link opens the full management screen for cases
-                    // where the user hasn't added any yet.
-                    Spacer(Modifier.height(4.dp))
-                    var tunnelExpanded by remember { mutableStateOf(false) }
-                    val selectedTunnel = tunnelConfigs.firstOrNull { it.id == tunnelConfigId }
-                    ExposedDropdownMenuBox(
-                        expanded = tunnelExpanded,
-                        onExpandedChange = { tunnelExpanded = it },
-                    ) {
-                        OutlinedTextField(
-                            value = selectedTunnel?.label ?: "Direct (no tunnel)",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Route through tunnel") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(tunnelExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = tunnelExpanded,
-                            onDismissRequest = { tunnelExpanded = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Direct (no tunnel)") },
-                                onClick = {
-                                    tunnelConfigId = null
-                                    tunnelExpanded = false
-                                },
-                            )
-                            tunnelConfigs.forEach { tunnel ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(tunnel.label)
-                                            Text(
-                                                runCatching {
-                                                    sh.haven.core.data.db.entities.TunnelConfigType
-                                                        .fromStorage(tunnel.type).name
-                                                }.getOrDefault(tunnel.type),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        tunnelConfigId = tunnel.id
-                                        tunnelExpanded = false
-                                    },
-                                )
-                            }
-                            if (onManageTunnels != null) {
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "Manage tunnels…",
-                                            color = MaterialTheme.colorScheme.primary,
-                                        )
-                                    },
-                                    onClick = {
-                                        tunnelExpanded = false
-                                        onManageTunnels()
-                                    },
-                                )
-                            }
-                        }
-                    }
                 } else {
                     // --- Reticulum connection form ---
                     // Order: gateway config → scan → destination hash
