@@ -44,7 +44,11 @@ includeBuild("rdp-kotlin") {
     }
 }
 
-// rclone Go bridge compiled via gomobile for cloud storage backends.
+// Go bridge compiled via gomobile, single libgojni.so containing:
+//   - rcbridge: rclone for cloud storage backends
+//   - wgbridge: wireguard-go + gVisor netstack for per-app WireGuard (#102)
+// Having both in one gomobile build avoids duplicate `go.Seq` runtime
+// classes and duplicate `libgojni.so` collisions.
 includeBuild("rclone-android") {
     dependencySubstitution {
         substitute(module("sh.haven:rclone-transport")).using(project(":"))

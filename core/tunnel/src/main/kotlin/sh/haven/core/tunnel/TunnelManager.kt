@@ -49,9 +49,7 @@ class TunnelManager @Inject constructor(
     }
 
     private fun startTunnel(config: TunnelConfig): Tunnel = when (config.typeEnum) {
-        TunnelConfigType.WIREGUARD -> NotImplementedTunnel(
-            "WireGuard tunnel backend not yet wired up — see #102",
-        )
+        TunnelConfigType.WIREGUARD -> WireguardTunnel(String(config.configText))
         TunnelConfigType.TAILSCALE -> NotImplementedTunnel(
             "Tailscale tunnel backend not yet implemented — follow-up to #102",
         )
@@ -59,9 +57,8 @@ class TunnelManager @Inject constructor(
 }
 
 /**
- * Placeholder [Tunnel] that always throws. Lets us ship the data-model +
- * VM wiring under test before the native wireguard-go + netstack code
- * lands. Replaced by `WireguardTunnel` in the native PR.
+ * Placeholder [Tunnel] that always throws. Still used for Tailscale
+ * (follow-up PR); gone for WireGuard now that the native bridge is wired.
  */
 internal class NotImplementedTunnel(private val reason: String) : Tunnel {
     override fun dial(host: String, port: Int, timeoutMs: Int): TunneledConnection =

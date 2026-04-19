@@ -2,7 +2,10 @@ module sh.haven/rcbridge
 
 go 1.26.1
 
-require github.com/rclone/rclone v1.73.3
+require (
+	github.com/rclone/rclone v1.73.3
+	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173
+)
 
 require (
 	cloud.google.com/go/auth v0.17.0 // indirect
@@ -214,6 +217,7 @@ require (
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
+	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	google.golang.org/api v0.255.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.79.3 // indirect
@@ -222,6 +226,7 @@ require (
 	gopkg.in/validator.v2 v2.0.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gvisor.dev/gvisor v0.0.0-20230927004350-cbd86285d259 // indirect
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	storj.io/common v0.0.0-20251107171817-6221ae45072c // indirect
 	storj.io/drpc v0.0.35-0.20250513201419-f7819ea69b55 // indirect

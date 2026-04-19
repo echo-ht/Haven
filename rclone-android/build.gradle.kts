@@ -13,8 +13,12 @@ repositories {
 
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
-    // gomobile-generated Java bindings (produced by build-android.sh)
-    implementation(files("build/rcbridge-bindings.jar"))
+    // gomobile-generated Java bindings (produced by build-android.sh).
+    // Use `api` so downstream consumers (core:rclone, core:tunnel) can
+    // reference the bound classes directly — the Kotlin wrappers in
+    // kotlin/sh/haven/rclone/bridge/ cover rcbridge, but the wgbridge
+    // classes are consumed raw from core:tunnel.
+    api(files("build/rcbridge-bindings.jar"))
     testImplementation("junit:junit:4.13.2")
 }
 

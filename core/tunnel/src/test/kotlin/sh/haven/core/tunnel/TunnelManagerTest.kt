@@ -25,8 +25,11 @@ class TunnelManagerTest {
 
     @Test
     fun getTunnelCachesSameInstanceForSameConfigId() = runTest {
+        // Uses TAILSCALE (still stub-backed) so the test doesn't try to
+        // load the wireguard-go native library — instrumented tests cover
+        // the real WG path end-to-end.
         val repo = mockk<TunnelConfigRepository>()
-        coEvery { repo.getById("cfg-1") } returns wireguardConfig("cfg-1")
+        coEvery { repo.getById("cfg-1") } returns tailscaleConfig("cfg-1")
         val manager = TunnelManager(repo)
 
         val a = manager.getTunnel("cfg-1")
@@ -37,13 +40,13 @@ class TunnelManagerTest {
     }
 
     @Test
-    fun stubTunnelThrowsOnDial() = runTest {
-        // The MVP ships the data/ViewModel plumbing without the native
-        // backend wired up. Attempting to dial through the stub must fail
-        // loudly so tests and users get a clear message rather than a
-        // hang or a silent no-op.
+    fun tailscaleStubThrowsOnDial() = runTest {
+        // Tailscale ships in a follow-up PR (#102 part 3). Until then its
+        // backend is a NotImplementedTunnel that fails loudly rather than
+        // hanging. Guards against regression — if someone wires a real
+        // TailscaleTunnel later, update this test to match.
         val repo = mockk<TunnelConfigRepository>()
-        coEvery { repo.getById("cfg-1") } returns wireguardConfig("cfg-1")
+        coEvery { repo.getById("cfg-1") } returns tailscaleConfig("cfg-1")
         val manager = TunnelManager(repo)
 
         val tunnel = manager.getTunnel("cfg-1")!!
@@ -55,7 +58,7 @@ class TunnelManagerTest {
     @Test
     fun releaseDropsCachedTunnel() = runTest {
         val repo = mockk<TunnelConfigRepository>()
-        coEvery { repo.getById("cfg-1") } returns wireguardConfig("cfg-1")
+        coEvery { repo.getById("cfg-1") } returns tailscaleConfig("cfg-1")
         val manager = TunnelManager(repo)
 
         val first = manager.getTunnel("cfg-1")
@@ -66,10 +69,10 @@ class TunnelManagerTest {
         org.junit.Assert.assertNotSame(first, second)
     }
 
-    private fun wireguardConfig(id: String) = TunnelConfig(
+    private fun tailscaleConfig(id: String) = TunnelConfig(
         id = id,
         label = "test",
-        type = TunnelConfigType.WIREGUARD.name,
-        configText = "[Interface]".toByteArray(),
+        type = TunnelConfigType.TAILSCALE.name,
+        configText = "pretend authkey".toByteArray(),
     )
 }
