@@ -1093,6 +1093,44 @@ class SftpViewModel @Inject constructor(
         if (downloads.canRead()) {
             roots.add(SftpEntry("Downloads", downloads.absolutePath, true, 0, downloads.lastModified() / 1000, ""))
         }
+        // Removable storage — USB SD card readers, USB flash drives, and
+        // (on some phones) physical microSD slots. StorageManager enumerates
+        // all mounted volumes; each one with a readable `.directory`
+        // (API 30+) is surfaced as its own root. The primary emulated volume
+        // is deliberately skipped because `Internal Storage` above already
+        // covers it.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val sm = appContext.getSystemService(android.os.storage.StorageManager::class.java)
+            val primaryPath = storage.absolutePath
+            sm?.storageVolumes?.forEach { volume ->
+                try {
+                    if (volume.isPrimary) return@forEach
+                    val state = volume.state
+                    if (state != android.os.Environment.MEDIA_MOUNTED &&
+                        state != android.os.Environment.MEDIA_MOUNTED_READ_ONLY) {
+                        return@forEach
+                    }
+                    val dir = volume.directory ?: return@forEach
+                    if (dir.absolutePath == primaryPath) return@forEach
+                    if (!dir.canRead()) return@forEach
+                    val label = volume.getDescription(appContext)
+                        ?: dir.name
+                        ?: "Removable Storage"
+                    roots.add(
+                        SftpEntry(
+                            name = label,
+                            path = dir.absolutePath,
+                            isDirectory = true,
+                            size = 0,
+                            modifiedTime = dir.lastModified() / 1000,
+                            permissions = "",
+                        ),
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipping storage volume: ${e.message}")
+                }
+            }
+        }
         // PRoot Alpine rootfs — only surfaced when the rootfs has been
         // installed. Lands the user in /root (the shell's home dir)
         // rather than the rootfs top, since that's where ~/.profile,
@@ -3155,15 +3193,78 @@ class SftpViewModel @Inject constructor(
     /** Shared counter for recursive copy progress. */
     private val pasteFileCount = java.util.concurrent.atomic.AtomicInteger(0)
     private val pasteInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
+    /** Pre-walked total number of files in the paste selection, or 0 when unknown. */
+    private val pasteTotalFiles = java.util.concurrent.atomic.AtomicInteger(0)
 
-    private fun updatePasteProgress(fileName: String) {
-        val count = pasteFileCount.incrementAndGet()
-        _transferProgress.value = TransferProgress(
-            "$count files: $fileName",
-            0,
-            0,
-        )
+    /**
+     * Called as each file transfer *starts*, before bytes move. Shows
+     * "Uploading N of M: filename" when we know the total (pre-walked),
+     * otherwise "Uploading N: filename". Replaces the old post-completion
+     * progress update so the user sees live movement through the batch
+     * instead of a long "Preparing..." on the first (often largest) file.
+     */
+    private fun beforePasteFile(fileName: String) {
+        val current = pasteFileCount.incrementAndGet()
+        val total = pasteTotalFiles.get()
+        val label = if (total > 0) {
+            "Uploading $current of $total: $fileName"
+        } else {
+            "Uploading $current: $fileName"
+        }
+        _transferProgress.value = TransferProgress(label, 0, 0)
     }
+
+    /**
+     * Pre-walk the clipboard entries to count total leaf files. Best-effort:
+     * any listing error yields a partial count (or zero for that subtree),
+     * which is fine — the UI falls back to "Uploading N:" without a total.
+     */
+    private fun countPasteFiles(cb: FileClipboard): Int = cb.entries.sumOf { entry ->
+        try {
+            countLeafFiles(cb, entry)
+        } catch (e: Exception) {
+            Log.w(TAG, "Pre-walk failed for ${entry.path}: ${e.message}")
+            0
+        }
+    }
+
+    private fun countLeafFiles(cb: FileClipboard, entry: SftpEntry): Int {
+        if (!entry.isDirectory) return 1
+        val children = when (cb.sourceBackendType) {
+            BackendType.LOCAL -> {
+                java.io.File(entry.path).listFiles()?.map {
+                    SftpEntry(it.name, it.absolutePath, it.isDirectory, 0, 0, "")
+                } ?: emptyList()
+            }
+            BackendType.RCLONE -> {
+                rcloneClient.listDirectory(cb.sourceRemoteName!!, entry.path).map { rc ->
+                    SftpEntry(rc.name, "${entry.path.trimEnd('/')}/${rc.name}", rc.isDir, 0, 0, "")
+                }
+            }
+            BackendType.SFTP -> {
+                val channel = cb.sourceSftpChannel
+                    ?: sessionManager.openSftpForProfile(cb.sourceProfileId) ?: return 0
+                val results = mutableListOf<SftpEntry>()
+                channel.ls(entry.path) { lsEntry ->
+                    val name = lsEntry.filename
+                    if (name != "." && name != "..") {
+                        results.add(SftpEntry(name, "${entry.path.trimEnd('/')}/$name", lsEntry.attrs.isDir, 0, 0, ""))
+                    }
+                    com.jcraft.jsch.ChannelSftp.LsEntrySelector.CONTINUE
+                }
+                results
+            }
+            BackendType.SMB -> {
+                val client = cb.sourceSmbClient
+                    ?: smbSessionManager.getClientForProfile(cb.sourceProfileId) ?: return 0
+                client.listDirectory(entry.path).map { smb ->
+                    SftpEntry(smb.name, smb.path, smb.isDirectory, 0, 0, "")
+                }
+            }
+        }
+        return children.sumOf { countLeafFiles(cb, it) }
+    }
+
 
     fun pasteFromClipboard() {
         val cb = _clipboard.value ?: return
@@ -3187,7 +3288,21 @@ class SftpViewModel @Inject constructor(
                 _loading.value = true
                 pasteInProgress.set(true)
                 pasteFileCount.set(0)
-                _transferProgress.value = TransferProgress("Preparing...", 0, 0)
+                pasteTotalFiles.set(0)
+                _transferProgress.value = TransferProgress("Scanning selection…", 0, 0)
+
+                // Pre-walk the selection to know total file count. For pure
+                // local sources this is fast (just java.io listing). For
+                // remote sources (SFTP/SMB/rclone) it costs a directory
+                // listing per subdir — acceptable for interactive paste,
+                // and a counted progress label is much more useful than a
+                // mystery "Preparing…".
+                val total = withContext(Dispatchers.IO) { countPasteFiles(cb) }
+                pasteTotalFiles.set(total)
+                _transferProgress.value = TransferProgress(
+                    if (total > 0) "Uploading 0 of $total…" else "Uploading…",
+                    0, 0,
+                )
 
                 for (entry in cb.entries) {
                     val destEntryPath = destPath.trimEnd('/') + "/" + entry.name
@@ -3200,8 +3315,8 @@ class SftpViewModel @Inject constructor(
                                 rcloneClient.mkdir(dstRemote, destEntryPath)
                                 copyRcloneDir(srcRemote, entry.path, dstRemote, destEntryPath)
                             } else {
+                                beforePasteFile(entry.name)
                                 rcloneClient.copyFile(srcRemote, entry.path, dstRemote, destEntryPath)
-                                updatePasteProgress(entry.name)
                             }
                         } else {
                             if (entry.isDirectory) {
@@ -3233,18 +3348,56 @@ class SftpViewModel @Inject constructor(
         }
     }
 
-    /** Copy a single file between backends via temp file. */
+    /**
+     * Copy a single file between backends.
+     *
+     * Fast path: when the source is LOCAL, stream directly from the on-disk
+     * source file to the destination backend. Avoids a pointless copy to
+     * `appContext.cacheDir/cross_copy_...` that used to run before every
+     * upload — expensive for large files (fills internal storage with a
+     * temporary duplicate) and especially wasteful when the source is on
+     * an external volume like a USB SD card.
+     *
+     * Slow path: for remote sources (SFTP / SMB / rclone) we still stage
+     * through a cache file, because the source stream can't be held open
+     * for an unbounded time while we open a destination channel and the
+     * cached file lets us query size and reopen cleanly.
+     */
     private fun crossCopyFile(
         cb: FileClipboard, entry: SftpEntry,
         destType: BackendType, destProfileId: String, destRemote: String?,
         destPath: String,
     ) {
+        beforePasteFile(entry.name)
+
+        if (cb.sourceBackendType == BackendType.LOCAL) {
+            val srcFile = java.io.File(entry.path)
+            when (destType) {
+                BackendType.LOCAL -> {
+                    writeLocalFileWithMediaStoreFallback(srcFile, destPath)
+                }
+                BackendType.RCLONE -> {
+                    rcloneClient.copyFile(srcFile.parent!!, srcFile.name, destRemote!!, destPath)
+                }
+                BackendType.SFTP -> {
+                    val channel = getOrOpenChannel(destProfileId) ?: throw IllegalStateException("SFTP not connected")
+                    srcFile.inputStream().use { input -> channel.put(input, destPath) }
+                }
+                BackendType.SMB -> {
+                    val client = activeSmbClient ?: throw IllegalStateException("SMB not connected")
+                    srcFile.inputStream().use { input -> client.upload(input, destPath, srcFile.length()) { _, _ -> } }
+                }
+            }
+            return
+        }
+
         val tempFile = java.io.File(appContext.cacheDir, "cross_copy_${entry.name}")
         try {
-            // Download from source to temp
+            // Download from source to temp (remote sources only — LOCAL went
+            // through the fast-path above).
             when (cb.sourceBackendType) {
                 BackendType.LOCAL -> {
-                    java.io.File(entry.path).copyTo(tempFile, overwrite = true)
+                    // unreachable — handled by fast-path above
                 }
                 BackendType.RCLONE -> {
                     val srcRemote = cb.sourceRemoteName!!
@@ -3281,7 +3434,6 @@ class SftpViewModel @Inject constructor(
                     tempFile.inputStream().use { input -> client.upload(input, destPath, tempFile.length()) { _, _ -> } }
                 }
             }
-            updatePasteProgress(entry.name)
         } finally {
             tempFile.delete()
         }
@@ -3434,8 +3586,8 @@ class SftpViewModel @Inject constructor(
                 rcloneClient.mkdir(dstRemote, childDst)
                 copyRcloneDir(srcRemote, childSrc, dstRemote, childDst)
             } else {
+                beforePasteFile(child.name)
                 rcloneClient.copyFile(srcRemote, childSrc, dstRemote, childDst)
-                updatePasteProgress(child.name)
             }
         }
     }
