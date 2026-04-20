@@ -13,15 +13,32 @@ import java.io.ByteArrayOutputStream
 class TunnelProxyTest {
 
     @Test
-    fun connectDialsTunnelWithHostPortTimeout() {
+    fun connectClampsShortTimeoutToTunnelMinimum() {
+        // JSch's default 10s connect timeout isn't enough for cold-peer tunnel
+        // handshakes (WireGuard, magicsock/DERP, MagicDNS). TunnelProxy clamps
+        // up to a 30s floor so those can complete. Verify the clamp is in effect
+        // by passing 10s in and expecting 30s to reach the tunnel.
         val tunnel = mockk<Tunnel>()
         val conn = fakeConn()
-        every { tunnel.dial("example.com", 22, 10_000) } returns conn
+        every { tunnel.dial("example.com", 22, 30_000) } returns conn
 
         val proxy = TunnelProxy(tunnel)
         proxy.connect(null, "example.com", 22, 10_000)
 
-        verify(exactly = 1) { tunnel.dial("example.com", 22, 10_000) }
+        verify(exactly = 1) { tunnel.dial("example.com", 22, 30_000) }
+    }
+
+    @Test
+    fun connectPassesThroughTimeoutAboveMinimum() {
+        // A caller that already asks for ≥ the tunnel minimum is honoured.
+        val tunnel = mockk<Tunnel>()
+        val conn = fakeConn()
+        every { tunnel.dial("example.com", 22, 60_000) } returns conn
+
+        val proxy = TunnelProxy(tunnel)
+        proxy.connect(null, "example.com", 22, 60_000)
+
+        verify(exactly = 1) { tunnel.dial("example.com", 22, 60_000) }
     }
 
     @Test
